@@ -9,8 +9,5 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",
     "fflate": "^0.8.3"
-  },
-  "scripts": {
-    "vercel-build": "node lib/fetch-release.js"
   }
 }

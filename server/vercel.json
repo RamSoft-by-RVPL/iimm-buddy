@@ -1,4 +1,7 @@
 {
+  "buildCommand": "node lib/fetch-release.js",
+  "outputDirectory": "public",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
   "rewrites": [
     {
       "source": "/admin",
@@ -49,6 +52,5 @@
         }
       ]
     }
-  ],
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ."
+  ]
 }

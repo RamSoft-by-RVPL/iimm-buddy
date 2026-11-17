@@ -26,7 +26,7 @@ the handlers locally for testing.
 
 Deploys come from GitHub: Vercel builds the `server/` folder of
 `bvmanas/iimm-buddy` on every push to `main` that touches it. The APK is not
-kept in git. The build step (`npm run vercel-build`, `lib/fetch-release.js`)
+kept in git. The build command (`lib/fetch-release.js`, set in `vercel.json`)
 copies `IIMM-Buddy.apk` and `version.json` from the newest GitHub Release into
 `public/`, and stops the build if they don't match.
 
