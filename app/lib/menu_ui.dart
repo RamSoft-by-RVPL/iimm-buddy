@@ -48,8 +48,7 @@ class MenuCard extends StatelessWidget {
     final (icon, title, body) = next == null
         ? (
             Icons.restaurant_menu_outlined,
-            'Menu from ${_weekdays[later!.date.weekday - 1]}, '
-                '${fmtDate(later.date)}',
+            'Menu from ${fmtDate(later!.date)}',
             'The next menu is up. Tap to see every day.'
           )
         : (
