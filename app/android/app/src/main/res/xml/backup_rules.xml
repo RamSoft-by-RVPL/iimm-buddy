@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phones before Android 12: back up settings and the leave log only.
+     Downloaded notes are too big and the sign-in must not be copied. -->
+<full-backup-content>
+    <include domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+</full-backup-content>

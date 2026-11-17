@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_card">#FFFFFFFF</color>
+    <color name="w_line">#FFE2DCDA</color>
+    <color name="w_text">#FF1C1A1A</color>
+    <color name="w_dim">#FF615C5A</color>
+    <color name="w_brand">#FF9B1C1C</color>
+</resources>

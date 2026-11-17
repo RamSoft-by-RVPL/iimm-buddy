@@ -1,0 +1,16 @@
+# Never commit these (the copy script skips them too)
+.env*
+*.apk
+*.jks
+*.keystore
+key.properties
+publisher-key.txt
+google-services.json
+*service-account*
+node_modules/
+.vercel/
+build/
+.dart_tool/
+.gradle/
+local.properties
+.DS_Store

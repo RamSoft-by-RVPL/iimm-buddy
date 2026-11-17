@@ -1,0 +1,558 @@
+import 'dart:async';
+
+import 'package:cookie_bridge/cookie_bridge.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+import 'attendance_ui.dart';
+import 'backend.dart';
+import 'background.dart';
+import 'exams_ui.dart';
+import 'health.dart';
+import 'leave.dart';
+import 'leave_ui.dart';
+import 'log.dart';
+import 'moodle.dart';
+import 'moodle_ui.dart';
+import 'notify.dart';
+import 'plan_ui.dart';
+import 'push.dart';
+import 'session.dart';
+import 'settings_ui.dart';
+import 'theme.dart';
+import 'site.dart';
+import 'timetable_ui.dart';
+import 'ui_common.dart';
+import 'update.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final store = Store(await SharedPreferences.getInstance());
+  final session = Session();
+  try {
+    await initNotifications();
+    await registerBackground();
+    unawaited(initPush(store.prefs));
+  } catch (_) {
+    // The app still works without reminders and background checks.
+  }
+  runApp(AttendanceApp(
+      store: store,
+      session: session,
+      moodle: Moodle(store.prefs, onScreen: session.ensureMoodle)));
+}
+
+class AttendanceApp extends StatelessWidget {
+  const AttendanceApp(
+      {super.key,
+      required this.store,
+      required this.session,
+      required this.moodle});
+  final Moodle moodle;
+  final Store store;
+  final Session session;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'IIMM Buddy',
+      debugShowCheckedModeBanner: false,
+      theme: appTheme(Brightness.light),
+      darkTheme: appTheme(Brightness.dark),
+      home: Root(store: store, session: session, moodle: moodle),
+    );
+  }
+}
+
+class Root extends StatefulWidget {
+  const Root(
+      {super.key,
+      required this.store,
+      required this.session,
+      required this.moodle});
+  final Moodle moodle;
+  final Store store;
+  final Session session;
+
+  @override
+  State<Root> createState() => _RootState();
+}
+
+class _RootState extends State<Root> with WidgetsBindingObserver {
+  Snapshot? snap;
+  String? error;
+  bool syncing = false;
+  int tab = 0;
+  List<Problem> problems = const [];
+  final moodleKey = GlobalKey<MoodleTabState>();
+
+  Store get store => widget.store;
+  Session get session => widget.session;
+  Moodle get moodle => widget.moodle;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    snap = store.cached;
+    session.addListener(_onSession);
+    pushArrived.addListener(_onPush);
+    refresh();
+    _taps = notificationTaps.stream.listen(_openFrom);
+    openedFromNotification().then((p) {
+      if (p != null) _openFrom(p);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeSheet());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    session.removeListener(_onSession);
+    pushArrived.removeListener(_onPush);
+    _taps?.cancel();
+    super.dispose();
+  }
+
+  /// A timetable sheet opened with, or shared to, the app.
+  Future<void> _takeSheet() async {
+    try {
+      final f = await takeSharedFile();
+      if (f == null || !mounted) return;
+      final found = await store.importSheet(f.$2);
+      logEvent(store.prefs, 'sheet_import', '${found.length} classes');
+      final old = snap;
+      final s = store.cached;
+      if (!mounted) return;
+      setState(() {
+        snap = s ?? snap;
+        tab = 1;
+      });
+      if (s != null) await afterSync(store, old, s, alert: false);
+      // The publisher's phone passes it on to the whole batch.
+      var sent = '';
+      if ((store.prefs.getString('pub_key') ?? '').isNotEmpty) {
+        try {
+          await publishTimetable(store.prefs);
+          sent = ' Sent to the whole class.';
+          logEvent(store.prefs, 'publish_ok', '${found.length} classes');
+        } catch (e) {
+          sent = ' Not sent to the class: ${errorText(e)}.';
+          logEvent(store.prefs, 'publish_fail', errorLine(e));
+        }
+      }
+      final first =
+          found.map((c) => c.date).reduce((a, b) => a.isBefore(b) ? a : b);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Timetable added: ${found.length} classes from '
+              '${shortDate(first)}. Reminders are set.$sent')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not read that file as a timetable. '
+              '${errorText(e)}')));
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _takeSheet();
+    // Background checks may have saved newer data while the app was away.
+    _checkHealth();
+    store.prefs.reload().then((_) {
+      if (!mounted) return;
+      setState(() => snap = store.cached ?? snap);
+      if (session.state == SessionState.needsLogin) return;
+      if (snap == null ||
+          DateTime.now().difference(snap!.syncedAt).inMinutes >= 15) {
+        refresh();
+      } else {
+        _quickPull();
+      }
+    });
+  }
+
+  StreamSubscription<String>? _taps;
+
+  /// Goes where a tapped notification points: "timetable", "course:12",
+  /// "moodle" or "home".
+  void _openFrom(String place) {
+    if (!mounted) return;
+    logEvent(store.prefs, 'opened_from', place);
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    if (place == 'timetable') {
+      setState(() => tab = 1);
+    } else if (place == 'moodle') {
+      setState(() => tab = 3);
+    } else if (place.startsWith('course:')) {
+      setState(() => tab = 3);
+      final id = int.tryParse(place.substring(7));
+      MoodleCourse? course;
+      for (final c in moodle.cachedCourses ?? const <MoodleCourse>[]) {
+        if (c.id == id) course = c;
+      }
+      if (course != null) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CourseScreen(moodle: moodle, course: course!)));
+      }
+    } else {
+      setState(() => tab = 0);
+    }
+  }
+
+  /// A push was handled while the app is open: show what it brought.
+  void _onPush() {
+    store.prefs.reload().then((_) {
+      if (mounted) setState(() => snap = store.cached ?? snap);
+    });
+  }
+
+  /// Every time the app comes to the front: messages, the shared timetable
+  /// and updates from the server, without waiting for the next full refresh.
+  Future<void> _quickPull() async {
+    final s = snap;
+    if (s == null) return;
+    try {
+      final merged = await withSharedTimetable(store, s, alert: false);
+      await checkUpdate(store.prefs);
+      if (!mounted) return;
+      setState(() => snap = merged);
+      if (!identical(merged, s)) {
+        await afterSync(store, s, merged, alert: false);
+      }
+    } catch (_) {}
+  }
+
+  SessionState? _last;
+  void _onSession() {
+    final s = session.state;
+    if (s == SessionState.signedIn && _last == SessionState.needsLogin) {
+      logEvent(store.prefs, 'signed_in');
+      refresh(); // the user has just signed in on screen
+    }
+    _last = s;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> refresh() async {
+    if (syncing) return;
+    setState(() {
+      syncing = true;
+      error = null;
+    });
+    logEvent(store.prefs, 'refresh', 'version $appVersion');
+    try {
+      final old = snap;
+      var s = await store.sync(session.api);
+      if (mounted) setState(() => snap = s);
+      s = await withSharedTimetable(store, s, alert: false);
+      if (mounted) setState(() => snap = s);
+      await afterSync(store, old, s, alert: false);
+      logEvent(store.prefs, 'sync_ok', '${s.next.length} classes ahead');
+      unawaited(initPush(store.prefs)); // the batch is known now
+      unawaited(checkUpdate(store.prefs).then((_) {
+        if (mounted) setState(() {});
+      }));
+      await _askPermissionOnce();
+      // Once: how the student wants assignment reminders.
+      if (mounted &&
+          store.prefs.getBool('setup_done') == true &&
+          store.prefs.getBool('asked_due') != true) {
+        await store.prefs.setBool('asked_due', true);
+        if (mounted) await askDueTimes(context, store);
+      }
+      // Moodle in the same pass: deadlines for the timetable, reminders,
+      // and it keeps the Moodle session alive.
+      // With alerts: something added to Moodle is announced even when it is
+      // found while the app is open.
+      unawaited(checkMoodle(store, moodle, alert: true).then((_) {
+        logEvent(store.prefs, 'moodle_ok');
+        if (mounted) setState(() {});
+      }).catchError((Object e) {
+        logEvent(store.prefs, e is NotSignedIn ? 'need_login' : 'moodle_fail',
+            e is NotSignedIn ? 'moodle' : errorLine(e));
+      }).whenComplete(() => flushLogs(store.prefs, force: true)));
+    } on NotSignedIn {
+      // The sign-in screen takes over.
+      logEvent(store.prefs, 'need_login', 'attendance');
+    } catch (e) {
+      logEvent(store.prefs, 'sync_fail', errorLine(e));
+      if (mounted) setState(() => error = errorText(e));
+      unawaited(flushLogs(store.prefs, force: true));
+    } finally {
+      if (mounted) setState(() => syncing = false);
+    }
+  }
+
+  Future<void> _askPermissionOnce() => _checkHealth();
+
+  /// Looks for phone settings that would stop reminders.
+  Future<void> _checkHealth() async {
+    try {
+      final (_, p) = await checkHealth();
+      final health = [for (final x in p) x.code].join(', ');
+      if (store.prefs.getString('log_health') != health) {
+        await store.prefs.setString('log_health', health);
+        logEvent(store.prefs, 'health', health.isEmpty ? 'all fine' : health);
+      }
+      if (mounted) setState(() => problems = p);
+    } catch (_) {}
+  }
+
+  /// Settings changed: recompute what depends on them.
+  Future<void> settingsChanged() async {
+    final s = store.cached ?? snap;
+    setState(() => snap = s);
+    if (s != null) await afterSync(store, s, s, alert: false);
+    unawaited(checkMoodle(store, moodle, alert: true).catchError((_) {}));
+  }
+
+  Future<void> signOut() async {
+    await store.clear();
+    await moodle.clear();
+    await removeCalendar().catchError((_) {});
+    store.calendarSync = false;
+    setState(() => snap = null);
+    await session.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Straight after installing: the permissions reminders depend on.
+    if (store.prefs.getBool('setup_done') != true) {
+      return SetupScreen(onDone: () async {
+        await store.prefs.setBool('setup_done', true);
+        logEvent(store.prefs, 'setup_done');
+        await _checkHealth();
+        if (mounted) setState(() {});
+      });
+    }
+    if (session.state == SessionState.needsLogin) {
+      return LoginScreen(session: session);
+    }
+    final s = snap;
+    final notice = currentNotice(store.prefs, DateTime.now());
+    final update = knownUpdate(store.prefs);
+    Widget needData(Widget Function(Snapshot) build) => s == null
+        ? Center(
+            child: error != null
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    EmptyNote(
+                        icon: Icons.cloud_off_outlined,
+                        title: 'Could not load your attendance',
+                        text: error),
+                    FilledButton(
+                        onPressed: refresh, child: const Text('Try again')),
+                  ])
+                : const Column(mainAxisSize: MainAxisSize.min, children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Getting your attendance...'),
+                  ]),
+          )
+        : Column(children: [
+            if (update != null)
+              Strip(
+                icon: Icons.system_update_outlined,
+                text: 'Version ${update.version} is ready.'
+                    '${update.notes.isEmpty ? '' : ' ${update.notes}'}',
+                action: 'Update',
+                filled: true,
+                onAction: () => runUpdate(context, store.prefs, update),
+              ),
+            if (notice != null)
+              Strip(
+                icon: Icons.campaign_outlined,
+                text: notice.body.isEmpty
+                    ? notice.title
+                    : '${notice.title}\n${notice.body}',
+                action: 'Close',
+                onAction: () async {
+                  await store.prefs.setInt('notice_closed', notice.id);
+                  if (mounted) setState(() {});
+                },
+              ),
+            if (problems.isNotEmpty &&
+                (store.remindClasses || store.notifyMoodle))
+              Strip(
+                icon: Icons.notifications_off_outlined,
+                color: Tone.of(context).bad,
+                text: problems.length == 1
+                    ? '${problems.first.title}. Reminders may not arrive.'
+                    : 'Reminders may not arrive: ${problems.length} phone '
+                        'settings need a change.',
+                action: 'Fix',
+                onAction: () async {
+                  await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => SettingsScreen(
+                              store: store,
+                              onChanged: settingsChanged,
+                              onSignOut: signOut)));
+                  _checkHealth();
+                },
+              ),
+            if (error != null)
+              Strip(
+                icon: Icons.cloud_off_outlined,
+                color: Tone.of(context).warn,
+                text: 'Showing saved data. Could not refresh: $error',
+                action: 'Retry',
+                onAction: refresh,
+              ),
+            Expanded(child: build(s)),
+          ]);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+            const ['IIMM Buddy', 'Timetable', 'Plan leave', 'Moodle'][tab]),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: syncing
+                ? null
+                : () {
+                    refresh();
+                    moodleKey.currentState?.load();
+                  },
+            icon: syncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh),
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => SettingsScreen(
+                        store: store,
+                        onChanged: settingsChanged,
+                        onSignOut: signOut))),
+          ),
+        ],
+      ),
+      body: switch (tab) {
+        0 => needData((s) => AttendanceTab(
+              snap: s,
+              minPct: store.minPct,
+              onRefresh: refresh,
+              fixEmail: store.fixEmail,
+              leaveCount: absences(s)
+                  .where((x) => store.leaves.containsKey(x.id))
+                  .length,
+              onOpenTimetable: () => setState(() => tab = 1),
+              exams: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ExamsCard(
+                        store: store,
+                        snap: s,
+                        onChanged: () {
+                          if (mounted) setState(() {});
+                        }),
+                    TermCard(events: store.calendar),
+                  ]),
+              shortNames: store.shortNames,
+              onShortName: (c, v) {
+                store.setShortName(c.name, v);
+                settingsChanged(); // reminders and widget use the new name
+              },
+              onOpenLeave: () async {
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => LeaveLogScreen(
+                            store: store, snap: s, minPct: store.minPct)));
+                if (mounted) setState(() {});
+              },
+              onEditTotal: (c, total) {
+                store.setTotal(c.id, total);
+                setState(() => snap = store.cached ?? snap);
+              },
+            )),
+        1 => needData((s) => TimetableTab(
+            snap: s,
+            minPct: store.minPct,
+            fixEmail: store.fixEmail,
+            exams: store.exams,
+            calendar: store.calendar,
+            onOpenDeadline: (d) {
+              if (d.url.isEmpty) return;
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          WebPage(title: d.name, url: d.url, moodle: moodle)));
+            },
+            deadlines: moodle.cachedDeadlines ?? const [])),
+        2 => needData((s) =>
+            PlanTab(snap: s, minPct: store.minPct, calendar: store.calendar)),
+        _ => MoodleTab(key: moodleKey, moodle: moodle),
+      },
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (i) => setState(() => tab = i),
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Home'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_today_outlined),
+              selectedIcon: Icon(Icons.calendar_today_rounded),
+              label: 'Timetable'),
+          NavigationDestination(
+              icon: Icon(Icons.event_busy_outlined),
+              selectedIcon: Icon(Icons.event_busy),
+              label: 'Leave'),
+          NavigationDestination(
+              icon: Icon(Icons.menu_book_outlined),
+              selectedIcon: Icon(Icons.menu_book_rounded),
+              label: 'Moodle'),
+        ],
+      ),
+    );
+  }
+}
+
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key, required this.session});
+  final Session session;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sign in'),
+        actions: [
+          IconButton(
+            tooltip: 'Start the sign-in again',
+            onPressed: session.restartLogin,
+            icon: const Icon(Icons.restart_alt),
+          ),
+        ],
+      ),
+      body: Column(children: [
+        const Strip(
+          icon: Icons.lock_outline,
+          text: 'Sign in with your IIM Mumbai Microsoft account. Choose '
+              '"Yes" when asked to stay signed in, so you only do this once. '
+              'Your password goes only to Microsoft.',
+        ),
+        const SizedBox(height: 4),
+        Expanded(child: WebViewWidget(controller: session.controller)),
+      ]),
+    );
+  }
+}
