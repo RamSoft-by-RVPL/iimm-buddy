@@ -282,3 +282,27 @@ Future<bool> pullCalendar(SharedPreferences prefs) async {
   await prefs.setString('acal_remote', updated);
   return true;
 }
+
+/// Fetches the mess menu (the same for everyone). True when it changed.
+Future<bool> pullMenu(SharedPreferences prefs) async {
+  final (status, text) = await _send('GET', Uri.parse('$apiBase/api/menu'));
+  if (status != 200) return false;
+  // Weeks drop off the answer as they pass, so compare the whole answer.
+  if (text == prefs.getString('menu')) return false;
+  await prefs.setString('menu', text);
+  return true;
+}
+
+/// Fetches the batch's exam timetable. True when it changed on this phone.
+Future<bool> pullExams(SharedPreferences prefs) async {
+  final batch = batchKey(prefs.getString('summary'));
+  if (batch == null) return false;
+  final (status, text) =
+      await _send('GET', Uri.parse('$apiBase/api/exams?batch=$batch'));
+  if (status != 200) return false;
+  final updated = '${(jsonDecode(text) as Map)['updated'] ?? ''}';
+  if (updated == (prefs.getString('exams_remote') ?? '')) return false;
+  await prefs.setString('exams_pub', text);
+  await prefs.setString('exams_remote', updated);
+  return true;
+}

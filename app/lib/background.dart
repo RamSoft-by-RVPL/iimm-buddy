@@ -8,6 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'acal.dart';
 import 'backend.dart';
+import 'changes.dart';
 import 'exams.dart';
 import 'log.dart';
 import 'moodle.dart';
@@ -152,6 +153,28 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
   } catch (_) {
     // No connection: it comes with the next check.
   }
+  // The mess menu (shown on the home screen, no notification).
+  try {
+    await pullMenu(store.prefs);
+  } catch (_) {}
+  // The exam timetable: said once when the student's papers are in it.
+  try {
+    if (await pullExams(store.prefs)) {
+      final mine = store.publishedExamsFor(snap.courses);
+      logEvent(store.prefs, 'exams_new', '${mine.length} papers');
+      final coming = mine.where((e) => e.at.isAfter(DateTime.now())).toList();
+      if (alert && coming.isNotEmpty) {
+        await notify(
+            7,
+            'Exam timetable is out',
+            '${coming.length} ${coming.length == 1 ? 'paper' : 'papers'} of '
+                'your courses, from ${shortDate(coming.first.at)}. Reminders '
+                'are set.',
+            'classes',
+            open: 'home');
+      }
+    }
+  } catch (_) {}
   List<SheetClass>? fresh;
   try {
     fresh = await pullTimetable(store.prefs);
@@ -301,6 +324,11 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
   try {
     await scheduleReminders(
         prefs, 'rem_exam', 'classes', examReminders(store.exams));
+    await scheduleReminders(prefs, 'rem_pexam', 'classes',
+        publishedExamReminders(store.publishedExamsFor(snap.courses)));
+  } catch (_) {}
+  try {
+    await announceClassChanges(store, snap);
   } catch (_) {}
   try {
     await scheduleReminders(
@@ -314,6 +342,23 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
     for (final (title, body) in attendanceAlerts(old, snap, store.minPct)) {
       await notify(id++, title, body, 'attendance');
     }
+  }
+}
+
+/// Compares the coming week's classes with the last refresh and says what
+/// moved, was cancelled, changed room or was added.
+Future<void> announceClassChanges(Store store, Snapshot snap) async {
+  final prefs = store.prefs;
+  final now = DateTime.now();
+  final coming = comingClasses(snap.next, now);
+  final before = decodeSeen(prefs.getString('seen_classes'));
+  await prefs.setString('seen_classes', encodeSeen(coming));
+  if (before == null || !store.warnChanges) return;
+  var id = 310000;
+  for (final c in classChanges(before, coming, now)) {
+    await notify(id++, c.title, c.body, 'classes',
+        open: 'timetable', key: 'change:${c.key}');
+    logEvent(prefs, 'class_change', c.title);
   }
 }
 

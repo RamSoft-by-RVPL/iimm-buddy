@@ -10,7 +10,7 @@
   @media (prefers-color-scheme: dark) { :root { --bg:#161313; --card:#211c1c; --ink:#efe8e6; --dim:#a39896; --line:#3a3231; --accent:#ef8a8a; --bad:#ff8a80; --ok:#81c784; } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  #tt div, #nt div, #ac div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar { display:flex; }
+  #tt div, #nt div, #ac div, #mn div, #ex div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar { display:flex; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
   main { max-width:1100px; margin:0 auto; padding:16px; }
   h1 { font-size:20px; margin:8px 0 16px; } h2 { font-size:15px; margin:24px 0 8px; color:var(--dim); font-weight:600; }
@@ -78,6 +78,16 @@
       <div id="acMsg"></div>
       <div id="acPreview"></div>
       <div id="acNow"></div>
+    </section>
+    <section id="mn" class="card" style="margin-bottom:16px">
+      <b>Mess menu</b>
+      <p class="dim" style="margin:4px 0 10px">The week's menu shown in the app, for everyone. To publish one, give the mess's menu file to Claude: it reads the file and sends the menu here.</p>
+      <div id="mnNow"></div>
+    </section>
+    <section id="ex" class="card" style="margin-bottom:16px">
+      <b>Exam timetable</b>
+      <p class="dim" style="margin:4px 0 10px">Each student sees the papers of their own courses, with a countdown and reminders the evening before and an hour before. To publish one, give the exam schedule to Claude.</p>
+      <div id="exNow"></div>
     </section>
     <section id="nt" class="card" style="margin-bottom:16px">
       <b>Send a notification</b>
@@ -274,6 +284,39 @@ $('acRead').onclick = async () => {
   } catch (e) { acSay('Could not reach the server. ' + e.message, 'bad'); }
 };
 
+// ---- mess menu and exam timetable (published by Claude, shown and removed here)
+function mnDraw() {
+  if (!data) return;
+  const weeks = data.menus || [];
+  $('mnNow').innerHTML = weeks.length ? weeks.map((w) => {
+    const meals = [...new Set(w.days.flatMap((d) => d.meals.map((m) => m.n)))];
+    return `<details style="margin-top:8px"><summary><b>Week of ${nice(w.week)}</b> <span class="dim">· ${w.days.length} days · updated ${when(w.updated)}</span>
+        <button class="plain" data-mndel="${esc(w.week)}" type="button" style="margin-left:8px; padding:4px 10px">Remove</button></summary>
+      <div class="scroll" style="margin-top:8px"><table><thead><tr><th></th>${w.days.map((d) => `<th>${nice(d.d)}</th>`).join('')}</tr></thead><tbody>
+        ${meals.map((n) => `<tr><td><b>${esc(n)}</b></td>${w.days.map((d) => { const m = d.meals.find((x) => x.n === n); return `<td>${m ? m.items.map(esc).join('<br>') : '<span class="dim">none</span>'}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div></details>`;
+  }).join('') : '<p class="dim" style="margin:0">No menu for this week or later.</p>';
+  document.querySelectorAll('[data-mndel]').forEach((b) => b.onclick = async (e) => {
+    e.preventDefault(); b.disabled = true;
+    await fetch('/api/menu?week=' + encodeURIComponent(b.dataset.mndel), { method: 'DELETE' });
+    load();
+  });
+}
+function exDraw() {
+  if (!data) return;
+  const all = data.exams || [];
+  $('exNow').innerHTML = all.length ? all.map((t) => `<details style="margin-top:8px"><summary><b>${esc(t.batch)}</b> <span class="dim">· ${esc(t.title) || 'Exams'} · ${t.exams.length} ${t.exams.length === 1 ? 'paper' : 'papers'} · updated ${when(t.updated)}</span>
+      <button class="plain" data-exdel="${esc(t.batch)}" type="button" style="margin-left:8px; padding:4px 10px">Remove</button></summary>
+    <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Room</th><th>Note</th></tr></thead><tbody>
+      ${t.exams.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}${x.e ? ' to ' + x.e : ''}</td><td>${esc(x.c)}</td><td>${esc(x.r)}</td><td>${esc(x.n)}</td></tr>`).join('')}
+    </tbody></table></div></details>`).join('') : '<p class="dim" style="margin:0">None published.</p>';
+  document.querySelectorAll('[data-exdel]').forEach((b) => b.onclick = async (e) => {
+    e.preventDefault(); b.disabled = true;
+    await fetch('/api/exams?batch=' + encodeURIComponent(b.dataset.exdel), { method: 'DELETE' });
+    load();
+  });
+}
+
 // ---- notifications to the phones
 function ntSay(text, cls) { $('ntMsg').className = cls || ''; $('ntMsg').textContent = text || ''; }
 function ntDraw() {
@@ -311,8 +354,8 @@ $('ntSend').onclick = async () => {
 async function load() {
   try {
     if (current) drawUser(await get('?user=' + encodeURIComponent(current)));
-    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); }
-    $('tt').hidden = !!current; $('nt').hidden = !!current; $('ac').hidden = !!current;
+    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); }
+    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex']) $(id).hidden = !!current;
     $('back').hidden = !current; $('stamp').textContent = 'Loaded ' + when(new Date());
     $('login').hidden = true; $('app').hidden = false;
   } catch (e) { if (e.message !== 'locked') $('stamp').textContent = e.message; }

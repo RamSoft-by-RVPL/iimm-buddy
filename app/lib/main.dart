@@ -15,6 +15,7 @@ import 'inbox_ui.dart';
 import 'leave.dart';
 import 'leave_ui.dart';
 import 'log.dart';
+import 'menu_ui.dart';
 import 'moodle.dart';
 import 'moodle_ui.dart';
 import 'notify.dart';
@@ -487,6 +488,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
               exams: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    MenuCard(days: store.menu),
                     ExamsCard(
                         store: store,
                         snap: s,
@@ -517,7 +519,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
             snap: s,
             minPct: store.minPct,
             fixEmail: store.fixEmail,
-            exams: store.exams,
+            exams: store.allExams(s.courses),
             calendar: store.calendar,
             onOpenDeadline: (d) {
               if (d.url.isEmpty) return;

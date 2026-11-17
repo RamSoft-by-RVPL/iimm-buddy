@@ -177,6 +177,13 @@ class _SettingsScreenState extends State<SettingsScreen>
               if (n != null) changed(() => store.leadMinutes = n);
             }, enabled: store.remindClasses),
             toggle(
+                Icons.swap_horiz,
+                'Class changes',
+                'When a class in the coming week moves, is cancelled, '
+                    'changes room or is added',
+                store.warnChanges,
+                (v) => changed(() => store.warnChanges = v)),
+            toggle(
                 Icons.calendar_month_outlined,
                 'Add classes to my phone calendar',
                 'A calendar named IIMM Buddy with coming classes and Moodle '

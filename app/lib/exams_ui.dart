@@ -131,7 +131,7 @@ Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
   if (result == null) return false;
   final all = [
     for (final e in store.exams)
-      if (e.id != exam?.id) e
+      if (e.id != exam?.id && !e.published) e
   ];
   if (result == 'save') {
     all.add(Exam(exam?.id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -145,7 +145,36 @@ Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
   return true;
 }
 
-/// The coming exams as a card for the home screen.
+/// One published paper: what the exam timetable says about it.
+void _showPaper(BuildContext context, Exam e) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(e.course, style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text('${fmtDate(e.at)} · ${examWhere(e)}',
+                  style: Theme.of(ctx).textTheme.bodyLarge),
+              if (e.note.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(e.note),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                  'From the exam timetable your class admin published. You '
+                  'get a reminder the evening before and an hour before. '
+                  'The exam office\'s notice is final.',
+                  style: Theme.of(ctx).textTheme.bodySmall),
+            ]),
+      ),
+    );
+
+/// The coming exams as a card for the home screen: the papers of the
+/// student's courses from the exam timetable, and the ones they added.
 class ExamsCard extends StatelessWidget {
   const ExamsCard(
       {super.key,
@@ -159,15 +188,36 @@ class ExamsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final tone = Tone.of(context);
     final now = DateTime.now();
     final coming = [
-      for (final e in store.exams)
+      for (final e in store.allExams(snap.courses))
         if (e.at.isAfter(now.subtract(const Duration(hours: 3)))) e
     ];
     Future<void> edit([Exam? e]) async {
       if (await editExam(context, store, snap, exam: e)) onChanged();
     }
+
+    void tap(Exam e) => e.published ? _showPaper(context, e) : edit(e);
+    void all() => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('Exams and quizzes')),
+                  body: ListView(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
+                      children: [
+                        Card(
+                          child: Column(children: [
+                            for (var i = 0; i < coming.length; i++) ...[
+                              if (i > 0)
+                                const Divider(indent: 16, endIndent: 16),
+                              _ExamTile(coming[i], now,
+                                  onTap: () => tap(coming[i])),
+                            ],
+                          ]),
+                        ),
+                      ]),
+                )));
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SectionTitle('Exams and quizzes',
@@ -194,36 +244,54 @@ class ExamsCard extends StatelessWidget {
             : Column(children: [
                 for (var i = 0; i < coming.length && i < 4; i++) ...[
                   if (i > 0) const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    title: Text('${coming[i].kind}: ${coming[i].title}',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text([
-                      if (coming[i].course.isNotEmpty) coming[i].course,
-                      '${fmtDate(coming[i].at)}, '
-                          '${coming[i].at.hour.toString().padLeft(2, '0')}:'
-                          '${coming[i].at.minute.toString().padLeft(2, '0')}',
-                    ].join(' · ')),
-                    trailing: Pill(countdown(coming[i].at, now),
-                        color: coming[i].at.difference(now).inDays < 3
-                            ? tone.bad
-                            : coming[i].at.difference(now).inDays < 8
-                                ? tone.warn
-                                : t.colorScheme.primary),
-                    onTap: () => edit(coming[i]),
-                  ),
+                  _ExamTile(coming[i], now, onTap: () => tap(coming[i])),
                 ],
                 if (coming.length > 4)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('and ${coming.length - 4} more later',
-                          style: t.textTheme.bodySmall),
+                      child: TextButton(
+                          onPressed: all,
+                          child: Text('See all ${coming.length}')),
                     ),
                   ),
               ]),
       ),
     ]);
+  }
+}
+
+class _ExamTile extends StatelessWidget {
+  const _ExamTile(this.e, this.now, {required this.onTap});
+  final Exam e;
+  final DateTime now;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final tone = Tone.of(context);
+    final days = e.at.difference(now).inDays;
+    return ListTile(
+      title: Text(e.published ? 'Exam: ${e.course}' : '${e.kind}: ${e.title}',
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(e.published
+          ? '${fmtDate(e.at)} · ${examWhere(e)}'
+          : [
+              if (e.course.isNotEmpty) e.course,
+              '${fmtDate(e.at)}, '
+                  '${e.at.hour.toString().padLeft(2, '0')}:'
+                  '${e.at.minute.toString().padLeft(2, '0')}',
+            ].join(' · ')),
+      trailing: Pill(countdown(e.at, now),
+          color: days < 3
+              ? tone.bad
+              : days < 8
+                  ? tone.warn
+                  : t.colorScheme.primary),
+      onTap: onTap,
+    );
   }
 }
 

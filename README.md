@@ -21,6 +21,12 @@ and is **not an official app of IIM Mumbai**.
 - **Timetable.** Week and month views. Classes the college mails out but
   hasn't put on the attendance portal yet (HPE, for example) are added from
   the weekly timetable sheet.
+- **Class changes.** A notification when a class in the coming week moves,
+  is cancelled, changes room or is added.
+- **Mess menu.** The next meal on the home screen and the whole week a tap
+  away.
+- **Exam timetable.** Each student sees the papers of their own courses with
+  a countdown, and gets reminders the evening before and an hour before.
 - **Academic calendar.** Holidays, breaks and exams, with reminders.
 - **Leave planner.** Finds long weekends and the longest safe breaks, and
   checks any dates you pick against every course.
@@ -34,6 +40,8 @@ and is **not an official app of IIM Mumbai**.
  Microsoft sign-in in a web view                    /api/timetable   weekly classes per batch
    └─ attendance portal API ─┐                      /api/calendar    academic calendar
    └─ Moodle (AJAX + pages) ─┼─ all on the phone    /api/notices     messages, sent by push
+                             │                      /api/menu        mess menu, week by week
+                             │                      /api/exams       exam timetable per batch
                              │                      /api/log         diagnostics from the app
  Shared data from the server ┘ ◄─────────────────── /admin           login, stats, uploads
  Push via Firebase Cloud Messaging ◄──────────────── lib/push.js (FCM HTTP v1)
@@ -45,9 +53,10 @@ and is **not an official app of IIM Mumbai**.
   never receives attendance figures or Moodle content.
 - The server only holds what is the same for a whole batch, uploaded by the
   admin: the week's timetable (from the mailed .xlsx), the academic calendar
-  (from the .docx) and messages. It also keeps a short diagnostic log per
-  user (roll number, name, app version and whether syncs worked), which the
-  student can turn off in Settings.
+  (from the .docx), the exam timetable, the mess menu and messages. It
+  also keeps a short diagnostic log per user (roll number, name, app
+  version and whether syncs worked), which the student can turn off in
+  Settings.
 - Class reminders are scheduled locally with exact alarms. Background checks
   for new marks, Moodle items and deadlines run through WorkManager about
   every 15–30 minutes.

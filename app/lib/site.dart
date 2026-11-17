@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'acal.dart';
 import 'exams.dart';
 import 'leave.dart';
+import 'menu.dart';
 import 'planner.dart';
 import 'sheet.dart';
 
@@ -289,6 +290,8 @@ class Store {
   set warnAttendance(bool v) => prefs.setBool('n_att', v);
   bool get autoDownload => prefs.getBool('auto_dl') ?? false;
   set autoDownload(bool v) => prefs.setBool('auto_dl', v);
+  bool get warnChanges => prefs.getBool('n_change') ?? true;
+  set warnChanges(bool v) => prefs.setBool('n_change', v);
 
   /// Reasons the student has noted against absences, by class id.
   Map<int, Leave> get leaves => parseLeaves(prefs.getString('leave_log'));
@@ -338,6 +341,19 @@ class Store {
   /// Exams and quizzes the student has added, soonest first.
   List<Exam> get exams => decodeExams(prefs.getString('exams'));
   set exams(List<Exam> v) => prefs.setString('exams', encodeExams(v));
+
+  /// Papers of these courses in the batch's published exam timetable.
+  List<Exam> publishedExamsFor(List<Course> courses) =>
+      publishedExams(prefs.getString('exams_pub'), courses);
+
+  /// Own exams and published papers together, soonest first.
+  List<Exam> allExams(List<Course> courses) => [
+        ...exams,
+        ...publishedExamsFor(courses)
+      ]..sort((a, b) => a.at.compareTo(b.at));
+
+  /// The mess menu from the server, day by day.
+  List<MenuDay> get menu => decodeMenu(prefs.getString('menu'));
 
   /// Short names the student has given courses ("DSA"), by full course name.
   Map<String, String> get shortNames {

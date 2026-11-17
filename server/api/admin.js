@@ -61,5 +61,10 @@ module.exports = async (req, res) => {
     .map((r) => ({ ...r, id: Number(r.id) }));
   const calendars = await sql`
     SELECT batch, updated, title, jsonb_array_length(events) AS events FROM calendars ORDER BY 1`;
-  return res.status(200).json({ totals, versions, batches, makers, daily, kinds, users, timetables, notices, calendars });
+  const menus = await sql`
+    SELECT to_char(week, 'YYYY-MM-DD') AS week, updated, days FROM menus
+    WHERE week >= now()::date - 14 ORDER BY week`;
+  const exams = await sql`
+    SELECT batch, updated, title, exams FROM exam_timetables ORDER BY 1`;
+  return res.status(200).json({ totals, versions, batches, makers, daily, kinds, users, timetables, notices, calendars, menus, exams });
 };

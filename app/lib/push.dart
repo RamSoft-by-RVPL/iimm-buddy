@@ -42,13 +42,10 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
             key: 'notice:${n.id}');
         logEvent(prefs, 'notice_got', '#${n.id}');
       }
-    } else if (type == 'timetable') {
-      final old = store.cached;
-      if (old != null) {
-        final merged = await withSharedTimetable(store, old, alert: true);
-        await afterSync(store, old, merged, alert: false);
-      }
-    } else if (type == 'calendar') {
+    } else if (type == 'timetable' ||
+        type == 'menu' ||
+        type == 'exams' ||
+        type == 'calendar') {
       final old = store.cached;
       if (old != null) {
         final merged = await withSharedTimetable(store, old, alert: true);

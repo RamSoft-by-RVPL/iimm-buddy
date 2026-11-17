@@ -63,3 +63,18 @@ CREATE TABLE IF NOT EXISTS calendars (
   title   text NOT NULL DEFAULT '',
   events  jsonb NOT NULL
 );
+
+-- The mess menu, one row per week (its first day). The same for everyone.
+CREATE TABLE IF NOT EXISTS menus (
+  week    date PRIMARY KEY,
+  updated timestamptz NOT NULL,
+  days    jsonb NOT NULL                -- [{d, meals: [{n, items: [...]}]}]
+);
+
+-- The exam timetable of a batch, one entry per paper.
+CREATE TABLE IF NOT EXISTS exam_timetables (
+  batch   text PRIMARY KEY,
+  updated timestamptz NOT NULL,
+  title   text NOT NULL DEFAULT '',
+  exams   jsonb NOT NULL                -- [{d, s, e, c, r, n}]
+);
