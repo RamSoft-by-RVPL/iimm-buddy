@@ -177,6 +177,15 @@ class _SettingsScreenState extends State<SettingsScreen>
               if (n != null) changed(() => store.leadMinutes = n);
             }, enabled: store.remindClasses),
             toggle(
+                Icons.favorite_border,
+                'Favourite dishes',
+                store.favDishes.isEmpty
+                    ? 'Pick dishes with the hearts in the mess menu'
+                    : 'Before meals with ${store.favDishes.take(3).join(', ')}'
+                        '${store.favDishes.length > 3 ? ' and more' : ''}',
+                store.dishAlerts,
+                (v) => changed(() => store.dishAlerts = v)),
+            toggle(
                 Icons.swap_horiz,
                 'Class changes',
                 'When a class in the coming week moves, is cancelled, '

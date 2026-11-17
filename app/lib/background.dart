@@ -11,6 +11,7 @@ import 'backend.dart';
 import 'changes.dart';
 import 'exams.dart';
 import 'log.dart';
+import 'menu.dart';
 import 'moodle.dart';
 import 'net.dart';
 import 'notify.dart';
@@ -331,6 +332,9 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
     await announceClassChanges(store, snap);
   } catch (_) {}
   try {
+    await scheduleDishAlerts(store);
+  } catch (_) {}
+  try {
     await scheduleReminders(
         prefs, 'rem_acal', 'classes', calendarReminders(store.calendar));
   } catch (_) {}
@@ -344,6 +348,13 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
     }
   }
 }
+
+/// Reminders before meals that have one of the student's favourite dishes.
+Future<void> scheduleDishAlerts(Store store) => scheduleReminders(
+    store.prefs,
+    'rem_dish',
+    'news',
+    store.dishAlerts ? dishReminders(store.menu, store.favDishes) : const []);
 
 /// Compares the coming week's classes with the last refresh and says what
 /// moved, was cancelled, changed room or was added.

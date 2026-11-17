@@ -214,6 +214,10 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     Navigator.of(context).popUntil((r) => r.isFirst);
     if (place == 'timetable') {
       setState(() => tab = 1);
+    } else if (place == 'menu') {
+      setState(() => tab = 0);
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => MenuScreen(store: store)));
     } else if (place == 'moodle') {
       setState(() => tab = 3);
     } else if (place.startsWith('course:')) {
@@ -488,7 +492,11 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
               exams: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    MenuCard(days: store.menu),
+                    MenuCard(
+                        store: store,
+                        onChanged: () {
+                          if (mounted) setState(() {});
+                        }),
                     ExamsCard(
                         store: store,
                         snap: s,

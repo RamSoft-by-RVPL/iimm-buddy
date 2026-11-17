@@ -355,6 +355,12 @@ class Store {
   /// The mess menu from the server, day by day.
   List<MenuDay> get menu => decodeMenu(prefs.getString('menu'));
 
+  /// Dishes the student wants to hear about ("Paneer", "Ice Cream").
+  List<String> get favDishes => prefs.getStringList('fav_dishes') ?? const [];
+  set favDishes(List<String> v) => prefs.setStringList('fav_dishes', v);
+  bool get dishAlerts => prefs.getBool('n_dish') ?? true;
+  set dishAlerts(bool v) => prefs.setBool('n_dish', v);
+
   /// Short names the student has given courses ("DSA"), by full course name.
   Map<String, String> get shortNames {
     try {

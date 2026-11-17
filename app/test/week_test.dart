@@ -176,4 +176,38 @@ void main() {
     // Own exams keep their own numbers and are not saved with these.
     expect(publishedExams('bad', courses), isEmpty);
   });
+
+  test('favourite dishes: matching despite spelling, and meal reminders', () {
+    expect(isFavourite('Paneer Kolhapuri', ['Paneer']), isTrue);
+    expect(isFavourite('Chicken Dum Biriyani', ['Biryani']), isTrue);
+    expect(isFavourite('Paneer Dum Biryani', ['chicken biryani']), isFalse);
+    expect(isFavourite('Veg Kolhapuri', ['Ice Cream']), isFalse);
+    expect(isFavourite('Ice Cream', ['ice-cream']), isTrue);
+    expect(isFavourite('Ice Cream', ['Ice Cream']), isTrue);
+    expect(isFavourite('Egg Masala', ['Egg']), isTrue);
+    expect(isFavourite('Eggless Cake', ['Egg']), isFalse);
+    expect(isFavourite('Dal Fry', ['Dal Makhani']), isFalse);
+    expect(isFavourite('Anything', []), isFalse);
+
+    final days = [
+      MenuDay(DateTime(2026, 11, 23), [
+        Meal('Breakfast', ['Poha', 'Tea']),
+        Meal('Lunch', ['Rajma Masala', 'Ice Cream']),
+        Meal('Dinner', ['Paneer Kolhapuri', 'Butter Paneer', 'Rice']),
+      ]),
+      MenuDay(DateTime(2026, 11, 24), [
+        Meal('Snacks', ['Samosa']),
+      ]),
+    ];
+    final r = dishReminders(days, ['Paneer', 'Ice Cream']);
+    expect(r.map((x) => x.title),
+        ['Ice Cream at lunch today', 'Paneer Kolhapuri at dinner tonight']);
+    expect(r[0].at, DateTime(2026, 11, 23, 12));
+    expect(r[0].body, 'One of your favourites is on the menu.');
+    expect(r[1].at, DateTime(2026, 11, 23, 19, 15));
+    expect(r[1].body, 'Paneer Kolhapuri and Butter Paneer are on the menu.');
+    expect(r[1].open, 'menu');
+    expect(r.map((x) => x.id).toSet().length, 2);
+    expect(dishReminders(days, []), isEmpty);
+  });
 }
