@@ -34,11 +34,24 @@ android {
         versionName = flutter.versionName
     }
 
+    // Every installed copy is signed with one key (the Android debug key of
+    // the first build machine). The GitHub build passes that key's file in
+    // APP_KEYSTORE; builds on the Mac use the same key from ~/.android.
+    signingConfigs {
+        app {
+            def ks = System.getenv("APP_KEYSTORE")
+            if (ks) {
+                storeFile = file(ks)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            signingConfig = System.getenv("APP_KEYSTORE") ? signingConfigs.app : signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
