@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS notices (
 -- Messages can be written now and sent later.
 ALTER TABLE notices ADD COLUMN IF NOT EXISTS send_at timestamptz NOT NULL DEFAULT now(); -- on first run, existing rows were then set to their created time by hand
 ALTER TABLE notices ADD COLUMN IF NOT EXISTS pushed boolean NOT NULL DEFAULT true;
+-- Install ids of the only phones a message is for ('{}' = the batch or everyone).
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS users text[] NOT NULL DEFAULT '{}';
 
 -- The academic calendar of a batch: exams, holidays, breaks, term dates.
 CREATE TABLE IF NOT EXISTS calendars (

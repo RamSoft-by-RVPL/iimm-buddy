@@ -51,12 +51,13 @@ module.exports = async (req, res) => {
   // Each message with how many phones said they got it, out of the phones
   // it was meant for that were active in the last week.
   const notices = (await sql`
-    SELECT n.id, n.batch, n.title, n.body, n.sent_by, n.created, n.send_at, n.pushed,
+    SELECT n.id, n.batch, n.title, n.body, n.sent_by, n.created, n.send_at, n.pushed, n.users,
       (SELECT count(DISTINCT e.user_id)::int FROM events e
         WHERE e.kind IN ('notice_got', 'notice_shown') AND e.detail = '#' || n.id) AS received,
+      CASE WHEN cardinality(n.users) > 0 THEN cardinality(n.users) ELSE
       (SELECT count(*)::int FROM users u
         WHERE (n.batch = '' OR u.batch = n.batch)
-          AND u.last_seen > now() - interval '7 days') AS audience
+          AND u.last_seen > now() - interval '7 days') END AS audience
     FROM notices n ORDER BY n.send_at DESC LIMIT 30`)
     .map((r) => ({ ...r, id: Number(r.id) }));
   const calendars = await sql`

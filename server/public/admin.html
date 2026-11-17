@@ -96,6 +96,10 @@
         <input id="ntTitle" maxlength="80" placeholder="Title, for example: Class moved to Room 302" style="flex:2; min-width:220px">
         <input id="ntBatch" list="ttBatches" placeholder="Batch (leave empty for everyone)" style="flex:1; min-width:200px">
       </div>
+      <div class="bar">
+        <select id="ntUsers" multiple size="4" style="flex:1; min-width:220px; font:inherit; padding:6px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></select>
+        <span class="dim" style="font-size:13px; flex:1; min-width:200px">Only these people (optional): pick one or more, holding Ctrl or Cmd for several. Leave none picked to send to the batch or everyone. Needs app version 0.8.8 or newer on their phone.</span>
+      </div>
       <div class="bar"><textarea id="ntBody" maxlength="500" rows="2" placeholder="Message (optional)" style="flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></textarea></div>
       <div class="bar">
         <label class="dim" for="ntWhen" style="font-size:14px">Send later (optional)</label>
@@ -319,10 +323,13 @@ function exDraw() {
 
 // ---- notifications to the phones
 function ntSay(text, cls) { $('ntMsg').className = cls || ''; $('ntMsg').textContent = text || ''; }
+const nameOf = (id) => { const u = data && data.users.find((x) => x.id === id); return u ? (u.name || id) + (u.roll ? ' (' + u.roll + ')' : '') : id; };
 function ntDraw() {
   if (!data) return;
+  const picked = new Set([...$('ntUsers').selectedOptions].map((o) => o.value));
+  $('ntUsers').innerHTML = data.users.filter((u) => u.name).map((u) => `<option value="${esc(u.id)}" ${picked.has(u.id) ? 'selected' : ''}>${esc(u.name)}${u.roll ? ' · ' + esc(u.roll) : ''} · ${esc(u.app_version)} · ${esc(u.id.slice(0, 6))}</option>`).join('');
   $('ntList').innerHTML = data.notices.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>When</th><th>To</th><th>Message</th><th>Received</th><th></th></tr></thead><tbody>
-    ${data.notices.map((n) => { const later = new Date(n.send_at) > new Date(); return `<tr><td>${when(n.send_at)}<br><span class="${later ? 'bad' : 'dim'}">${later ? 'Scheduled' : 'Sent'}</span></td><td>${esc(n.batch || 'everyone')}</td><td><b>${esc(n.title)}</b>${n.body ? '<br>' + esc(n.body) : ''}</td><td>${later ? '' : `${n.received} of ${n.audience} phones`}</td><td><button class="plain" data-del="${n.id}" type="button">${later ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join('')}
+    ${data.notices.map((n) => { const later = new Date(n.send_at) > new Date(); return `<tr><td>${when(n.send_at)}<br><span class="${later ? 'bad' : 'dim'}">${later ? 'Scheduled' : 'Sent'}</span></td><td>${n.users && n.users.length ? n.users.map((id) => esc(nameOf(id))).join('<br>') : esc(n.batch || 'everyone')}</td><td><b>${esc(n.title)}</b>${n.body ? '<br>' + esc(n.body) : ''}</td><td>${later ? '' : `${n.received} of ${n.audience} phones`}</td><td><button class="plain" data-del="${n.id}" type="button">${later ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join('')}
     </tbody></table></div>
     <p class="dim" style="margin:6px 0 0; font-size:13px">"Received" counts phones that reported showing the message; a phone reports a few minutes after it shows it. Phones with diagnostics switched off are not counted.</p>` : '';
   document.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
@@ -335,18 +342,21 @@ $('ntSend').onclick = async () => {
   const title = $('ntTitle').value.trim(), batch = $('ntBatch').value.trim().toLowerCase();
   if (!title) return ntSay('Write a title first.', 'bad');
   if (batch && !/^[a-z0-9-]{2,40}$/.test(batch)) return ntSay('Batch: small letters, numbers and dashes only.', 'bad');
+  const users = [...$('ntUsers').selectedOptions].map((o) => o.value);
+  if (users.length && batch) return ntSay('Choose people or a batch, not both.', 'bad');
+  const to = users.length ? users.length + (users.length === 1 ? ' person' : ' people') : (batch || 'everyone');
   $('ntSend').disabled = true;
   try {
     const later = $('ntWhen').value ? new Date($('ntWhen').value) : null;
     if (later && later < new Date()) { ntSay('That time has already passed.', 'bad'); return; }
-    const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: $('ntBody').value, batch, send_at: later ? later.toISOString() : null }) });
+    const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: $('ntBody').value, batch, users, send_at: later ? later.toISOString() : null }) });
     const j = await r.json();
     if (r.status === 401) return lock('');
     if (!r.ok) return ntSay(j.error || 'The server refused it.', 'bad');
     $('ntTitle').value = ''; $('ntBody').value = '';
-    $('ntWhen').value = '';
-    if (j.scheduled) { ntSay('Scheduled for ' + when(j.scheduled) + ', to ' + (batch || 'everyone') + '.', 'ok'); load(); return; }
-    ntSay('Sent to ' + (batch || 'everyone') + (j.pushed && j.pushed.ok ? ', pushed to phones now.' : '. Push did not go out' + (j.pushed && j.pushed.error ? ' (' + j.pushed.error + ')' : '') + '; phones get it at their next check.'), j.pushed && j.pushed.ok ? 'ok' : 'dim'); load();
+    $('ntWhen').value = ''; [...$('ntUsers').options].forEach((o) => { o.selected = false; });
+    if (j.scheduled) { ntSay('Scheduled for ' + when(j.scheduled) + ', to ' + to + '.', 'ok'); load(); return; }
+    ntSay('Sent to ' + to + (j.pushed && j.pushed.ok ? ', pushed to phones now.' : '. Push did not go out' + (j.pushed && j.pushed.error ? ' (' + j.pushed.error + ')' : '') + '; phones get it at their next check.'), j.pushed && j.pushed.ok ? 'ok' : 'dim'); load();
   } catch (e) { ntSay('Could not reach the server.', 'bad'); }
   finally { $('ntSend').disabled = false; }
 };

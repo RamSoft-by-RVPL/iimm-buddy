@@ -582,9 +582,11 @@ void v22() {
 }
 
 void v23() {
-  test('push topics: everyone, plus the batch once it is known', () {
+  test('push topics: everyone, the batch once known, and this phone', () {
     expect(pushTopics(null), ['all']);
     expect(pushTopics('bs-2026-2030'), ['all', 'batch-bs-2026-2030']);
+    expect(pushTopics('bs-2026-2030', '0a1b2c3d4e5f6789'),
+        ['all', 'batch-bs-2026-2030', 'user-0a1b2c3d4e5f6789']);
   });
 }
 

@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'log.dart';
 import 'sheet.dart';
 
 const apiBase = 'https://buddy.iimmumbai.in';
@@ -248,8 +249,9 @@ Future<void> markNoticesSeen(SharedPreferences prefs, Iterable<int> ids) async {
 /// Fetches the messages and returns the ones to show as notifications.
 Future<List<Notice>> pullNotices(SharedPreferences prefs) async {
   final batch = batchKey(prefs.getString('summary')) ?? '';
-  final (status, text) =
-      await _send('GET', Uri.parse('$apiBase/api/notices?batch=$batch'));
+  // The install id also brings messages sent to this phone alone.
+  final (status, text) = await _send('GET',
+      Uri.parse('$apiBase/api/notices?batch=$batch&user=${installId(prefs)}'));
   if (status != 200) return [];
   final all = decodeNotices(text);
   final fresh = newNotices(all, seenNotices(prefs), DateTime.now());

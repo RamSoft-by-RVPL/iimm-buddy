@@ -80,6 +80,21 @@ async function push(topic, { show, data }) {
 }
 
 /**
+ * Pushes one message to the phones it is for: chosen people (by install id),
+ * else its batch or everyone. Returns the first failure, or {ok: true}.
+ */
+async function pushNotice(n) {
+  const message = { show: { title: n.title, body: n.body }, data: { type: 'notice', id: Number(n.id) } };
+  const topics = n.users && n.users.length ? n.users.map((u) => `user-${u}`) : [topicFor(n.batch)];
+  let out = { ok: true };
+  for (const t of topics) {
+    const r = await push(t, message);
+    if (!r.ok && out.ok) out = r;
+  }
+  return out;
+}
+
+/**
  * Pushes every message whose time has come and that has not gone out yet.
  * Called whenever a phone talks to the server, so no timer is needed.
  * Each message is claimed first, so two requests never send it twice.
@@ -89,17 +104,12 @@ async function sendDue(sql) {
     const due = await sql`
       UPDATE notices SET pushed = true
       WHERE pushed = false AND send_at <= now()
-      RETURNING id, batch, title, body`;
-    for (const n of due) {
-      await push(topicFor(n.batch), {
-        show: { title: n.title, body: n.body },
-        data: { type: 'notice', id: Number(n.id) },
-      });
-    }
+      RETURNING id, batch, title, body, users`;
+    for (const n of due) await pushNotice(n);
     return due.length;
   } catch (e) {
     return 0;
   }
 }
 
-module.exports = { push, topicFor, sendDue };
+module.exports = { push, topicFor, sendDue, pushNotice };

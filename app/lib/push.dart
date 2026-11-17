@@ -78,9 +78,13 @@ Future<void> onBackgroundPush(RemoteMessage m) async {
   await handlePush(prefs, m.data, shown: m.notification != null);
 }
 
-/// The topics a phone listens to: everyone, and its own batch once known.
-List<String> pushTopics(String? batch) =>
-    ['all', if (batch != null) 'batch-$batch'];
+/// The topics a phone listens to: everyone, its own batch once known, and
+/// this copy of the app alone (for messages to chosen people).
+List<String> pushTopics(String? batch, [String? install]) => [
+      'all',
+      if (batch != null) 'batch-$batch',
+      if (install != null) 'user-$install',
+    ];
 
 /// Starts push. Safe to call again: it only changes topics when the batch
 /// becomes known. Never throws.
@@ -114,7 +118,8 @@ Future<void> _initPush(SharedPreferences prefs) async {
         pushArrived.value++;
       });
     }
-    final want = pushTopics(batchKey(prefs.getString('summary')));
+    final want =
+        pushTopics(batchKey(prefs.getString('summary')), installId(prefs));
     final have = prefs.getStringList('push_topics') ?? const [];
     if (want.join(',') == have.join(',')) return;
     final fm = FirebaseMessaging.instance;
