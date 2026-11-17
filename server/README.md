@@ -24,7 +24,15 @@ Environment variables: `DATABASE_URL`, `ADMIN_KEY`, `FCM_SERVICE_ACCOUNT`
 `lib/schema.sql`; `node lib/setup.js` creates them. `node lib/local.js` runs
 the handlers locally for testing.
 
-`release.sh "notes"` publishes a new APK: copies it, writes `version.json`,
-updates the download page, deploys and tells phones to check for the update.
+Deploys come from GitHub: Vercel builds the `server/` folder of
+`bvmanas/iimm-buddy` on every push to `main` that touches it. The APK is not
+kept in git. The build step (`npm run vercel-build`, `lib/fetch-release.js`)
+copies `IIMM-Buddy.apk` and `version.json` from the newest GitHub Release into
+`public/`, and stops the build if they don't match.
+
+`release.sh "notes"` publishes a new app version: writes `version.json`,
+creates the GitHub Release with the APK, updates the download page, pushes the
+code (which deploys it), waits until the site serves the new build and then
+tells phones to check for the update.
 `publish-code.sh "message"` copies the code into the public GitHub repo after
 checking that no secrets came along.

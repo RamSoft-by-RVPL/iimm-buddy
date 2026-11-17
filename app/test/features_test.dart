@@ -7,6 +7,7 @@ import 'package:attendance_planner/acal.dart';
 import 'package:attendance_planner/attendance_ui.dart';
 import 'package:attendance_planner/file_view.dart';
 import 'package:attendance_planner/health.dart';
+import 'package:attendance_planner/inbox.dart';
 import 'package:attendance_planner/leave.dart';
 import 'package:attendance_planner/log.dart';
 import 'package:attendance_planner/notes_index.dart';
@@ -23,6 +24,7 @@ import 'package:attendance_planner/update.dart';
 import 'package:attendance_planner/site.dart';
 import 'package:attendance_planner/ui_common.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic> ses(int id, String date, String status,
         {bool upcoming = false, String start = '14:00:00'}) =>
@@ -81,6 +83,7 @@ void main() {
   v26();
   v27();
   v28();
+  v29();
   final now = DateTime(2026, 11, 16, 10);
 
   test('class reminders and the widget use the published timetable', () {
@@ -847,5 +850,80 @@ void v28() {
         longWeekends([short], today, 85).where((i) => i.missed > 0), isEmpty);
     plannerDaysOff = {};
     plannerShare = {};
+  });
+}
+
+void v29() {
+  test('notification list: shown, scheduled once passed, messages, unread',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final t0 = DateTime(2026, 11, 17, 9);
+    await inboxAdd(
+        prefs,
+        [
+          InboxItem(
+              key: 'a',
+              at: t0,
+              title: 'New on Moodle: Stats',
+              body: 'Week 7 slides',
+              channel: 'moodle',
+              open: 'course:12'),
+          InboxItem(
+              key: 'a', at: t0, title: 'dup', body: '', channel: 'moodle'),
+        ],
+        now: t0);
+    // A class reminder saved for 10:00, and an admin message.
+    await prefs.setString(
+        scheduledKey('rem_class'),
+        jsonEncode([
+          InboxItem(
+                  key: 'r:rem_class:1:x',
+                  at: DateTime(2026, 11, 17, 10),
+                  title: 'Class in 5 mins',
+                  body: 'DSA',
+                  channel: 'classes',
+                  open: 'timetable')
+              .toJson()
+        ]));
+    await prefs.setString(
+        'notices',
+        jsonEncode({
+          'notices': [
+            {
+              'id': 7,
+              'title': 'Hi',
+              'body': 'Hello',
+              'created': '2026-11-17T03:00:00Z'
+            }
+          ]
+        }));
+    // At 09:30 the 10:00 reminder has not been shown yet.
+    var list = inboxItems(prefs, DateTime(2026, 11, 17, 9, 30));
+    expect(list.map((i) => i.key), ['a', 'notice:7']);
+    expect(list.first.title, 'New on Moodle: Stats'); // first one kept
+    // At 10:05 it has, and it is the newest.
+    final t1 = DateTime(2026, 11, 17, 10, 5);
+    list = inboxItems(prefs, t1);
+    expect(list.first.title, 'Class in 5 mins');
+    expect(list.first.open, 'timetable');
+    expect(inboxUnread(prefs, t1), 3);
+    await inboxMarkSeen(prefs, t1);
+    expect(inboxUnread(prefs, t1), 0);
+    // Cleared: gone, and older than 30 days never shows.
+    await inboxClear(prefs, t1);
+    expect(inboxItems(prefs, t1), isEmpty);
+    await inboxAdd(
+        prefs,
+        [
+          InboxItem(
+              key: 'old',
+              at: t1.subtract(const Duration(days: 40)),
+              title: 'x',
+              body: '',
+              channel: 'news')
+        ],
+        now: t1);
+    expect(inboxItems(prefs, t1.add(const Duration(minutes: 1))), isEmpty);
   });
 }

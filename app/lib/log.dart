@@ -16,8 +16,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'backend.dart';
 
 /// Keep in step with `version:` in pubspec.yaml (a test checks it).
-const appVersion = '0.8.3';
-const appBuild = 15;
+const appVersion = '0.8.4';
+const appBuild = 16;
 
 bool diagnosticsOn(SharedPreferences prefs) => prefs.getBool('diag') ?? true;
 

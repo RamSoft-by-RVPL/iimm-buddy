@@ -38,7 +38,8 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
         logEvent(prefs, 'notice_got', '#$id');
       }
       for (final n in await pullNotices(prefs)) {
-        await notify(900000 + n.id % 90000, n.title, n.body, 'news');
+        await notify(900000 + n.id % 90000, n.title, n.body, 'news',
+            key: 'notice:${n.id}');
         logEvent(prefs, 'notice_got', '#${n.id}');
       }
     } else if (type == 'timetable') {
@@ -61,7 +62,8 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
             5,
             'IIMM Buddy ${u.version} is ready',
             u.notes.isEmpty ? 'Open the app and press Update.' : u.notes,
-            'news');
+            'news',
+            key: 'update:${u.build}');
       }
     }
   } catch (e) {

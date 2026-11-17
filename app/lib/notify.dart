@@ -2,11 +2,14 @@
 // for new Moodle items and attendance changes.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_10y.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
+
+import 'inbox.dart';
 
 final _plugin = FlutterLocalNotificationsPlugin();
 
@@ -66,11 +69,28 @@ NotificationDetails _details(String channel, {String? longText}) {
   );
 }
 
+/// Shows a notification now and adds it to the list behind the bell.
+/// [key] names the event when it may be announced from two places (a
+/// message by push and by the background check), so it is listed once.
 Future<void> notify(int id, String title, String body, String channel,
-    {String open = 'home'}) async {
+    {String open = 'home', String? key}) async {
   await initNotifications();
   await _plugin.show(id, title, body, _details(channel, longText: body),
       payload: open);
+  try {
+    final now = DateTime.now();
+    await inboxAdd(await SharedPreferences.getInstance(), [
+      InboxItem(
+          key: key ?? 'n:$id:${now.millisecondsSinceEpoch ~/ 60000}',
+          at: now,
+          title: title,
+          body: body,
+          channel: channel,
+          open: open)
+    ]);
+  } catch (_) {
+    // The list is a convenience; the notification itself was shown.
+  }
 }
 
 /// The place asked for by the notification that started the app, if a tap
@@ -101,12 +121,20 @@ class Reminder {
 Future<void> scheduleReminders(SharedPreferences prefs, String key,
     String channel, List<Reminder> items) async {
   await initNotifications();
+  // Reminders of this kind that have already been shown go into the list
+  // behind the bell before the saved set is replaced.
+  final shown = DateTime.now();
+  await inboxAdd(prefs, [
+    for (final i in scheduledItems(prefs, key))
+      if (!i.at.isAfter(shown)) i
+  ]);
   for (final id in prefs.getStringList(key) ?? const <String>[]) {
     await _plugin.cancel(int.parse(id));
   }
   final india = tz.getLocation('Asia/Kolkata');
   final now = tz.TZDateTime.now(india);
   final ids = <String>[];
+  final saved = <InboxItem>[];
   for (final r in items) {
     final at = tz.TZDateTime(
         india, r.at.year, r.at.month, r.at.day, r.at.hour, r.at.minute);
@@ -124,8 +152,17 @@ Future<void> scheduleReminders(SharedPreferences prefs, String key,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
     }
     ids.add('${r.id}');
+    saved.add(InboxItem(
+        key: 'r:$key:${r.id}:${r.at.millisecondsSinceEpoch}',
+        at: DateTime(r.at.year, r.at.month, r.at.day, r.at.hour, r.at.minute),
+        title: r.title,
+        body: r.body,
+        channel: channel,
+        open: r.open));
   }
   await prefs.setStringList(key, ids);
+  await prefs.setString(
+      scheduledKey(key), jsonEncode([for (final i in saved) i.toJson()]));
 }
 
 Future<int> pendingReminders() async {

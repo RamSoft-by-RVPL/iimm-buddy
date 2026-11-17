@@ -10,6 +10,8 @@ import 'backend.dart';
 import 'background.dart';
 import 'exams_ui.dart';
 import 'health.dart';
+import 'inbox.dart';
+import 'inbox_ui.dart';
 import 'leave.dart';
 import 'leave_ui.dart';
 import 'log.dart';
@@ -85,6 +87,8 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
   bool syncing = false;
   int tab = 0;
   List<Problem> problems = const [];
+  Timer? _tick;
+  int _unread = 0;
   final moodleKey = GlobalKey<MoodleTabState>();
 
   Store get store => widget.store;
@@ -103,7 +107,29 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     openedFromNotification().then((p) {
       if (p != null) _openFrom(p);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _takeSheet());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _takeSheet();
+      _recount();
+    });
+    // Reminders shown while the app is open, and the background check,
+    // add to the bell's count: look again every minute.
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      store.prefs.reload().then((_) => _recount());
+    });
+  }
+
+  /// Rebuilds when the number on the bell changes.
+  void _recount() {
+    if (!mounted) return;
+    final n = inboxUnread(store.prefs, DateTime.now());
+    if (n != _unread) setState(() => _unread = n);
+  }
+
+  Future<void> _openInbox() async {
+    final place = await Navigator.push<String>(context,
+        MaterialPageRoute(builder: (_) => InboxScreen(prefs: store.prefs)));
+    _recount();
+    if (place != null) _openFrom(place);
   }
 
   @override
@@ -112,6 +138,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     session.removeListener(_onSession);
     pushArrived.removeListener(_onPush);
     _taps?.cancel();
+    _tick?.cancel();
     super.dispose();
   }
 
@@ -165,6 +192,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     store.prefs.reload().then((_) {
       if (!mounted) return;
       setState(() => snap = store.cached ?? snap);
+      _recount();
       if (session.state == SessionState.needsLogin) return;
       if (snap == null ||
           DateTime.now().difference(snap!.syncedAt).inMinutes >= 15) {
@@ -209,6 +237,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
   void _onPush() {
     store.prefs.reload().then((_) {
       if (mounted) setState(() => snap = store.cached ?? snap);
+      _recount();
     });
   }
 
@@ -273,6 +302,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       unawaited(checkMoodle(store, moodle, alert: true).then((_) {
         logEvent(store.prefs, 'moodle_ok');
         if (mounted) setState(() {});
+        _recount();
       }).catchError((Object e) {
         logEvent(store.prefs, e is NotSignedIn ? 'need_login' : 'moodle_fail',
             e is NotSignedIn ? 'moodle' : errorLine(e));
@@ -286,6 +316,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       unawaited(flushLogs(store.prefs, force: true));
     } finally {
       if (mounted) setState(() => syncing = false);
+      _recount();
     }
   }
 
@@ -414,6 +445,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
         title: Text(
             const ['IIMM Buddy', 'Timetable', 'Plan leave', 'Moodle'][tab]),
         actions: [
+          InboxBell(unread: _unread, onPressed: _openInbox),
           IconButton(
             tooltip: 'Refresh',
             onPressed: syncing

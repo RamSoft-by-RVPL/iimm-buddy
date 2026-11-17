@@ -113,7 +113,8 @@ Future<void> runChecks(SharedPreferences prefs, {bool onWifi = false}) async {
   if (u != null && prefs.getInt('upd_told') != u.build) {
     await prefs.setInt('upd_told', u.build);
     await notify(5, 'IIMM Buddy ${u.version} is ready',
-        u.notes.isEmpty ? 'Open the app and press Update.' : u.notes, 'news');
+        u.notes.isEmpty ? 'Open the app and press Update.' : u.notes, 'news',
+        key: 'update:${u.build}');
   }
   await flushLogs(prefs);
 }
@@ -125,7 +126,8 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
   // Messages sent from the admin page: shown as notifications.
   try {
     for (final n in await pullNotices(store.prefs)) {
-      await notify(900000 + n.id % 90000, n.title, n.body, 'news');
+      await notify(900000 + n.id % 90000, n.title, n.body, 'news',
+          key: 'notice:${n.id}');
       logEvent(store.prefs, 'notice_got', '#${n.id}');
     }
   } catch (_) {
