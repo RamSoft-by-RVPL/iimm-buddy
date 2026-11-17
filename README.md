@@ -112,6 +112,11 @@ vercel deploy --prod
 
 Then open `/admin` and create the admin login with the publisher key.
 
+To deploy from GitHub, connect the Vercel project to this repository (root
+directory `server`), create a deploy hook for `main` and save its URL as the
+`VERCEL_DEPLOY_HOOK` Actions secret, next to `KEYSTORE_B64`,
+`GOOGLE_SERVICES_B64` and `PUBLISHER_KEY`.
+
 ## Privacy
 
 The full privacy policy is in the app (Settings → Privacy). In short:
