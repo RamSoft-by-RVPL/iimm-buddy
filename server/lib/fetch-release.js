@@ -1,5 +1,6 @@
 // Runs as the Vercel build step. Copies the app (APK) and its version.json
-// from the newest GitHub Release into public/, so the download page and the
+// from the newest GitHub Release into public/ and puts its version on the
+// download page, so the download page and the
 // in-app update serve them from this site. The APK is not kept in git.
 //
 // Fails the build (and Vercel keeps the site that is live) if either file
@@ -38,6 +39,11 @@ async function get(name) {
   }
   fs.writeFileSync(path.join(out, 'IIMM-Buddy.apk'), apk);
   fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify(info, null, 2) + '\n');
+  // The download page shows the version and size of what it serves.
+  const page = path.join(out, 'index.html');
+  const mb = Math.round(apk.length / 1e6);
+  fs.writeFileSync(page, fs.readFileSync(page, 'utf8')
+    .replace(/Version [0-9.]+ · [0-9]+ MB/g, `Version ${info.version} · ${mb} MB`));
   console.log(`Release ${info.version} (build ${info.build}), ${apk.length} bytes`);
 })().catch((e) => {
   console.error(`Could not fetch the release: ${e.message}`);

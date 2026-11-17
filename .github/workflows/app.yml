@@ -1,0 +1,174 @@
+# Every push to main that changes the app builds a new version and gives it
+# to students:
+#   test → number the version → build and sign the APK → GitHub Release →
+#   redeploy buddy.iimmumbai.in (it copies the APK from the release) →
+#   wait until the site serves it → tell phones to update.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   KEYSTORE_B64         base64 of the signing key every installed copy uses
+#   GOOGLE_SERVICES_B64  base64 of app/android/app/google-services.json
+#   PUBLISHER_KEY        the server's ADMIN_KEY, to tell phones to update
+#   VERCEL_DEPLOY_HOOK   deploy hook URL of the Vercel project
+
+name: App release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '!app/**.md'
+      - '.github/workflows/app.yml'
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "What's new (shown to students)"
+        required: false
+
+concurrency:
+  group: app-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  SITE: https://buddy.iimmumbai.in
+  TZ: Asia/Kolkata   # the app and its tests work in India time
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Test
+        run: flutter test
+
+      - name: Number the version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(grep '^version:' pubspec.yaml | sed 's/version: *//')
+          curl -sfL "https://github.com/${{ github.repository }}/releases/latest/download/version.json" -o /tmp/last.json || echo '{}' > /tmp/last.json
+          python3 - "$base" /tmp/last.json >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          base, last_path = sys.argv[1], sys.argv[2]
+          name, _, num = base.partition('+')
+          last = json.load(open(last_path))
+          lb, lv = int(last.get('build', 0)), last.get('version', '0.0.0')
+          t = lambda v: tuple(int(x) for x in v.split('.'))
+          build = max(int(num or 0), lb) + 1
+          if t(name) > t(lv):
+              version = name            # raised by hand in pubspec.yaml
+          else:
+              a, b, c = t(lv)
+              version = f'{a}.{b}.{c + 1}'
+          print(f'version={version}')
+          print(f'build={build}')
+          PY
+
+      - name: What's new
+        id: notes
+        env:
+          INPUT: ${{ github.event.inputs.notes }}
+          HEAD: ${{ github.event.head_commit.message }}
+        run: |
+          notes="${INPUT:-$(printf '%s' "$HEAD" | head -n1)}"
+          [ -n "$notes" ] || notes="Improvements and fixes."
+          {
+            echo 'text<<EOF'
+            echo "$notes"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Put the signing key and Firebase config in place
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_B64 }}
+        run: |
+          [ -n "$KEYSTORE_B64" ] && [ -n "$GOOGLE_SERVICES_B64" ] || { echo "Signing key or Firebase config secret missing"; exit 1; }
+          mkdir -p ~/.android
+          echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          echo "$GOOGLE_SERVICES_B64" | base64 -d > android/app/google-services.json
+
+      - name: Build the APK
+        run: |
+          flutter build apk --release --split-per-abi --target-platform android-arm64 \
+            --build-name ${{ steps.v.outputs.version }} \
+            --build-number ${{ steps.v.outputs.build }} \
+            --dart-define=APP_VERSION=${{ steps.v.outputs.version }} \
+            --dart-define=APP_BUILD=${{ steps.v.outputs.build }}
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk /tmp/IIMM-Buddy.apk
+
+      - name: Check it is signed with the usual key
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/apksigner" verify --print-certs /tmp/IIMM-Buddy.apk | tee /tmp/cert.txt
+          grep -qi '4ec30f90c78a0fbc67c30e6d18ac998c1459340f1453cfb57f103373e292dfa6' /tmp/cert.txt \
+            || { echo "Signed with a different key: phones would refuse this update"; exit 1; }
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ steps.notes.outputs.text }}
+          VERSION: ${{ steps.v.outputs.version }}
+          BUILD: ${{ steps.v.outputs.build }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          apk = open('/tmp/IIMM-Buddy.apk', 'rb').read()
+          json.dump({'build': int(os.environ['BUILD']), 'version': os.environ['VERSION'],
+                     'notes': os.environ['NOTES'], 'apk': '/IIMM-Buddy.apk',
+                     'sha256': hashlib.sha256(apk).hexdigest(), 'size': len(apk)},
+                    open('/tmp/version.json', 'w'), indent=2)
+          PY
+          gh release create "v$VERSION" /tmp/IIMM-Buddy.apk /tmp/version.json \
+            --target "$GITHUB_SHA" --title "$VERSION" \
+            --notes "$NOTES"$'\n\nDownload: https://buddy.iimmumbai.in'
+
+      - name: Redeploy the site
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then curl -sf -X POST "$HOOK" >/dev/null && echo "Deploy started"; \
+          else echo "::warning::No VERCEL_DEPLOY_HOOK secret: the site picks up the release on its next deploy"; fi
+
+      - name: Wait for the site, then tell phones
+        env:
+          BUILD: ${{ steps.v.outputs.build }}
+          KEY: ${{ secrets.PUBLISHER_KEY }}
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          [ -n "$HOOK" ] || exit 0
+          for i in $(seq 1 60); do
+            got=$(curl -s -m 10 "$SITE/version.json?t=$RANDOM" | python3 -c "import json,sys;print(json.load(sys.stdin).get('build',''))" 2>/dev/null || true)
+            [ "$got" = "$BUILD" ] && break
+            sleep 10
+          done
+          [ "$got" = "$BUILD" ] || { echo "Site still serves build $got after 10 minutes"; exit 1; }
+          echo "Site serves build $BUILD"
+          if [ -n "$KEY" ]; then
+            curl -s -m 30 -X POST "$SITE/api/poke?type=update" -H "Authorization: Bearer $KEY" | head -c 200; echo
+          fi

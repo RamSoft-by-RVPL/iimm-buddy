@@ -61,6 +61,26 @@ and is **not an official app of IIM Mumbai**.
 | [`app/`](app) | The Flutter app (Dart, with a small Kotlin plugin in `app/packages/cookie_bridge` and the home-screen widget). |
 | [`server/`](server) | Vercel serverless functions (Node), the admin page and the download page in `server/public`. |
 
+## How a change reaches students
+
+Every push to `main` that changes `app/` runs `.github/workflows/app.yml`:
+
+1. runs the tests;
+2. numbers the version: the build number goes up by one, and the version name
+   too (or takes the one in `app/pubspec.yaml` if that was raised by hand);
+3. builds the APK, signs it with the key every installed copy uses and checks
+   that it did;
+4. creates a GitHub Release with the APK and `version.json`;
+5. redeploys the site on Vercel, which copies them from the release;
+6. waits until https://buddy.iimmumbai.in serves the new build and tells
+   every phone by push to update. The app then shows an Update button.
+
+The first line of the commit message becomes the "what's new" line shown to
+students. A release can also be started by hand from the Actions tab.
+
+Changes to `server/` only are deployed by Vercel on push, with no new app
+version.
+
 ## Building the app
 
 Needs Flutter 3.24 (Dart 3.5), JDK 17 and the Android SDK.
