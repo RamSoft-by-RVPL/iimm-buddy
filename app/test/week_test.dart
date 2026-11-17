@@ -127,6 +127,11 @@ void main() {
     expect(at(19, 0), '17 Dinner');
     expect(at(22, 30), '18 Breakfast'); // after dinner: tomorrow
     expect(nextMeal(days, DateTime(2026, 11, 18, 23)), isNull); // no 19th
+    // Before the menu starts, the card leads to its first day.
+    expect(nextMeal(days, DateTime(2026, 11, 14, 12)), isNull);
+    expect(firstMenuDay(days, DateTime(2026, 11, 14, 12))?.date,
+        DateTime(2026, 11, 17));
+    expect(firstMenuDay(days, DateTime(2026, 11, 19, 8)), isNull);
     expect(decodeMenu('oops'), isEmpty);
   });
 

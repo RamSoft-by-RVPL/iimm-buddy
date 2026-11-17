@@ -79,3 +79,13 @@ int _endsAt(String meal, int index) {
   }
   return null;
 }
+
+/// The first day from today on that has a menu, for when the next meal is
+/// not known yet (the menu starts later in the week, or next week).
+MenuDay? firstMenuDay(List<MenuDay> days, DateTime now) {
+  final today = _day(now);
+  for (final d in days) {
+    if (!d.date.isBefore(today) && d.meals.isNotEmpty) return d;
+  }
+  return null;
+}

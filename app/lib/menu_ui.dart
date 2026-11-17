@@ -40,10 +40,23 @@ class MenuCard extends StatelessWidget {
     final t = Theme.of(context);
     final now = DateTime.now();
     final next = nextMeal(days, now);
-    if (next == null) return const SizedBox.shrink();
-    final (day, meal) = next;
+    final later = next == null ? firstMenuDay(days, now) : null;
+    if (next == null && later == null) return const SizedBox.shrink();
     void open() => Navigator.push(context,
         MaterialPageRoute(builder: (_) => MenuScreen(days: days, now: now)));
+    // The menu starts on a later day: say so and lead to it.
+    final (icon, title, body) = next == null
+        ? (
+            Icons.restaurant_menu_outlined,
+            'Menu from ${_weekdays[later!.date.weekday - 1]}, '
+                '${fmtDate(later.date)}',
+            'The next menu is up. Tap to see every day.'
+          )
+        : (
+            _mealIcon(next.$2.name),
+            '${next.$2.name} · ${_dayName(next.$1.date, now)}',
+            next.$2.items.join(' · ')
+          );
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SectionTitle('Mess menu',
           trailing: InkWell(
@@ -63,17 +76,17 @@ class MenuCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(_mealIcon(meal.name), color: t.colorScheme.primary),
+              Icon(icon, color: t.colorScheme.primary),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${meal.name} · ${_dayName(day.date, now)}',
+                      Text(title,
                           style: t.textTheme.titleSmall
                               ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text(meal.items.join(' · '),
+                      Text(body,
                           style: t.textTheme.bodyMedium?.copyWith(
                               color: t.colorScheme.onSurfaceVariant)),
                     ]),
