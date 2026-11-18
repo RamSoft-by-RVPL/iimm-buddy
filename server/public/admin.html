@@ -96,7 +96,8 @@
         <input id="ntTitle" maxlength="80" placeholder="Title, for example: Class moved to Room 302" style="flex:2; min-width:220px">
         <input id="ntBatch" list="ttBatches" placeholder="Batch (leave empty for everyone)" style="flex:1; min-width:200px">
       </div>
-      <div class="bar">
+      <!-- Per-person sending is hidden for now; remove "hidden" to bring it back. -->
+      <div class="bar" hidden>
         <select id="ntUsers" multiple size="4" style="flex:1; min-width:220px; font:inherit; padding:6px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></select>
         <span class="dim" style="font-size:13px; flex:1; min-width:200px">Only these people (optional): pick one or more, holding Ctrl or Cmd for several. Leave none picked to send to the batch or everyone. Needs app version 0.8.8 or newer on their phone.</span>
       </div>
