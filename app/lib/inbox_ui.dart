@@ -91,7 +91,7 @@ class _InboxScreenState extends State<InboxScreen> {
   static Color _color(BuildContext context, String channel) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return switch (_group(channel)) {
-      'classes' => dark ? Brand.wineMuted : Brand.wine,
+      'classes' => dark ? Brand.pink : const Color(0xFFB8355A),
       'moodle' => dark ? const Color(0xFF8DB8E8) : const Color(0xFF2F6FB0),
       'attendance' => Tone.of(context).bad,
       _ => dark ? const Color(0xFFB9D46A) : const Color(0xFF5E7A1F),
@@ -132,8 +132,8 @@ class _InboxScreenState extends State<InboxScreen> {
                   height: 12,
                   decoration: BoxDecoration(
                       color: t.brightness == Brightness.dark
-                          ? Brand.lime
-                          : Brand.limeDeep,
+                          ? Brand.lemon
+                          : Brand.lemonDeep,
                       shape: BoxShape.circle,
                       border: Border.all(
                           color: t.cardTheme.color ?? t.colorScheme.surface,

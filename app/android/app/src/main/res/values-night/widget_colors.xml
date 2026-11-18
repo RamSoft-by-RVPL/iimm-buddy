@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget is the Today screen's wine Now card, in light and dark. -->
+<!-- The widget is the Today screen's pink Now card, in light and dark. -->
 <resources>
-    <color name="w_card">#FF4A1F28</color>
-    <color name="w_line">#FF5C2733</color>
-    <color name="w_text">#FFF7F1EC</color>
-    <color name="w_dim">#FFDCC9C6</color>
-    <color name="w_brand">#FFD6EE4A</color>
+    <color name="w_card">#FFEC6989</color>
+    <color name="w_line">#381A1113</color>
+    <color name="w_text">#FF1A1113</color>
+    <color name="w_dim">#FF3D1520</color>
+    <color name="w_brand">#FF1A1113</color>
+    <color name="w_edge">#FF1A1113</color>
 </resources>

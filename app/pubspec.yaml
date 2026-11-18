@@ -102,6 +102,11 @@ flutter:
           weight: 500
         - asset: assets/fonts/GeistMono-SemiBold.ttf
           weight: 600
+    # Schoolbell for titles, numbers and buttons; Apache License 2.0
+    # (assets/fonts/Schoolbell-LICENSE.txt).
+    - family: Schoolbell
+      fonts:
+        - asset: assets/fonts/Schoolbell-Regular.ttf
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

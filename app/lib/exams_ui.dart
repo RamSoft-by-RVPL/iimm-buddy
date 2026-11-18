@@ -262,10 +262,11 @@ class ExamsCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(_name(coming.first),
                                 style: const TextStyle(
-                                    fontSize: 19,
+                                    fontFamily: 'Schoolbell',
+                                    fontSize: 21,
                                     height: 1.2,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.5)),
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0)),
                             const SizedBox(height: 4),
                             Text(
                                 '${fmtDate(coming.first.at)} · ${_where(coming.first)}',
@@ -339,8 +340,7 @@ class _ExamLine extends StatelessWidget {
         child: Row(children: [
           SizedBox(
             width: 54,
-            child: Text(
-                '${_weekday(e.at)} ${e.at.day}',
+            child: Text('${_weekday(e.at)} ${e.at.day}',
                 style: TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600, color: muted)),
           ),
@@ -391,10 +391,11 @@ class _DayCol extends StatelessWidget {
                 color: color ?? t.colorScheme.onSurfaceVariant)),
         Text('${d.day}',
             style: TextStyle(
-                fontSize: 24,
+                fontFamily: 'Schoolbell',
+                fontSize: 26,
                 height: 1.15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.8,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
                 color: color ?? t.colorScheme.onSurface)),
       ]),
     );
@@ -423,7 +424,6 @@ class _ExamsScreenState extends State<_ExamsScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final dark = t.brightness == Brightness.dark;
     final muted = t.colorScheme.onSurfaceVariant;
     final now = DateTime.now();
     final coming = _coming(widget.store, widget.snap, now);
@@ -451,119 +451,124 @@ class _ExamsScreenState extends State<_ExamsScreen> {
     return Scaffold(
       appBar: screenBar('Exams and quizzes',
           subtitle: '${coming.length} coming up', actions: [add]),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 28), children: [
-        Rise(
-          index: 0,
-          child: Material(
-            color: dark ? Brand.wineDark : Brand.wine,
-            borderRadius: BorderRadius.circular(24),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => _tap(first),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          'NEXT · ${countdown(first.at, now).toUpperCase()}',
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8,
-                              color: Brand.lime)),
-                      const SizedBox(height: 8),
-                      Text(_name(first),
-                          style: const TextStyle(
-                              fontSize: 28,
-                              height: 1.15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -1,
-                              color: Brand.wineInk)),
-                      const SizedBox(height: 12),
-                      Text(fmtDate(first.at),
-                          style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: Brand.wineInk)),
-                      const SizedBox(height: 2),
-                      Text('${_kind(first)} · ${_where(first)}',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: Brand.wineInk.withOpacity(0.75))),
-                      if (first.note.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(first.note,
-                            style: TextStyle(
-                                fontSize: 13.5,
-                                color: Brand.wineInk.withOpacity(0.75))),
-                      ],
-                    ]),
-              ),
-            ),
-          ),
-        ),
-        for (final (k, w) in weeks.entries.indexed) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
-            child: Row(children: [
-              Text(_weekTitle(w.key, now),
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3)),
-              const Spacer(),
-              Text(
-                  '${w.value.length} ${w.value.length == 1 ? 'paper' : 'papers'}',
-                  style: TextStyle(fontSize: 13, color: muted)),
-            ]),
-          ),
-          Rise(
-            index: k + 1,
-            child: GroupCard(children: [
-              for (final (i, e) in w.value.indexed)
-                InkWell(
-                  onTap: () => _tap(e),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
-                    child: Row(children: [
-                      i > 0 && _day(w.value[i - 1].at) == _day(e.at)
-                          ? const SizedBox(width: 46)
-                          : _DayCol(e.at),
-                      const SizedBox(width: 12),
-                      Expanded(
+      body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          children: [
+            Rise(
+              index: 0,
+              child: DecoratedBox(
+                  decoration: Brand.sticker(context, radius: 24),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () => _tap(first),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_name(e),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                              Text(
+                                  'NEXT · ${countdown(first.at, now).toUpperCase()}',
                                   style: const TextStyle(
-                                      fontSize: 15,
+                                      fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.15)),
+                                      letterSpacing: 0.8,
+                                      color: Brand.onPink)),
+                              const SizedBox(height: 8),
+                              Text(_name(first),
+                                  style: const TextStyle(
+                                      fontFamily: 'Schoolbell',
+                                      fontSize: 31,
+                                      height: 1.15,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0,
+                                      color: Brand.onPink)),
+                              const SizedBox(height: 12),
+                              Text(fmtDate(first.at),
+                                  style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      color: Brand.onPink)),
                               const SizedBox(height: 2),
-                              Text('${_kind(e)} · ${_where(e)}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style:
-                                      TextStyle(fontSize: 13, color: muted)),
+                              Text('${_kind(first)} · ${_where(first)}',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color: Brand.onPink.withOpacity(0.75))),
+                              if (first.note.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(first.note,
+                                    style: TextStyle(
+                                        fontSize: 13.5,
+                                        color: Brand.onPink.withOpacity(0.75))),
+                              ],
                             ]),
                       ),
-                    ]),
-                  ),
-                ),
-            ]),
-          ),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
-          child: Text(
-              'Papers from the exam timetable your class admin published, '
-              'and the ones you added. Tap one to see it or change it.',
-              style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
-        ),
-      ]),
+                    ),
+                  )),
+            ),
+            for (final (k, w) in weeks.entries.indexed) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
+                child: Row(children: [
+                  Text(_weekTitle(w.key, now),
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3)),
+                  const Spacer(),
+                  Text(
+                      '${w.value.length} ${w.value.length == 1 ? 'paper' : 'papers'}',
+                      style: TextStyle(fontSize: 13, color: muted)),
+                ]),
+              ),
+              Rise(
+                index: k + 1,
+                child: GroupCard(children: [
+                  for (final (i, e) in w.value.indexed)
+                    InkWell(
+                      onTap: () => _tap(e),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+                        child: Row(children: [
+                          i > 0 && _day(w.value[i - 1].at) == _day(e.at)
+                              ? const SizedBox(width: 46)
+                              : _DayCol(e.at),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(_name(e),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.15)),
+                                  const SizedBox(height: 2),
+                                  Text('${_kind(e)} · ${_where(e)}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 13, color: muted)),
+                                ]),
+                          ),
+                        ]),
+                      ),
+                    ),
+                ]),
+              ),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
+              child: Text(
+                  'Papers from the exam timetable your class admin published, '
+                  'and the ones you added. Tap one to see it or change it.',
+                  style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
+            ),
+          ]),
     );
   }
 }
@@ -635,7 +640,8 @@ class _TermRow extends StatelessWidget {
         _DayCol(e.from, color: on ? c : null),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(e.title,
                 style: const TextStyle(
                     fontSize: 15,
@@ -695,32 +701,35 @@ class _CalendarScreen extends StatelessWidget {
     final nextAt = ahead.isEmpty ? null : ahead.first;
     return Scaffold(
       appBar: screenBar('Academic calendar',
-          subtitle: '${ahead.length} ${ahead.length == 1 ? 'date' : 'dates'} ahead'),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: [
-        for (final g in {for (final e in events) e.group}) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
-            child: Text(g.isEmpty ? 'Dates' : g,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3)),
-          ),
-          GroupCard(children: [
-            for (final e in events.where((e) => e.group == g))
-              Opacity(
-                  opacity: e.to.isBefore(today) ? 0.45 : 1,
-                  child: _TermRow(e, today, now, countdown: e == nextAt)),
+          subtitle:
+              '${ahead.length} ${ahead.length == 1 ? 'date' : 'dates'} ahead'),
+      body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+          children: [
+            for (final g in {for (final e in events) e.group}) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+                child: Text(g.isEmpty ? 'Dates' : g,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3)),
+              ),
+              GroupCard(children: [
+                for (final e in events.where((e) => e.group == g))
+                  Opacity(
+                      opacity: e.to.isBefore(today) ? 0.45 : 1,
+                      child: _TermRow(e, today, now, countdown: e == nextAt)),
+              ]),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+              child: Text(
+                  'Published by your class admin from the institute\'s academic '
+                  'calendar. Dates can change; the institute\'s notice is final.',
+                  style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
+            ),
           ]),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
-          child: Text(
-              'Published by your class admin from the institute\'s academic '
-              'calendar. Dates can change; the institute\'s notice is final.',
-              style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
-        ),
-      ]),
     );
   }
 }

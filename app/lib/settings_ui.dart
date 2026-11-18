@@ -456,25 +456,28 @@ class _Profile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    const ink = Brand.wineInk;
+    const ink = Brand.onPink;
     return Container(
       margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-      decoration: BoxDecoration(
-          color: Brand.wine, borderRadius: BorderRadius.circular(22)),
+      decoration: Brand.sticker(context),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             width: 52,
             height: 52,
             alignment: Alignment.center,
-            decoration:
-                const BoxDecoration(color: Brand.lime, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: Brand.lemon,
+                shape: BoxShape.circle,
+                border: Border.all(color: Brand.edge, width: 2)),
             child: Text(_initials(name),
                 style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: Brand.wine)),
+                    fontFamily: 'Schoolbell',
+                    fontSize: 21,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
+                    color: Brand.onPink)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -504,12 +507,12 @@ class _Profile extends StatelessWidget {
               size: 18, color: ink.withOpacity(0.7)),
           const SizedBox(width: 8),
           Expanded(
-              child:
-                  Text(version, style: const TextStyle(fontSize: 13.5, color: ink))),
+              child: Text(version,
+                  style: const TextStyle(fontSize: 13.5, color: ink))),
           if (action != null)
             TextButton(
               onPressed: onAction,
-              style: TextButton.styleFrom(foregroundColor: Brand.lime),
+              style: TextButton.styleFrom(foregroundColor: Brand.onPink),
               child: Text(action!),
             )
           else
@@ -541,13 +544,10 @@ class _AlertTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final dark = t.brightness == Brightness.dark;
-    final bg = on
-        ? (dark ? Brand.wineDark : Brand.wine)
-        : t.cardTheme.color ?? t.colorScheme.surface;
-    final fg = on ? Brand.wineInk : t.colorScheme.onSurface;
+    final bg = on ? Brand.pink : t.cardTheme.color ?? t.colorScheme.surface;
+    final fg = on ? Brand.onPink : t.colorScheme.onSurface;
     final sub =
-        on ? Brand.wineInk.withOpacity(0.72) : t.colorScheme.onSurfaceVariant;
+        on ? Brand.onPink.withOpacity(0.72) : t.colorScheme.onSurfaceVariant;
     return Semantics(
       toggled: on,
       button: true,
@@ -562,7 +562,7 @@ class _AlertTile extends StatelessWidget {
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Icon(icon, size: 22, color: on ? Brand.lime : sub),
+                Icon(icon, size: 22, color: on ? Brand.onPink : sub),
                 const Spacer(),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
@@ -573,14 +573,14 @@ class _AlertTile extends StatelessWidget {
                   alignment: on ? Alignment.centerRight : Alignment.centerLeft,
                   decoration: BoxDecoration(
                       color: on
-                          ? Brand.lime
+                          ? Brand.lemon
                           : t.colorScheme.outlineVariant.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(10)),
                   child: Container(
                       width: 14,
                       height: 14,
                       decoration: BoxDecoration(
-                          color: on ? Brand.wine : t.colorScheme.surface,
+                          color: on ? Brand.onPink : t.colorScheme.surface,
                           shape: BoxShape.circle)),
                 ),
               ]),

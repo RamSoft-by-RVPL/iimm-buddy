@@ -259,10 +259,11 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
     final s = state;
     final allDone = s != null && s.allowed && s.exact && battery;
     const h2 = TextStyle(
-        fontSize: 34,
+        fontFamily: 'Schoolbell',
+        fontSize: 37,
         height: 1.05,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.5);
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0);
     final p = TextStyle(
         fontSize: 16, height: 1.45, color: t.colorScheme.onSurfaceVariant);
 

@@ -108,10 +108,11 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(n,
                 style: TextStyle(
-                    fontSize: 34,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 37,
                     height: 1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1.4,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
                     color: c)),
             const SizedBox(height: 4),
             Text(label, style: TextStyle(fontSize: 13, color: muted)),
@@ -245,9 +246,10 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
                                 fmtPct(percentIfExcused(
                                     c, notedFor(c, snap, log))),
                                 style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.6,
+                                    fontFamily: 'Schoolbell',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0,
                                     color: tone.good)),
                           ]),
                         ),
@@ -362,7 +364,6 @@ class PrivacyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final (head0, body0) = sections.first;
-    final dark = t.brightness == Brightness.dark;
     return Scaffold(
       appBar: screenBar('Privacy', subtitle: 'What Crony does with your data'),
       body: ListView(
@@ -372,9 +373,7 @@ class PrivacyScreen extends StatelessWidget {
               index: 0,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                decoration: BoxDecoration(
-                    color: dark ? Brand.wineDark : Brand.wine,
-                    borderRadius: BorderRadius.circular(22)),
+                decoration: Brand.sticker(context),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -383,13 +382,13 @@ class PrivacyScreen extends StatelessWidget {
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.8,
-                              color: Brand.lime)),
+                              color: Brand.onPink)),
                       const SizedBox(height: 8),
                       Text(body0,
                           style: const TextStyle(
                               fontSize: 15.5,
                               height: 1.45,
-                              color: Brand.wineInk)),
+                              color: Brand.onPink)),
                     ]),
               ),
             ),

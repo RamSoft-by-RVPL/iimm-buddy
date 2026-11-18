@@ -70,10 +70,10 @@ class _TimetableTabState extends State<TimetableTab> {
     final tone = Tone.of(context);
     final live = !s.startsAt.isAfter(now) && s.endsAt.isAfter(now);
     final soon = next && s.startsAt.difference(now).inHours < 12;
-    final wine = t.brightness == Brightness.dark ? Brand.wineDark : Brand.wine;
+    const pink = Brand.pink;
     final (label, color, filled) = switch (s) {
-      _ when live => ('Now', wine, true),
-      _ when soon => ('In ${NowCard.countdown(s, now)}', wine, true),
+      _ when live => ('Now', pink, true),
+      _ when soon => ('In ${NowCard.countdown(s, now)}', pink, true),
       _ when s.upcoming => ('Upcoming', t.colorScheme.onSurfaceVariant, false),
       _ when s.fromSheet => (
           'To be updated',
@@ -119,7 +119,7 @@ class _TimetableTabState extends State<TimetableTab> {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
                 side: live || soon
-                    ? BorderSide(color: wine, width: 1.6)
+                    ? const BorderSide(color: pink, width: 1.6)
                     : BorderSide.none),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -177,7 +177,7 @@ class _TimetableTabState extends State<TimetableTab> {
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: filled ? Brand.wineInk : color)),
+                            color: filled ? Brand.onPink : color)),
                   ),
                 ]),
               ),
@@ -191,7 +191,7 @@ class _TimetableTabState extends State<TimetableTab> {
   /// The current time as a line across the day.
   Widget nowLine(BuildContext context, DateTime now) {
     final t = Theme.of(context);
-    final c = t.brightness == Brightness.dark ? Brand.lime : Brand.wine;
+    final c = t.brightness == Brightness.dark ? Brand.lemon : Brand.edge;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
@@ -391,7 +391,7 @@ class _TimetableTabState extends State<TimetableTab> {
             color: missed
                 ? tone.bad.withOpacity(0.10)
                 : marks
-                    ? Brand.lime.withOpacity(0.38)
+                    ? Brand.lemon.withOpacity(0.38)
                     : offDay
                         ? tone.good.withOpacity(0.14)
                         : null,
@@ -511,7 +511,7 @@ class _TimetableTabState extends State<TimetableTab> {
           key(tone.warn, 'Not marked'),
           key(t.colorScheme.outline, 'Coming up'),
           key(t.colorScheme.onSurfaceVariant, 'Deadline', square: true),
-          key(Brand.lime.withOpacity(0.6), 'Exam day', square: true),
+          key(Brand.lemon.withOpacity(0.6), 'Exam day', square: true),
           key(tone.bad.withOpacity(0.25), 'Day with an absence', square: true),
           if (widget.calendar.isNotEmpty)
             key(tone.good.withOpacity(0.35), 'Holiday or break', square: true),
@@ -673,9 +673,10 @@ class _TimetableTabState extends State<TimetableTab> {
                       const SizedBox(height: 2),
                       Text('${days[i].day}',
                           style: TextStyle(
-                              fontSize: 19,
+                              fontFamily: 'Schoolbell',
+                              fontSize: 21,
                               fontWeight:
-                                  i == pick ? FontWeight.w700 : FontWeight.w500,
+                                  i == pick ? FontWeight.w400 : FontWeight.w500,
                               color: days[i] == today
                                   ? t.colorScheme.primary
                                   : t.colorScheme.onSurface)),

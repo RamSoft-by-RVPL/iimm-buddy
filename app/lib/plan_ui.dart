@@ -101,17 +101,16 @@ class _PlanTabState extends State<PlanTab> {
       final c = past ? 0 : cost(d);
       final inRange = r != null && !d.isBefore(r.start) && !d.isAfter(r.end);
       final edge = r != null && (d == r.start || d == r.end);
-      final wine =
-          t.brightness == Brightness.dark ? Brand.wineDark : Brand.wine;
+      const pink = Brand.pink;
       return GestureDetector(
         onTap: past ? null : () => tapDay(d),
         child: Container(
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: edge
-                ? wine
+                ? pink
                 : inRange
-                    ? wine.withOpacity(0.12)
+                    ? pink.withOpacity(0.12)
                     : null,
             border: isToday && !edge
                 ? Border.all(color: t.colorScheme.outlineVariant, width: 1.5)
@@ -124,7 +123,7 @@ class _PlanTabState extends State<PlanTab> {
                     fontSize: 15,
                     fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                     color: edge
-                        ? Brand.wineInk
+                        ? Brand.onPink
                         : past || d.weekday == DateTime.sunday
                             ? t.colorScheme.onSurfaceVariant.withOpacity(0.55)
                             : t.colorScheme.onSurface)),
@@ -133,7 +132,7 @@ class _PlanTabState extends State<PlanTab> {
                 c == 0
                     ? Colors.transparent
                     : edge
-                        ? Brand.wineInk
+                        ? Brand.onPink
                         : colors[c]!,
                 size: 5),
           ]),
@@ -257,10 +256,11 @@ class _PlanTabState extends State<PlanTab> {
           Column(mainAxisSize: MainAxisSize.min, children: [
             Text('${i.days}',
                 style: TextStyle(
-                    fontSize: 24,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 26,
                     height: 1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.8,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
                     color: picked ? tone.good : null)),
             Text(picked ? 'picked' : (i.days == 1 ? 'day' : 'days'),
                 style: TextStyle(
@@ -297,10 +297,11 @@ class _PlanTabState extends State<PlanTab> {
                     ? 'You can be away tomorrow, ${fmtDate(tomorrow)}.'
                     : 'You can be away until ${fmtDate(until)}.',
             style: TextStyle(
-                fontSize: 24,
+                fontFamily: 'Schoolbell',
+                fontSize: 26,
                 height: 1.2,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.8,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
                 color: t.colorScheme.onSurface)),
       ),
       Padding(
@@ -399,10 +400,11 @@ class _PlanTabState extends State<PlanTab> {
                             ? 'Fine. Every course can still finish at $min% or above.'
                             : '${hit.length} ${hit.length == 1 ? 'course falls' : 'courses fall'} below $min%.',
                     style: TextStyle(
-                        fontSize: 18,
+                        fontFamily: 'Schoolbell',
+                        fontSize: 20,
                         height: 1.25,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.4,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
                         color: hit.isEmpty ? null : tone.bad)),
               ),
             ]),

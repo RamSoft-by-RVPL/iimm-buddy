@@ -346,10 +346,11 @@ class MoodleTabState extends State<MoodleTab> {
           Column(children: [
             Text(n,
                 style: TextStyle(
-                    fontSize: 24,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 26,
                     height: 1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.8,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
                     color: soon ? tone.bad : null)),
             Text(unit,
                 style: TextStyle(
@@ -837,10 +838,11 @@ class _CourseSummary extends StatelessWidget {
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text('$saved',
                   style: const TextStyle(
-                      fontSize: 30,
+                      fontFamily: 'Schoolbell',
+                      fontSize: 33,
                       height: 1,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1)),
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0)),
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 3),
                 child: Text('of $files notes on this phone',
@@ -920,9 +922,9 @@ class _CourseSummary extends StatelessWidget {
 Color _tint(BuildContext context, MoodleItem i) {
   final t = Theme.of(context);
   return switch (i.module) {
-    'resource' ||
-    'securepdf' =>
-      t.brightness == Brightness.dark ? Brand.wineMuted : t.colorScheme.primary,
+    'resource' || 'securepdf' => t.brightness == Brightness.dark
+        ? Brand.onPinkMuted
+        : t.colorScheme.primary,
     'assign' => const Color(0xFFB26A00),
     'quiz' => const Color(0xFF2F6FB0),
     'forum' => const Color(0xFF5E7A1F),
@@ -1232,11 +1234,11 @@ class _WebPageState extends State<WebPage> {
 }
 
 const _courseHues = [
-  Color(0xFF4A1F28), Color(0xFF2F6FB0), Color(0xFF5E7A1F), //
+  Color(0xFFB8355A), Color(0xFF2F6FB0), Color(0xFF5E7A1F), //
   Color(0xFFB26A00), Color(0xFF7A3E8C), Color(0xFF1F7A72),
 ];
 const _courseHuesDark = [
-  Color(0xFFDCC9C6), Color(0xFF8DB8E8), Color(0xFFB9D46A), //
+  Color(0xFFF4A3B9), Color(0xFF8DB8E8), Color(0xFFB9D46A), //
   Color(0xFFF2B45C), Color(0xFFD1A4E0), Color(0xFF7FD3C8),
 ];
 
@@ -1259,7 +1261,6 @@ class _NextDue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final h = due.due.difference(now).inHours;
     final left = h < 1
         ? 'DUE WITHIN THE HOUR'
@@ -1267,67 +1268,71 @@ class _NextDue extends StatelessWidget {
             ? 'DUE IN $h ${h == 1 ? 'HOUR' : 'HOURS'}'
             : 'DUE IN ${(h / 24).ceil()} ${(h / 24).ceil() == 1 ? 'DAY' : 'DAYS'}';
     final done = info?.submitted == true;
-    return Material(
-      color: dark ? Brand.wineDark : Brand.wine,
-      borderRadius: BorderRadius.circular(22),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
-          child: Row(children: [
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(due.due.isBefore(now) ? 'OVERDUE' : left,
-                        style: const TextStyle(
-                            fontSize: 11.5,
-                            letterSpacing: 0.8,
-                            fontWeight: FontWeight.w700,
-                            color: Brand.lime)),
-                    const SizedBox(height: 6),
-                    Text(due.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 21,
-                            height: 1.2,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.4,
-                            color: Brand.wineInk)),
-                    const SizedBox(height: 4),
-                    Text(
-                        '${codeOf(due.course)} · '
-                        '${dueText(due.due, now).split(' · ').first}',
-                        style: TextStyle(
-                            fontSize: 13.5,
-                            color: Brand.wineInk.withOpacity(0.72))),
-                    if (info != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: done
-                                ? Brand.lime
-                                : Brand.wineInk.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(99)),
-                        child: Text(info!.label(now),
+    return DecoratedBox(
+        decoration: Brand.sticker(context, radius: 22),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+              child: Row(children: [
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(due.due.isBefore(now) ? 'OVERDUE' : left,
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                letterSpacing: 0.8,
+                                fontWeight: FontWeight.w700,
+                                color: Brand.onPink)),
+                        const SizedBox(height: 6),
+                        Text(due.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontFamily: 'Schoolbell',
+                                fontSize: 23,
+                                height: 1.2,
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0,
+                                color: Brand.onPink)),
+                        const SizedBox(height: 4),
+                        Text(
+                            '${codeOf(due.course)} · '
+                            '${dueText(due.due, now).split(' · ').first}',
                             style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: done ? Brand.wine : Brand.wineInk)),
-                      ),
-                    ],
-                  ]),
+                                fontSize: 13.5,
+                                color: Brand.onPink.withOpacity(0.72))),
+                        if (info != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                                color: done
+                                    ? Brand.lemon
+                                    : Brand.onPink.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(99)),
+                            child: Text(info!.label(now),
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Brand.onPink)),
+                          ),
+                        ],
+                      ]),
+                ),
+                if (onTap != null)
+                  Icon(Icons.chevron_right,
+                      color: Brand.onPink.withOpacity(0.6)),
+              ]),
             ),
-            if (onTap != null)
-              Icon(Icons.chevron_right, color: Brand.wineInk.withOpacity(0.6)),
-          ]),
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
@@ -1374,13 +1379,14 @@ class _CourseTile extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                      color: Brand.lime,
+                      color: Brand.lemon,
+                      border: Border.all(color: Brand.edge, width: 1.5),
                       borderRadius: BorderRadius.circular(99)),
                   child: Text('$fresh new',
                       style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: Brand.wine)),
+                          color: Brand.onPink)),
                 ),
             ]),
             const SizedBox(height: 10),
@@ -1388,10 +1394,11 @@ class _CourseTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 22,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 24,
                     height: 1.1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.6)),
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0)),
             if (code != name) ...[
               const SizedBox(height: 3),
               Text(name,
