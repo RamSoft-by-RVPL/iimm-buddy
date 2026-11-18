@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crony · Privacy policy</title>
 <meta name="description" content="What the Crony app does with your data.">
-<meta name="theme-color" content="#4A1F28">
+<meta name="theme-color" content="#EC6989">
 <link rel="icon" href="/icon.png">
 <style>
-  :root { --ink:#1f1a1b; --muted:#6b6264; --paper:#f4f1ec; --card:#fff; --wine:#4a1f28; --lime:#d6ee4a; }
-  @media (prefers-color-scheme: dark) { :root { --ink:#f2ecea; --muted:#b3a9aa; --paper:#141112; --card:#1f1a1b; } }
+  :root { --ink:#1a1113; --muted:#5e2e3c; --paper:#ffd3e0; --card:#fff5f8; --pink:#ec6989; --on-pink:#1a1113; --edge:#1a1113; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#fceaf0; --muted:#d8a9b9; --paper:#1c0e14; --card:#2a1720; --edge:#000; } }
   * { box-sizing:border-box }
   body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.6 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; padding:0 16px; }
   main { max-width:680px; margin:0 auto; padding:48px 0 64px; }
   h1 { font-size:34px; line-height:1.15; letter-spacing:-0.03em; margin:0 0 6px; }
   .sub { color:var(--muted); margin:0 0 28px; font-size:15px; }
-  .short { background:var(--wine); color:#f7f1ec; border-radius:22px; padding:22px 24px; margin-bottom:14px; }
-  .short h2 { color:var(--lime); font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin:0 0 8px; }
+  .short { background:var(--pink); color:var(--on-pink); border:2px solid var(--edge); box-shadow:3px 4px 0 var(--edge); border-radius:22px; padding:22px 24px; margin-bottom:14px; }
+  .short h2 { color:var(--on-pink); font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin:0 0 8px; }
   .short p { margin:0; font-size:17px; line-height:1.5; }
-  section { background:var(--card); border-radius:20px; padding:20px 24px; margin-top:12px; }
+  section { background:var(--card); border:2px solid var(--edge); border-radius:20px; padding:20px 24px; margin-top:12px; }
   section h2 { font-size:18px; letter-spacing:-0.01em; margin:0 0 6px; }
   section p { margin:0; color:var(--ink); opacity:.86; }
   footer { color:var(--muted); font-size:14px; margin-top:28px; }
@@ -30,41 +30,45 @@
   <p class="sub">Crony for Android · effective 18 November 2026</p>
   <div class="short">
     <h2>In short</h2>
-    <p>Crony is made by a student. It is not an official app of IIM Mumbai. Your attendance and Moodle data stay on your phone. The maker runs a small server for the shared class timetable and for a diagnostic log, described below. There are no ads.</p>
+    <p>Crony is made by a student and published by Ramya Ventures Private Limited. It is not an official app of IIM Mumbai. Your attendance and Moodle data stay on your phone. Ramya Ventures runs a small server for the shared class timetable and for a diagnostic log, described below. There are no ads.</p>
   </div>
-    <section>
-      <h2>Signing in</h2>
-      <p>You sign in on Microsoft&#x27;s own page, shown inside the app. The app never sees or stores your password. After you sign in, the phone keeps the same sign-in cookies a browser would keep, so you do not have to sign in every time.</p>
-    </section>
-    <section>
-      <h2>What the app reads</h2>
-      <p>Your attendance and timetable from the IIM Mumbai attendance site, and your courses, files, assignments and deadlines from the IIM Mumbai Moodle site. It reads them straight from those sites, as you, and only for your own account.</p>
-    </section>
-    <section>
-      <h2>Where it is kept</h2>
-      <p>On this phone only: the last attendance data, the Moodle lists, the files you download, your settings and your leave log. If phone backup is on, Android saves the settings and the leave log (not the downloaded files and not the sign-in) to your own Google account, so they come back on a new phone.</p>
-    </section>
-    <section>
-      <h2>What leaves the phone</h2>
-      <p>Requests to the two IIM Mumbai sites and to Microsoft for signing in. The app also asks a small server run by the maker of the app for the class timetable of your batch; for that it sends only the batch name (for example &quot;bs-2026&quot;). The same server receives the diagnostic log described below. An email or a shared picture goes out only when you press send or share yourself.</p>
-    </section>
-    <section>
-      <h2>Instant messages</h2>
-      <p>So that messages and timetable changes arrive at once, the app uses Google&#x27;s push service (Firebase Cloud Messaging), the same one most Android apps use. Google gives the app a random address for this phone; it is not linked to your name or roll number, and the messages carry no personal information.</p>
-    </section>
-    <section>
-      <h2>Diagnostics</h2>
-      <p>Unless you switch it off in Settings, the app sends the maker&#x27;s server a short log of what it did (refreshed, failed with an error, set reminders), together with your name, roll number, batch, phone model, Android version and app version. It is used to fix problems and to count how many people use the app. It never contains attendance figures, Moodle content, your password or your sign-in. Log entries are deleted after 30 days.</p>
-    </section>
-    <section>
-      <h2>Permissions</h2>
-      <p>Notifications: class reminders and alerts. Calendar: only if you switch on the phone calendar option; the app writes its own calendar and does not read your other events. Internet: to reach the sites above.</p>
-    </section>
-    <section>
-      <h2>Removing your data</h2>
-      <p>Sign out in Settings removes the sign-in, the saved data and the downloaded files. Uninstalling the app removes everything.</p>
-    </section>
-  <footer>Questions about your data: ramyaventurespvtltd@gmail.com</footer>
+  <section>
+    <h2>Signing in</h2>
+    <p>You sign in on Microsoft&#x27;s own page, shown inside the app. The app never sees or stores your password. After you sign in, the phone keeps the same sign-in cookies a browser would keep, so you do not have to sign in every time.</p>
+  </section>
+  <section>
+    <h2>What the app reads</h2>
+    <p>Your attendance and timetable from the IIM Mumbai attendance site, and your courses, files, assignments and deadlines from the IIM Mumbai Moodle site. It reads them straight from those sites, as you, and only for your own account.</p>
+  </section>
+  <section>
+    <h2>Where it is kept</h2>
+    <p>On this phone only: the last attendance data, the Moodle lists, the files you download, your settings and your leave log. If phone backup is on, Android saves the settings and the leave log (not the downloaded files and not the sign-in) to your own Google account, so they come back on a new phone.</p>
+  </section>
+  <section>
+    <h2>What leaves the phone</h2>
+    <p>Requests to the two IIM Mumbai sites and to Microsoft for signing in. The app also asks a small server run by Ramya Ventures for the class timetable of your batch; for that it sends only the batch name (for example &quot;bs-2026&quot;). The same server receives the diagnostic log described below. An email or a shared picture goes out only when you press send or share yourself.</p>
+  </section>
+  <section>
+    <h2>Instant messages</h2>
+    <p>So that messages and timetable changes arrive at once, the app uses Google&#x27;s push service (Firebase Cloud Messaging), the same one most Android apps use. Google gives the app a random address for this phone; it is not linked to your name or roll number, and the messages carry no personal information.</p>
+  </section>
+  <section>
+    <h2>Diagnostics</h2>
+    <p>Unless you switch it off in Settings, the app sends Ramya Ventures&#x27; server a short log of what it did (refreshed, failed with an error, set reminders), together with your name, roll number, batch, phone model, Android version and app version. It is used to fix problems and to count how many people use the app. It never contains attendance figures, Moodle content, your password or your sign-in. Log entries are deleted after 30 days.</p>
+  </section>
+  <section>
+    <h2>Permissions</h2>
+    <p>Notifications: class reminders and alerts. Calendar: only if you switch on the phone calendar option; the app writes its own calendar and does not read your other events. Internet: to reach the sites above.</p>
+  </section>
+  <section>
+    <h2>Removing your data</h2>
+    <p>Sign out in Settings removes the sign-in, the saved data and the downloaded files. Uninstalling the app removes everything.</p>
+  </section>
+  <section>
+    <h2>Questions</h2>
+    <p>Write to ramyaventurespvtltd@gmail.com about your data or to have your diagnostic log deleted sooner.</p>
+  </section>
+  <footer>Crony is published by Ramya Ventures Private Limited, Mumbai.</footer>
 </main>
 </body>
 </html>

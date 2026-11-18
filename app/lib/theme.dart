@@ -1,5 +1,6 @@
-// The app's look: warm paper surfaces, wine as the one brand colour, lime only
-// for Crony's crest and the "can still skip" marks, and Geist throughout.
+// The app's look, from the Lemonade logo: pink first, lemon second and black
+// outlines like the logo's line. Schoolbell for titles, numbers and buttons,
+// Geist for everything read in sentences.
 
 import 'package:flutter/material.dart';
 
@@ -7,56 +8,86 @@ import 'mascot.dart';
 
 /// Brand colours used outside the colour scheme (the mascot, the Now card).
 class Brand {
-  static const wine = Color(0xFF4A1F28);
-  static const wineDark = Color(0xFF5C2733);
-  static const wineInk = Color(0xFFF7F1EC);
-  static const wineMuted = Color(0xFFDCC9C6);
-  static const lime = Color(0xFFD6EE4A);
-  static const limeDeep = Color(0xFFA3BA14);
+  static const pink = Color(0xFFEC6989);
+  static const onPink = Color(0xFF1A1113);
+  static const onPinkMuted = Color(0xFF3D1520);
+  static const lemon = Color(0xFFFAE474);
+  static const lemonDeep = Color(0xFFE5BE12);
+  static const edge = Color(0xFF1A1113);
+
+  /// Schoolbell has one weight; asking for more would smear it.
+  static TextStyle hand(double size, {Color? color, double? height}) =>
+      TextStyle(
+          fontFamily: 'Schoolbell',
+          fontSize: size,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0,
+          height: height,
+          color: color);
+
+  /// A raised pink card: black outline and a hard offset shadow, like a sticker.
+  static BoxDecoration sticker(BuildContext context,
+      {Color color = pink, double radius = 22}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final line = dark ? Colors.black : edge;
+    return BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: line, width: 2),
+      boxShadow: [BoxShadow(color: line, offset: const Offset(3, 4))],
+    );
+  }
 }
 
 ThemeData appTheme(Brightness b) {
   final dark = b == Brightness.dark;
-  final ink = dark ? const Color(0xFFF1EEE9) : const Color(0xFF191714);
-  final ink2 = dark ? const Color(0xFFA9A39B) : const Color(0xFF5F5A52);
+  final ink = dark ? const Color(0xFFFCEAF0) : const Color(0xFF1A1113);
+  final ink2 = dark ? const Color(0xFFD8A9B9) : const Color(0xFF5E2E3C);
+  final line = dark ? Colors.black : Brand.edge;
   final scheme =
-      ColorScheme.fromSeed(seedColor: Brand.wine, brightness: b).copyWith(
-    primary: dark ? const Color(0xFFE6BFC6) : Brand.wine,
-    onPrimary: dark ? const Color(0xFF3A1219) : Brand.wineInk,
-    primaryContainer: dark ? const Color(0xFF3A2229) : const Color(0xFFF0E5E2),
-    onPrimaryContainer: dark ? const Color(0xFFF0DADD) : Brand.wine,
+      ColorScheme.fromSeed(seedColor: Brand.pink, brightness: b).copyWith(
+    primary: dark ? Brand.lemon : const Color(0xFF1A1113),
+    onPrimary: dark ? Brand.onPink : Brand.lemon,
+    primaryContainer: Brand.lemon,
+    onPrimaryContainer: Brand.onPink,
     secondaryContainer:
-        dark ? const Color(0xFF26242A) : const Color(0xFFECE9E3),
+        dark ? const Color(0xFF3A1F2B) : const Color(0xFFFFBFD2),
     onSecondaryContainer: ink,
-    tertiary: dark ? Brand.lime : Brand.limeDeep,
-    surface: dark ? const Color(0xFF121113) : const Color(0xFFF3F1EC),
+    tertiary: dark ? Brand.lemon : Brand.lemonDeep,
+    surface: dark ? const Color(0xFF1C0E14) : const Color(0xFFFFD3E0),
     onSurface: ink,
     onSurfaceVariant: ink2,
     surfaceContainerLowest:
-        dark ? const Color(0xFF0D0C0E) : const Color(0xFFFFFFFF),
+        dark ? const Color(0xFF140A0E) : const Color(0xFFFFFAFC),
     surfaceContainerLow:
-        dark ? const Color(0xFF1B1A1D) : const Color(0xFFFFFFFF),
-    surfaceContainer: dark ? const Color(0xFF1F1D21) : const Color(0xFFEEEBE5),
+        dark ? const Color(0xFF2A1720) : const Color(0xFFFFF5F8),
+    surfaceContainer: dark ? const Color(0xFF2F1A23) : const Color(0xFFFFE3EC),
     surfaceContainerHigh:
-        dark ? const Color(0xFF26242A) : const Color(0xFFE8E4DD),
+        dark ? const Color(0xFF3A1F2B) : const Color(0xFFFFBFD2),
     surfaceContainerHighest:
-        dark ? const Color(0xFF2E2B31) : const Color(0xFFE1DDD5),
-    outline: dark ? const Color(0xFF6C6770) : const Color(0xFF9A948A),
-    outlineVariant: dark ? const Color(0xFF2A282D) : const Color(0xFFE4E1DA),
+        dark ? const Color(0xFF452632) : const Color(0xFFF9AFC6),
+    outline: dark ? const Color(0xFF8F6573) : const Color(0xFF8E5A69),
+    outlineVariant: dark ? const Color(0xFF3A1F2B) : const Color(0xFFF4B6C9),
     surfaceTint: Colors.transparent,
   );
   final base =
       ThemeData(colorScheme: scheme, useMaterial3: true, fontFamily: 'Geist');
   final text = base.textTheme;
+  TextStyle? hand(TextStyle? s, double size) => s?.copyWith(
+      fontFamily: 'Schoolbell',
+      fontSize: size,
+      fontWeight: FontWeight.w400,
+      letterSpacing: 0);
   TextStyle? tight(TextStyle? s, FontWeight w, double spacing) =>
       s?.copyWith(fontWeight: w, letterSpacing: spacing);
+  final outlined = BorderSide(color: line, width: 2);
   return base.copyWith(
     scaffoldBackgroundColor: scheme.surface,
     textTheme: text.copyWith(
-      displaySmall: tight(text.displaySmall, FontWeight.w700, -1.6),
-      headlineMedium: tight(text.headlineMedium, FontWeight.w700, -1.0),
-      headlineSmall: tight(text.headlineSmall, FontWeight.w700, -0.8),
-      titleLarge: tight(text.titleLarge, FontWeight.w600, -0.4),
+      displaySmall: hand(text.displaySmall, 40),
+      headlineMedium: hand(text.headlineMedium, 32),
+      headlineSmall: hand(text.headlineSmall, 28),
+      titleLarge: hand(text.titleLarge, 24),
       titleMedium: tight(text.titleMedium, FontWeight.w600, -0.2),
       titleSmall: tight(text.titleSmall, FontWeight.w600, -0.1),
       labelLarge: tight(text.labelLarge, FontWeight.w600, 0),
@@ -67,12 +98,7 @@ ThemeData appTheme(Brightness b) {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
-          fontFamily: 'Geist',
-          fontSize: 26,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.0,
-          color: scheme.onSurface),
+      titleTextStyle: Brand.hand(30, color: scheme.onSurface),
     ),
     cardTheme: CardTheme(
       elevation: 0,
@@ -80,25 +106,21 @@ ThemeData appTheme(Brightness b) {
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: dark ? BorderSide(color: scheme.outlineVariant) : BorderSide.none,
+        side: outlined,
       ),
       clipBehavior: Clip.antiAlias,
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: scheme.surface,
-      indicatorColor: scheme.primaryContainer,
+      indicatorColor: Brand.lemon,
+      indicatorShape: StadiumBorder(side: BorderSide(color: line, width: 2)),
       elevation: 0,
       height: 72,
       iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
           color: s.contains(WidgetState.selected)
-              ? scheme.primary
+              ? Brand.onPink
               : scheme.onSurfaceVariant)),
-      labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
-          fontFamily: 'Geist',
-          fontSize: 12,
-          fontWeight: s.contains(WidgetState.selected)
-              ? FontWeight.w600
-              : FontWeight.w500,
+      labelTextStyle: WidgetStateProperty.resolveWith((s) => Brand.hand(14,
           color: s.contains(WidgetState.selected)
               ? scheme.onSurface
               : scheme.onSurfaceVariant)),
@@ -122,17 +144,13 @@ ThemeData appTheme(Brightness b) {
             color: scheme.onSurfaceVariant)),
     switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected)
-                ? (dark ? Brand.wine : Colors.white)
-                : scheme.outline),
+            s.contains(WidgetState.selected) ? Brand.onPink : scheme.outline),
         trackColor: WidgetStateProperty.resolveWith((s) =>
             s.contains(WidgetState.selected)
-                ? (dark ? const Color(0xFFE6BFC6) : Brand.wine)
+                ? Brand.lemon
                 : scheme.surfaceContainerHighest),
-        trackOutlineColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected)
-                ? Colors.transparent
-                : scheme.outline.withOpacity(0.5))),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? line : scheme.outline)),
     checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
     tabBarTheme: TabBarTheme(
@@ -141,71 +159,74 @@ ThemeData appTheme(Brightness b) {
         indicatorColor: scheme.primary,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: scheme.outlineVariant,
-        labelStyle: const TextStyle(
-            fontFamily: 'Geist', fontSize: 15, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
-            fontFamily: 'Geist', fontSize: 15, fontWeight: FontWeight.w500)),
+        labelStyle: Brand.hand(18),
+        unselectedLabelStyle: Brand.hand(18)),
     expansionTileTheme:
         const ExpansionTileThemeData(shape: Border(), collapsedShape: Border()),
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
             minimumSize: const Size(0, 46),
-            textStyle: const TextStyle(
-                fontFamily: 'Geist', fontWeight: FontWeight.w600, fontSize: 15),
+            backgroundColor: Brand.lemon,
+            foregroundColor: Brand.onPink,
+            disabledBackgroundColor: scheme.surfaceContainerHigh,
+            side: outlined,
+            textStyle: Brand.hand(18),
             shape: const StadiumBorder())),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 44),
-            side: BorderSide(color: scheme.outline.withOpacity(0.5)),
+            foregroundColor: scheme.onSurface,
+            side: outlined,
+            textStyle: Brand.hand(17),
             shape: const StadiumBorder())),
     textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-            textStyle: const TextStyle(
-                fontFamily: 'Geist', fontWeight: FontWeight.w600))),
+            foregroundColor: scheme.onSurface, textStyle: Brand.hand(17))),
     segmentedButtonTheme: SegmentedButtonThemeData(
         style: SegmentedButton.styleFrom(
-            selectedBackgroundColor: scheme.surfaceContainerLow,
-            backgroundColor: scheme.surfaceContainer,
-            side: BorderSide.none)),
+            selectedBackgroundColor: Brand.lemon,
+            selectedForegroundColor: Brand.onPink,
+            backgroundColor: scheme.surfaceContainerLow,
+            side: outlined,
+            textStyle: Brand.hand(16))),
     chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
-        side: BorderSide(color: scheme.outlineVariant)),
+        side: BorderSide(color: line, width: 1.5),
+        selectedColor: Brand.lemon),
     progressIndicatorTheme: ProgressIndicatorThemeData(
         color: scheme.primary, linearTrackColor: scheme.surfaceContainerHigh),
     snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            dark ? const Color(0xFF2E2B31) : const Color(0xFF191714),
+        backgroundColor: const Color(0xFF1A1113),
+        actionTextColor: Brand.lemon,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
     dialogTheme: DialogTheme(
         backgroundColor: scheme.surfaceContainerLow,
-        titleTextStyle: TextStyle(
-            fontFamily: 'Geist',
-            fontSize: 21,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            color: scheme.onSurface),
+        titleTextStyle: Brand.hand(26, color: scheme.onSurface),
         contentTextStyle: TextStyle(
             fontFamily: 'Geist',
             fontSize: 15,
             height: 1.45,
             color: scheme.onSurfaceVariant),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28), side: outlined)),
     bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         showDragHandle: true,
-        dragHandleColor: scheme.outline.withOpacity(0.4),
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
+        dragHandleColor: scheme.onSurface.withOpacity(0.4),
+        shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            side: outlined)),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerLow,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.outlineVariant)),
+          borderRadius: BorderRadius.circular(14), borderSide: outlined),
       enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14), borderSide: outlined),
+      focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.outlineVariant)),
+          borderSide: BorderSide(color: line, width: 2.5)),
     ),
   );
 }
@@ -221,8 +242,8 @@ class Tone {
       Theme.of(context).brightness == Brightness.dark
           ? Tone._(const Color(0xFF7FD39D), const Color(0xFFF2B45C),
               const Color(0xFFFF8C82))
-          : Tone._(const Color(0xFF1E6B40), const Color(0xFF9A5400),
-              const Color(0xFFB3261E));
+          : Tone._(const Color(0xFF1E6B40), const Color(0xFF7A4300),
+              const Color(0xFFA3141C));
 }
 
 /// A small rounded label: "Can miss 3", "Present", "Not on portal yet".
@@ -254,8 +275,7 @@ class Pill extends StatelessWidget {
           child: Text(text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: t.textTheme.labelMedium
-                  ?.copyWith(color: c, fontWeight: FontWeight.w600)),
+              style: Brand.hand(15, color: c, height: 1.1)),
         ),
       ]),
     );
@@ -275,9 +295,8 @@ class SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
       child: Row(children: [
         Expanded(
-          child: Text(text,
-              style: t.textTheme.titleMedium
-                  ?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
+          child:
+              Text(text, style: Brand.hand(22, color: t.colorScheme.onSurface)),
         ),
         if (trailing != null) trailing!,
       ]),
@@ -383,8 +402,7 @@ class Meter extends StatelessWidget {
 enum Punch { attended, missed, pending, due, spare }
 
 /// One tick per class: the classes held so far, then the ones still to come,
-/// with the last few in lime: the classes that can still be missed, as on
-/// the app icon.
+/// with the last few in lemon: the classes that can still be missed.
 class PunchStrip extends StatelessWidget {
   const PunchStrip(this.ticks, {super.key});
   final List<Punch> ticks;
@@ -398,22 +416,27 @@ class PunchStrip extends StatelessWidget {
       height: 14,
       width: double.infinity,
       child: CustomPaint(
-        painter: _PunchPainter(ticks, {
-          Punch.attended: t.colorScheme.onSurface,
-          Punch.missed: tone.bad,
-          Punch.pending: tone.warn,
-          Punch.due: t.colorScheme.onSurface.withOpacity(dark ? 0.16 : 0.14),
-          Punch.spare: dark ? Brand.lime : Brand.limeDeep,
-        }),
+        painter: _PunchPainter(
+            ticks,
+            {
+              Punch.attended: t.colorScheme.onSurface,
+              Punch.missed: tone.bad,
+              Punch.pending: tone.warn,
+              Punch.due:
+                  t.colorScheme.onSurface.withOpacity(dark ? 0.16 : 0.14),
+              Punch.spare: Brand.lemon,
+            },
+            t.colorScheme.onSurface),
       ),
     );
   }
 }
 
 class _PunchPainter extends CustomPainter {
-  _PunchPainter(this.ticks, this.colors);
+  _PunchPainter(this.ticks, this.colors, this.outline);
   final List<Punch> ticks;
   final Map<Punch, Color> colors;
+  final Color outline;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -436,12 +459,16 @@ class _PunchPainter extends CustomPainter {
       }
       canvas.drawRRect(
           RRect.fromRectAndRadius(box, r), fill..color = colors[p]!);
+      if (p == Punch.spare && w >= 4) {
+        canvas.drawRRect(RRect.fromRectAndRadius(box.deflate(0.5), r),
+            edge..color = outline);
+      }
     }
   }
 
   @override
   bool shouldRepaint(_PunchPainter old) =>
-      old.ticks != ticks || old.colors != colors;
+      old.ticks != ticks || old.colors != colors || old.outline != outline;
 }
 
 /// A friendly message for a screen with nothing to show.

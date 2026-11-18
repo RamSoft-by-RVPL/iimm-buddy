@@ -113,7 +113,7 @@ List<Punch> punchesOf(Course c, Snapshot snap, int minPct) {
   ];
 }
 
-/// The next class, on a wine card: when it starts and whether it can be skipped.
+/// The next class, on a pink card: when it starts and whether it can be skipped.
 class NowCard extends StatelessWidget {
   const NowCard(
       {super.key,
@@ -156,7 +156,7 @@ class NowCard extends StatelessWidget {
     const unit = TextStyle(
         fontFamily: 'Geist',
         fontSize: 16,
-        color: Brand.wineMuted,
+        color: Brand.onPinkMuted,
         letterSpacing: 0);
     return [
       for (final m in RegExp(r'(\d+)\s*([a-z]+)').allMatches(text)) ...[
@@ -169,25 +169,20 @@ class NowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    final dark = t.brightness == Brightness.dark;
     final c = course;
     final short = shortName?.trim() ?? '';
     final soon =
         slot.startsAt.difference(now).inHours < 24 && slot.date.day == now.day;
     final started = slot.startsAt.isBefore(now);
-    const ink = Brand.wineInk;
-    const muted = Brand.wineMuted;
+    const ink = Brand.onPink;
+    const muted = Brand.onPinkMuted;
     return Semantics(
       container: true,
       label: 'Next class',
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-        decoration: BoxDecoration(
-          color: dark ? Brand.wineDark : Brand.wine,
-          borderRadius: BorderRadius.circular(24),
-        ),
+        decoration: Brand.sticker(context, radius: 24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
@@ -204,12 +199,7 @@ class NowCard extends StatelessWidget {
                                 height: 1.15,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: -0.45)
-                            : const TextStyle(
-                                color: ink,
-                                fontSize: 40,
-                                height: 0.95,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.8)),
+                            : Brand.hand(46, color: ink, height: 0.95)),
                     const SizedBox(height: 8),
                     Text(
                         '${soon ? '' : '${dayWord(slot.date, now)}, '}'
@@ -226,7 +216,10 @@ class NowCard extends StatelessWidget {
                       width: 7,
                       height: 7,
                       decoration: const BoxDecoration(
-                          color: Brand.lime, shape: BoxShape.circle)),
+                          color: Brand.lemon,
+                          shape: BoxShape.circle,
+                          border: Border.fromBorderSide(
+                              BorderSide(color: Brand.edge, width: 1.5)))),
                   const SizedBox(width: 6),
                 ],
                 Text(
@@ -235,17 +228,11 @@ class NowCard extends StatelessWidget {
               ]),
               const SizedBox(height: 4),
               Text.rich(TextSpan(children: countdownSpans(slot, now)),
-                  style: const TextStyle(
-                      color: ink,
-                      fontFamily: 'GeistMono',
-                      fontSize: 28,
-                      height: 1.1,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.8)),
+                  style: Brand.hand(34, color: ink, height: 1.1)),
             ]),
           ]),
           const SizedBox(height: 16),
-          Container(height: 1, color: const Color(0x29F7F1EC)),
+          Container(height: 2, color: const Color(0x381A1113)),
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
@@ -268,14 +255,12 @@ class NowCard extends StatelessWidget {
               onPressed: onSkip,
               style: OutlinedButton.styleFrom(
                 foregroundColor: ink,
+                backgroundColor: Brand.lemon,
                 minimumSize: const Size(0, 40),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                side: const BorderSide(color: Color(0x61F7F1EC)),
+                side: const BorderSide(color: Brand.edge, width: 2),
                 shape: const StadiumBorder(),
-                textStyle: const TextStyle(
-                    fontFamily: 'Geist',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
+                textStyle: Brand.hand(17),
               ),
               child: const Text('What if I skip'),
             ),
@@ -497,10 +482,11 @@ class AttendanceTab extends StatelessWidget {
                       const SizedBox(height: 10),
                       CountUp(snap.percent,
                           style: TextStyle(
-                              fontSize: 52,
+                              fontFamily: 'Schoolbell',
+                              fontSize: 58,
                               height: 1,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -2.4,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0,
                               color: overallBad
                                   ? tone.bad
                                   : t.colorScheme.onSurface,
@@ -617,9 +603,10 @@ class AttendanceTab extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(4, 0, 4, 4),
                   child: Text('Not marked yet',
                       style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.6)),
+                          fontFamily: 'Schoolbell',
+                          fontSize: 24,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0)),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
@@ -793,7 +780,7 @@ class AttendanceTab extends StatelessWidget {
             key(t.colorScheme.onSurface, 'Attended'),
             key(tone.bad, 'Missed'),
             key(t.colorScheme.outline, 'Still to come', outline: true),
-            key(t.brightness == Brightness.dark ? Brand.lime : Brand.limeDeep,
+            key(t.brightness == Brightness.dark ? Brand.lemon : Brand.lemonDeep,
                 'Can still miss'),
           ]),
         ),

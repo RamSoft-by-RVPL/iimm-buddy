@@ -108,10 +108,11 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(n,
                 style: TextStyle(
-                    fontSize: 34,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 37,
                     height: 1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1.4,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0,
                     color: c)),
             const SizedBox(height: 4),
             Text(label, style: TextStyle(fontSize: 13, color: muted)),
@@ -245,9 +246,10 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
                                 fmtPct(percentIfExcused(
                                     c, notedFor(c, snap, log))),
                                 style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.6,
+                                    fontFamily: 'Schoolbell',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0,
                                     color: tone.good)),
                           ]),
                         ),
@@ -271,10 +273,11 @@ class PrivacyScreen extends StatelessWidget {
   static const sections = [
     (
       'In short',
-      'Crony is made by a student. It is not an official app of IIM '
-          'Mumbai. Your attendance and Moodle data stay on your phone. The '
-          'maker runs a small server for the shared class timetable and for '
-          'a diagnostic log, described below. There are no ads.'
+      'Crony is made by a student and published by Ramya Ventures Private '
+          'Limited. It is not an official app of IIM Mumbai. Your attendance '
+          'and Moodle data stay on your phone. Ramya Ventures runs a small '
+          'server for the shared class timetable and for a diagnostic log, '
+          'described below. There are no ads.'
     ),
     (
       'Signing in',
@@ -301,7 +304,7 @@ class PrivacyScreen extends StatelessWidget {
     (
       'What leaves the phone',
       'Requests to the two IIM Mumbai sites and to Microsoft for signing '
-          'in. The app also asks a small server run by the maker of the app '
+          'in. The app also asks a small server run by Ramya Ventures '
           'for the class timetable of your batch; for that it sends only the '
           'batch name (for example "bs-2026"). The same server receives the '
           'diagnostic log described below. An email or a shared picture goes out '
@@ -317,8 +320,8 @@ class PrivacyScreen extends StatelessWidget {
     ),
     (
       'Diagnostics',
-      'Unless you switch it off in Settings, the app sends the maker\'s '
-          'server a short log of what it did (refreshed, failed with an '
+      'Unless you switch it off in Settings, the app sends Ramya '
+          'Ventures\' server a short log of what it did (refreshed, failed with an '
           'error, set reminders), together with your name, roll number, '
           'batch, phone model, Android version and app version. It is used '
           'to fix problems and to count how many people use the app. It '
@@ -337,6 +340,11 @@ class PrivacyScreen extends StatelessWidget {
       'Sign out in Settings removes the sign-in, the saved data and the '
           'downloaded files. Uninstalling the app removes everything.'
     ),
+    (
+      'Questions',
+      'Write to ramyaventurespvtltd@gmail.com about your data or to have '
+          'your diagnostic log deleted sooner.'
+    ),
   ];
 
   static const _icons = [
@@ -349,13 +357,13 @@ class PrivacyScreen extends StatelessWidget {
     Icons.monitor_heart_outlined,
     Icons.verified_user_outlined,
     Icons.delete_outline,
+    Icons.mail_outline,
   ];
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final (head0, body0) = sections.first;
-    final dark = t.brightness == Brightness.dark;
     return Scaffold(
       appBar: screenBar('Privacy', subtitle: 'What Crony does with your data'),
       body: ListView(
@@ -365,9 +373,7 @@ class PrivacyScreen extends StatelessWidget {
               index: 0,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                decoration: BoxDecoration(
-                    color: dark ? Brand.wineDark : Brand.wine,
-                    borderRadius: BorderRadius.circular(22)),
+                decoration: Brand.sticker(context),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -376,13 +382,13 @@ class PrivacyScreen extends StatelessWidget {
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.8,
-                              color: Brand.lime)),
+                              color: Brand.onPink)),
                       const SizedBox(height: 8),
                       Text(body0,
                           style: const TextStyle(
                               fontSize: 15.5,
                               height: 1.45,
-                              color: Brand.wineInk)),
+                              color: Brand.onPink)),
                     ]),
               ),
             ),

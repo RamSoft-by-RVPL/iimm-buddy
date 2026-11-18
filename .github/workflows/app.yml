@@ -32,7 +32,9 @@ permissions:
   contents: write
 
 env:
-  SITE: https://buddy.iimmumbai.in
+  # The app's server and download page. Set the SITE_URL repository variable
+  # to move to another domain; the app is built to call it.
+  SITE: ${{ vars.SITE_URL || 'https://buddy.iimmumbai.in' }}
   TZ: Asia/Kolkata   # the app and its tests work in India time
 
 jobs:
@@ -118,7 +120,8 @@ jobs:
             --build-name ${{ steps.v.outputs.version }} \
             --build-number ${{ steps.v.outputs.build }} \
             --dart-define=APP_VERSION=${{ steps.v.outputs.version }} \
-            --dart-define=APP_BUILD=${{ steps.v.outputs.build }}
+            --dart-define=APP_BUILD=${{ steps.v.outputs.build }} \
+            --dart-define=API_BASE=$SITE
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk /tmp/IIMM-Buddy.apk
 
       - name: Check it is signed with the usual key
@@ -145,7 +148,7 @@ jobs:
           PY
           gh release create "v$VERSION" /tmp/IIMM-Buddy.apk /tmp/version.json \
             --target "$GITHUB_SHA" --title "$VERSION" \
-            --notes "$NOTES"$'\n\nDownload: https://buddy.iimmumbai.in'
+            --notes "$NOTES"$'\n\nDownload: '"$SITE"
 
       - name: Redeploy the site
         # Cloudflare Pages rebuilds the site on every push to main, and the

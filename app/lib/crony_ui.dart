@@ -78,10 +78,11 @@ class BigTitle extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  fontSize: 26,
+                  fontFamily: 'Schoolbell',
+                  fontSize: 29,
                   height: 1.15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.9,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0,
                   color: t.colorScheme.onSurface)),
           if (subtitle != null)
             Padding(
@@ -406,8 +407,8 @@ class _CourseSheetState extends State<CourseSheet> {
     final points = runningPercent(
         [for (final s in held) s.status == 'Present' || s.status == 'Late']);
     final p = projection(c);
-    const ink = Brand.wineInk;
-    const muted = Brand.wineMuted;
+    const ink = Brand.onPink;
+    const muted = Brand.onPinkMuted;
     final s = widget.slot;
 
     return SafeArea(
@@ -424,10 +425,11 @@ class _CourseSheetState extends State<CourseSheet> {
                       children: [
                         Text(codeOf(c.name, widget.shortNames),
                             style: const TextStyle(
-                                fontSize: 30,
+                                fontFamily: 'Schoolbell',
+                                fontSize: 33,
                                 height: 1.05,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.2)),
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0)),
                         const SizedBox(height: 4),
                         Text(c.name,
                             style: TextStyle(
@@ -446,10 +448,11 @@ class _CourseSheetState extends State<CourseSheet> {
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   CountUp(c.percent,
                       style: TextStyle(
-                          fontSize: 36,
+                          fontFamily: 'Schoolbell',
+                          fontSize: 40,
                           height: 1.05,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1.4,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
                           color: below ? tone.bad : t.colorScheme.onSurface)),
                   const SizedBox(height: 4),
                   Pill(
@@ -566,11 +569,7 @@ class _CourseSheetState extends State<CourseSheet> {
               // The simulator.
               Container(
                 padding: const EdgeInsets.fromLTRB(18, 14, 14, 18),
-                decoration: BoxDecoration(
-                    color: t.brightness == Brightness.dark
-                        ? Brand.wineDark
-                        : Brand.wine,
-                    borderRadius: BorderRadius.circular(22)),
+                decoration: Brand.sticker(context),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -578,20 +577,21 @@ class _CourseSheetState extends State<CourseSheet> {
                         const Expanded(
                           child: Text('What if I skip',
                               style: TextStyle(
+                                  fontFamily: 'Schoolbell',
                                   color: ink,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600)),
+                                  fontSize: 20)),
                         ),
                         Container(
                           decoration: BoxDecoration(
-                              color: const Color(0x1FF7F1EC),
+                              color: Brand.lemon,
+                              border: Border.all(color: Brand.edge, width: 2),
                               borderRadius: BorderRadius.circular(99)),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             IconButton(
                               tooltip: 'One fewer',
                               visualDensity: VisualDensity.compact,
                               color: ink,
-                              disabledColor: const Color(0x52F7F1EC),
+                              disabledColor: const Color(0x521A1113),
                               onPressed:
                                   n > 1 ? () => setState(() => n--) : null,
                               icon: const Icon(Icons.remove, size: 18),
@@ -609,7 +609,7 @@ class _CourseSheetState extends State<CourseSheet> {
                               tooltip: 'One more',
                               visualDensity: VisualDensity.compact,
                               color: ink,
-                              disabledColor: const Color(0x52F7F1EC),
+                              disabledColor: const Color(0x521A1113),
                               onPressed: n < remaining
                                   ? () => setState(() => n++)
                                   : null,
@@ -620,14 +620,10 @@ class _CourseSheetState extends State<CourseSheet> {
                       ]),
                       const SizedBox(height: 14),
                       Row(children: [
-                        Crony(mood: mood, size: 44, onWine: true),
+                        Crony(mood: mood, size: 44, onPink: true),
                         const SizedBox(width: 12),
                         Text(fmtPct(c.percent),
-                            style: const TextStyle(
-                                color: ink,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1)),
+                            style: Brand.hand(32, color: ink)),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8),
                           child: Text('to',
@@ -647,13 +643,10 @@ class _CourseSheetState extends State<CourseSheet> {
                                   child: w)),
                           child: Text(fmtPct(after.percent),
                               key: ValueKey(n),
-                              style: TextStyle(
+                              style: Brand.hand(32,
                                   color: leftAfter < 0
-                                      ? const Color(0xFFFFB4AB)
-                                      : ink,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -1)),
+                                      ? const Color(0xFF6E0F16)
+                                      : ink)),
                         ),
                       ]),
                       const SizedBox(height: 12),
@@ -877,10 +870,11 @@ class DaysCount extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Text('$days',
           style: TextStyle(
-              fontSize: 24,
+              fontFamily: 'Schoolbell',
+              fontSize: 26,
               height: 1,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.8,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0,
               color: color)),
       Text('days',
           style:
@@ -889,7 +883,7 @@ class DaysCount extends StatelessWidget {
   }
 }
 
-/// An icon on a soft wine square, to lead a card.
+/// An icon on a soft pink square, to lead a card.
 class IconTile extends StatelessWidget {
   const IconTile(this.icon, {super.key, this.color});
   final IconData icon;
@@ -981,10 +975,11 @@ class SheetHead extends StatelessWidget {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title,
                 style: const TextStyle(
-                    fontSize: 21,
+                    fontFamily: 'Schoolbell',
+                    fontSize: 23,
                     height: 1.2,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.6)),
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0)),
             if (subtitle != null)
               Padding(
                 padding: const EdgeInsets.only(top: 3),

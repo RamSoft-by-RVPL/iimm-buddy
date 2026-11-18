@@ -340,8 +340,8 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _dayView(BuildContext context, MenuDay d, DateTime today,
-      DateTime now, (MenuDay, Meal)? next, List<String> favs) {
+  Widget _dayView(BuildContext context, MenuDay d, DateTime today, DateTime now,
+      (MenuDay, Meal)? next, List<String> favs) {
     final t = Theme.of(context);
     final muted = t.colorScheme.onSurfaceVariant;
     final nextAt = next != null && next.$1 == d ? d.meals.indexOf(next.$2) : -1;
@@ -379,8 +379,7 @@ class _MenuScreenState extends State<MenuScreen> {
               child: _MealCard(m,
                   hours: mealHours(m.name, i), favs: favs, onTap: _toggle)),
         for (final (i, m) in d.meals.take(over).indexed)
-          _OverMeal(m,
-              hours: mealHours(m.name, i), favs: favs, onTap: _toggle),
+          _OverMeal(m, hours: mealHours(m.name, i), favs: favs, onTap: _toggle),
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -427,7 +426,6 @@ class _DayStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final c = DefaultTabController.of(context);
-    final dark = t.brightness == Brightness.dark;
     String label(DateTime d) {
       final n = d.difference(today).inDays;
       if (n == 0) return 'Today';
@@ -455,7 +453,7 @@ class _DayStrip extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: c.index == i
-                          ? (dark ? Brand.wineDark : Brand.wine)
+                          ? Brand.pink
                           : t.colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(99),
                     ),
@@ -464,7 +462,7 @@ class _DayStrip extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: c.index == i
-                                ? Brand.wineInk
+                                ? Brand.onPink
                                 : t.colorScheme.onSurface)),
                   ),
                 ),
@@ -482,19 +480,19 @@ class _Dish extends StatelessWidget {
       {required this.liked,
       required this.onTap,
       this.size = 15.5,
-      this.onWine = false});
+      this.onPink = false});
   final String name;
   final bool liked;
   final VoidCallback onTap;
   final double size;
-  final bool onWine;
+  final bool onPink;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final ink = onWine ? Brand.wineInk : t.colorScheme.onSurface;
+    final ink = onPink ? Brand.onPink : t.colorScheme.onSurface;
     return Material(
-      color: liked ? Brand.lime : Colors.transparent,
+      color: liked ? Brand.lemon : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -505,7 +503,7 @@ class _Dish extends StatelessWidget {
               : const EdgeInsets.symmetric(vertical: 2),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             if (liked) ...[
-              const Icon(Icons.favorite, size: 14, color: Brand.wine),
+              const Icon(Icons.favorite, size: 14, color: Brand.onPink),
               const SizedBox(width: 5),
             ],
             Flexible(
@@ -514,7 +512,7 @@ class _Dish extends StatelessWidget {
                       fontSize: size,
                       height: 1.25,
                       fontWeight: liked ? FontWeight.w700 : FontWeight.w500,
-                      color: liked ? Brand.wine : ink)),
+                      color: liked ? Brand.onPink : ink)),
             ),
           ]),
         ),
@@ -526,16 +524,16 @@ class _Dish extends StatelessWidget {
 /// The everyday dishes as one quiet line, each still tappable.
 class _Sides extends StatelessWidget {
   const _Sides(this.items,
-      {required this.favs, required this.onTap, this.onWine = false});
+      {required this.favs, required this.onTap, this.onPink = false});
   final List<String> items;
   final List<String> favs;
   final void Function(String) onTap;
-  final bool onWine;
+  final bool onPink;
 
   @override
   Widget build(BuildContext context) {
-    final muted = onWine
-        ? Brand.wineInk.withOpacity(0.7)
+    final muted = onPink
+        ? Brand.onPink.withOpacity(0.7)
         : Theme.of(context).colorScheme.onSurfaceVariant;
     final style = TextStyle(fontSize: 13.5, height: 1.4, color: muted);
     return Wrap(
@@ -547,7 +545,8 @@ class _Sides extends StatelessWidget {
             isFavourite(x, favs)
                 ? Padding(
                     padding: const EdgeInsets.only(right: 4),
-                    child: _Dish(x, liked: true, size: 13.5, onTap: () => onTap(x)))
+                    child: _Dish(x,
+                        liked: true, size: 13.5, onTap: () => onTap(x)))
                 : GestureDetector(
                     onTap: () => onTap(x),
                     child: Text(
@@ -568,32 +567,30 @@ class _NextMeal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final (own, sides) = _split(m);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: BoxDecoration(
-          color: dark ? Brand.wineDark : Brand.wine,
-          borderRadius: BorderRadius.circular(24)),
+      decoration: Brand.sticker(context, radius: 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(_mealIcon(m.name), size: 18, color: Brand.lime),
+          Icon(_mealIcon(m.name), size: 18, color: Brand.onPink),
           const SizedBox(width: 8),
           Text(label.toUpperCase(),
               style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
-                  color: Brand.lime)),
+                  color: Brand.onPink)),
         ]),
         const SizedBox(height: 6),
         Text(m.name,
             style: const TextStyle(
-                fontSize: 34,
+                fontFamily: 'Schoolbell',
+                fontSize: 37,
                 height: 1.1,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -1.2,
-                color: Brand.wineInk)),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
+                color: Brand.onPink)),
         const SizedBox(height: 12),
         for (final x in own)
           Padding(
@@ -601,12 +598,12 @@ class _NextMeal extends StatelessWidget {
             child: _Dish(x,
                 liked: isFavourite(x, favs),
                 size: 19,
-                onWine: true,
+                onPink: true,
                 onTap: () => onTap(x)),
           ),
         if (sides.isNotEmpty) ...[
           const SizedBox(height: 6),
-          _Sides(sides, favs: favs, onTap: onTap, onWine: true),
+          _Sides(sides, favs: favs, onTap: onTap, onPink: true),
         ],
       ]),
     );
@@ -636,9 +633,10 @@ class _MealCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(m.name,
                 style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4)),
+                    fontFamily: 'Schoolbell',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0)),
             const Spacer(),
             Text(hours, style: TextStyle(fontSize: 13, color: muted)),
           ]),
@@ -649,7 +647,8 @@ class _MealCard extends StatelessWidget {
               children: [
                 for (final (i, x) in own.indexed)
                   Row(mainAxisSize: MainAxisSize.min, children: [
-                    _Dish(x, liked: isFavourite(x, favs), onTap: () => onTap(x)),
+                    _Dish(x,
+                        liked: isFavourite(x, favs), onTap: () => onTap(x)),
                     if (i < own.length - 1)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 7),

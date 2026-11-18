@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Crony: the C is the 85% attendance ring, the open 15% holds the classes you can still skip -->
+<!-- Crony: the Lemonade face, black line and lemon lenses on pink -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:strokeColor="#FFF7F1EC" android:strokeWidth="9.60" android:pathData="M76.81,42.38A25.60,25.60 0 1,0 76.81,65.62"/>
-    <path android:strokeColor="#FFD6EE4A" android:strokeWidth="9.60" android:pathData="M77.90,44.83A25.60,25.60 0 0,1 79.50,51.77"/>
-    <path android:strokeColor="#FFD6EE4A" android:strokeWidth="9.60" android:pathData="M79.50,56.23A25.60,25.60 0 0,1 77.90,63.17"/>
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <group android:translateX="159.8" android:translateY="123.0" android:scaleX="0.68" android:scaleY="0.68">
+        <path android:pathData="M748.6 450.8 A248 298 0 1 0 764.6 510.0" android:strokeColor="#FF1A1113" android:strokeWidth="32" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M544.8 305.5 A218 268 0 0 1 698.4 414.5" android:strokeColor="#FF1A1113" android:strokeWidth="18" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M522 626 C518 664 506 698 512 712 Q524 726 572 714" android:strokeColor="#FF1A1113" android:strokeWidth="29" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M188 506 L482 514 C478 610 442 698 376 700 C296 702 226 628 188 506 Z" android:fillColor="#FFFAE474"/>
+        <path android:pathData="M188 506 L482 514 C478 610 442 698 376 700 C296 702 226 628 188 506 Z" android:strokeColor="#FF1A1113" android:strokeWidth="29" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M542 514 L848 506 C818 610 748 678 676 678 C606 678 552 622 542 514 Z" android:fillColor="#FFFAE474"/>
+        <path android:pathData="M542 514 L848 506 C818 610 748 678 676 678 C606 678 552 622 542 514 Z" android:strokeColor="#FF1A1113" android:strokeWidth="29" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M188 506 L482 514 Q512 490 542 514 L848 506" android:strokeColor="#FF1A1113" android:strokeWidth="37" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M771 560a15 15 0 1 0 30 0a15 15 0 1 0 -30 0" android:fillColor="#FFFFFFFF"/>
+    </group>
 </vector>

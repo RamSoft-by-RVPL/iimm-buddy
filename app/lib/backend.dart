@@ -16,7 +16,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'log.dart';
 import 'sheet.dart';
 
-const apiBase = 'https://buddy.iimmumbai.in';
+/// The app's server. The release builds pass it in (the SITE_URL variable
+/// of the GitHub repo), so moving to another domain needs no code change.
+const apiBase = String.fromEnvironment('API_BASE',
+    defaultValue: 'https://buddy.iimmumbai.in');
 
 /// Other names of the same server, tried when the custom domain fails:
 /// Cloudflare's own name for the site, then the first address (Vercel),
