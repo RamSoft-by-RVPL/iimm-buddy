@@ -5,8 +5,6 @@
 // Nothing here throws: a failed push only means phones find out at their
 // next regular check instead of at once.
 
-const crypto = require('crypto');
-
 let cached = null; // { token, until }
 
 function account() {
@@ -17,6 +15,16 @@ function account() {
   } catch (e) {
     return null;
   }
+}
+
+// RS256 with Web Crypto, which both Node and Cloudflare have (Cloudflare
+// has no crypto.createSign). The key is the PKCS#8 PEM from the JSON.
+async function signRS256(text, pem) {
+  const der = Buffer.from(pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''), 'base64');
+  const key = await globalThis.crypto.subtle.importKey(
+    'pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await globalThis.crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(text));
+  return Buffer.from(sig).toString('base64url');
 }
 
 async function accessToken(acc) {
@@ -30,7 +38,7 @@ async function accessToken(acc) {
     iat: now,
     exp: now + 3600,
   })}`;
-  const sig = crypto.createSign('RSA-SHA256').update(unsigned).sign(acc.private_key, 'base64url');
+  const sig = await signRS256(unsigned, acc.private_key);
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
