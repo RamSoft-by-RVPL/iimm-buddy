@@ -8,7 +8,7 @@
 #   KEYSTORE_B64         base64 of the signing key every installed copy uses
 #   GOOGLE_SERVICES_B64  base64 of app/android/app/google-services.json
 #   PUBLISHER_KEY        the server's ADMIN_KEY, to tell phones to update
-#   VERCEL_DEPLOY_HOOK   deploy hook URL of the Vercel project
+#   SITE_DEPLOY_HOOK     deploy hook URL of the site (Cloudflare Pages)
 
 name: App release
 
@@ -150,16 +150,16 @@ jobs:
 
       - name: Redeploy the site
         env:
-          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          HOOK: ${{ secrets.SITE_DEPLOY_HOOK || secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           if [ -n "$HOOK" ]; then curl -sf -X POST "$HOOK" >/dev/null && echo "Deploy started"; \
-          else echo "::warning::No VERCEL_DEPLOY_HOOK secret: the site picks up the release on its next deploy"; fi
+          else echo "::warning::No SITE_DEPLOY_HOOK secret: the site picks up the release on its next deploy"; fi
 
       - name: Wait for the site, then tell phones
         env:
           BUILD: ${{ steps.v.outputs.build }}
           KEY: ${{ secrets.PUBLISHER_KEY }}
-          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          HOOK: ${{ secrets.SITE_DEPLOY_HOOK || secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           [ -n "$HOOK" ] || exit 0
           for i in $(seq 1 60); do

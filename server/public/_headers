@@ -1,0 +1,17 @@
+/admin
+  X-Robots-Tag: noindex
+  Cache-Control: no-store
+  Content-Security-Policy: default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'
+
+/admin.html
+  X-Robots-Tag: noindex
+  Cache-Control: no-store
+  Content-Security-Policy: default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'
+
+/IIMM-Buddy.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment; filename="IIMM-Buddy.apk"
+  Cache-Control: public, max-age=0, must-revalidate
+
+/version.json
+  Cache-Control: public, max-age=0, must-revalidate
