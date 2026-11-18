@@ -18,8 +18,10 @@ import 'sheet.dart';
 
 const apiBase = 'https://buddy.iimmumbai.in';
 
-/// The server's first address, still served. Tried last in case the
-/// custom domain has a problem.
+/// Other names of the same server, tried when the custom domain fails:
+/// Cloudflare's own name for the site, then the first address (Vercel),
+/// which forwards to it.
+const _pagesHost = 'iimm-buddy.pages.dev';
 const _oldHost = 'iimm-buddy-api.vercel.app';
 
 /// The batch a student belongs to, as the server names it ("bs-2026-2030").
@@ -40,10 +42,11 @@ String? batchKey(String? rawSummary) {
   }
 }
 
-/// Addresses of the server that are known to answer. Some networks (the
-/// campus Wi-Fi among them) cannot reach every address the server's name
-/// points to, so when the normal way fails the app goes to these directly.
-const _knownAddresses = ['76.76.21.21', '64.29.17.3', '216.198.79.3'];
+/// Addresses known to answer for those names. Some networks (the campus
+/// Wi-Fi among them) cannot look up or reach every address, so when the
+/// normal way fails the app connects to these directly.
+const _pagesAddresses = ['172.66.44.94', '172.66.47.162'];
+const _oldAddresses = ['76.76.21.21', '64.29.17.3'];
 
 /// A client that connects to [address] while still checking the server's
 /// certificate against its real name.
@@ -63,11 +66,17 @@ HttpClient _clientVia(String address) => HttpClient()
 
 /// Ways to reach the server, in order: (address to connect to or null for
 /// the normal way, the link to ask for).
-List<(String?, Uri)> _routes(Uri url) => [
-      (null, url),
-      for (final a in _knownAddresses) (a, url),
-      if (url.host != _oldHost) (null, url.replace(host: _oldHost)),
-    ];
+List<(String?, Uri)> _routes(Uri url) {
+  final pages = url.replace(host: _pagesHost);
+  final old = url.replace(host: _oldHost);
+  return [
+    (null, url),
+    if (url.host != _pagesHost) (null, pages),
+    for (final a in _pagesAddresses) (a, pages),
+    if (url.host != _oldHost) (null, old),
+    for (final a in _oldAddresses) (a, old),
+  ];
+}
 
 /// One request to the app's server: (status, body). Tries the normal way
 /// first, then each known address, then the server's old name.

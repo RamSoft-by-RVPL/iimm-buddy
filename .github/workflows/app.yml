@@ -8,7 +8,6 @@
 #   KEYSTORE_B64         base64 of the signing key every installed copy uses
 #   GOOGLE_SERVICES_B64  base64 of app/android/app/google-services.json
 #   PUBLISHER_KEY        the server's ADMIN_KEY, to tell phones to update
-#   SITE_DEPLOY_HOOK     deploy hook URL of the site (Cloudflare Pages)
 
 name: App release
 
@@ -149,19 +148,25 @@ jobs:
             --notes "$NOTES"$'\n\nDownload: https://buddy.iimmumbai.in'
 
       - name: Redeploy the site
+        # Cloudflare Pages rebuilds the site on every push to main, and the
+        # build copies in the newest release. An empty commit is that push.
+        # (Pushes made with this workflow's token never start workflows.)
         env:
-          HOOK: ${{ secrets.SITE_DEPLOY_HOOK || secrets.VERCEL_DEPLOY_HOOK }}
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
-          if [ -n "$HOOK" ]; then curl -sf -X POST "$HOOK" >/dev/null && echo "Deploy started"; \
-          else echo "::warning::No SITE_DEPLOY_HOOK secret: the site picks up the release on its next deploy"; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "Site: serve release $VERSION"
+          for i in 1 2 3; do
+            git pull --rebase --autostash -q origin main && git push -q origin HEAD:main && break
+            sleep 5
+          done
 
       - name: Wait for the site, then tell phones
         env:
           BUILD: ${{ steps.v.outputs.build }}
           KEY: ${{ secrets.PUBLISHER_KEY }}
-          HOOK: ${{ secrets.SITE_DEPLOY_HOOK || secrets.VERCEL_DEPLOY_HOOK }}
         run: |
-          [ -n "$HOOK" ] || exit 0
           for i in $(seq 1 60); do
             got=$(curl -s -m 10 "$SITE/version.json?t=$RANDOM" | python3 -c "import json,sys;print(json.load(sys.stdin).get('build',''))" 2>/dev/null || true)
             [ "$got" = "$BUILD" ] && break
