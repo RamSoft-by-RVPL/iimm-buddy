@@ -257,8 +257,9 @@ Future<void> editFavourites(BuildContext context, Store store) async {
   );
 }
 
-/// Every published day, one tab each, starting today. A heart beside each
-/// dish marks it as a favourite.
+/// Every published day, one page each, starting today. The coming meal is
+/// raised in wine, later ones follow as cards and finished ones fold to a
+/// line. Tapping any dish makes it a favourite.
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key, required this.store});
   final Store store;
@@ -270,8 +271,8 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   Store get store => widget.store;
 
-  /// Tapping a heart: a dish that is not a favourite becomes one; one that
-  /// is stops being one (with every favourite word that matched it).
+  /// Tapping a dish: one that is not a favourite becomes one; one that is
+  /// stops being one (with every favourite word that matched it).
   void _toggle(String item) {
     final favs = store.favDishes;
     store.favDishes = isFavourite(item, favs)
@@ -339,75 +340,55 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _dayView(BuildContext context, MenuDay d, DateTime today, DateTime now,
-      (MenuDay, Meal)? next, List<String> favs) {
+  Widget _dayView(BuildContext context, MenuDay d, DateTime today,
+      DateTime now, (MenuDay, Meal)? next, List<String> favs) {
     final t = Theme.of(context);
     final muted = t.colorScheme.onSurfaceVariant;
     final nextAt = next != null && next.$1 == d ? d.meals.indexOf(next.$2) : -1;
     final isToday = d.date == today;
+    final over = isToday && nextAt > 0 ? nextAt : 0;
+    final later = [
+      for (final (i, m) in d.meals.indexed)
+        if (i >= over && i != nextAt) (i, m)
+    ];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       children: [
-        SectionTitle(d.date.difference(today).inDays <= 1
-            ? '${_dayName(d.date, now)}, ${fmtDate(d.date)}'
-            : fmtDate(d.date)),
         if (d.meals.isEmpty)
           const EmptyNote(
               icon: Icons.no_meals_outlined, title: 'No meals listed this day'),
-        for (final (i, m) in d.meals.indexed)
+        if (nextAt >= 0)
           Rise(
-            index: i,
-            child: i == nextAt
-                ? _NextMeal(m, favs: favs, onTap: _toggle)
-                : Opacity(
-                    opacity: isToday && nextAt > i ? 0.55 : 1,
-                    child: Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 14, 16, 8),
-                              child: Row(children: [
-                                IconTile(_mealIcon(m.name)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(m.name,
-                                      style: const TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: -0.3)),
-                                ),
-                                if (isToday && nextAt > i)
-                                  Text('Over',
-                                      style:
-                                          TextStyle(fontSize: 13, color: muted))
-                                else
-                                  Text(
-                                      '${m.items.length} '
-                                      '${m.items.length == 1 ? 'dish' : 'dishes'}',
-                                      style: TextStyle(
-                                          fontSize: 13, color: muted)),
-                              ]),
-                            ),
-                            for (final x in m.items)
-                              _Dish(x,
-                                  liked: isFavourite(x, favs),
-                                  onTap: () => _toggle(x)),
-                            const SizedBox(height: 6),
-                          ]),
-                    ),
-                  ),
+              index: 0,
+              child: _NextMeal(d.meals[nextAt],
+                  label: isToday && isServing(d.meals[nextAt].name, nextAt, now)
+                      ? 'Serving now · till ${mealEnds(d.meals[nextAt].name, nextAt)}'
+                      : 'Up next · ${mealHours(d.meals[nextAt].name, nextAt)}',
+                  favs: favs,
+                  onTap: _toggle)),
+        if (nextAt >= 0 && later.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
+            child: Text(isToday ? 'Later today' : 'Later',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: muted)),
           ),
+        for (final (k, (i, m)) in later.indexed)
+          Rise(
+              index: k + 1,
+              child: _MealCard(m,
+                  hours: mealHours(m.name, i), favs: favs, onTap: _toggle)),
+        for (final (i, m) in d.meals.take(over).indexed)
+          _OverMeal(m,
+              hours: mealHours(m.name, i), favs: favs, onTap: _toggle),
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+          padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(Icons.favorite_border, size: 15, color: muted),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                  'Tap a heart to hear when that dish is on the menu. '
+                  'Tap a dish to hear when it is on the menu. '
                   'From the mess\'s weekly menu; the mess may change a '
                   'dish on the day.',
                   style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
@@ -419,7 +400,24 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 }
 
-/// The days of the menu as a row of dates, following the swipe.
+/// The day's own dishes first, the everyday ones after. When a meal has
+/// only everyday dishes, they are all treated as its own.
+(List<String>, List<String>) _split(Meal m) {
+  final own = [
+    for (final i in m.items)
+      if (!isSide(i)) i
+  ];
+  if (own.isEmpty) return (m.items, const <String>[]);
+  return (
+    own,
+    [
+      for (final i in m.items)
+        if (isSide(i)) i
+    ]
+  );
+}
+
+/// The days of the menu as pills, following the swipe.
 class _DayStrip extends StatelessWidget {
   const _DayStrip({required this.days, required this.today});
   final List<MenuDay> days;
@@ -430,13 +428,20 @@ class _DayStrip extends StatelessWidget {
     final t = Theme.of(context);
     final c = DefaultTabController.of(context);
     final dark = t.brightness == Brightness.dark;
+    String label(DateTime d) {
+      final n = d.difference(today).inDays;
+      if (n == 0) return 'Today';
+      if (n == 1) return 'Tomorrow';
+      return '${_weekdays[d.weekday - 1].substring(0, 3)} ${d.day}';
+    }
+
     return AnimatedBuilder(
       animation: c,
       builder: (context, _) => SizedBox(
-        height: 74,
+        height: 48,
         child: ListView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
           children: [
             for (final (i, d) in days.indexed)
               Padding(
@@ -446,38 +451,21 @@ class _DayStrip extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     curve: const Cubic(0.23, 1, 0.32, 1),
-                    width: 52,
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: c.index == i
                           ? (dark ? Brand.wineDark : Brand.wine)
                           : t.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(99),
                     ),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                              d.date == today
-                                  ? 'Today'
-                                  : _weekdays[d.date.weekday - 1]
-                                      .substring(0, 3),
-                              style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: c.index == i
-                                      ? Brand.wineInk.withOpacity(0.8)
-                                      : t.colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 2),
-                          Text('${d.date.day}',
-                              style: TextStyle(
-                                  fontSize: 19,
-                                  height: 1.1,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.5,
-                                  color: c.index == i
-                                      ? Brand.wineInk
-                                      : t.colorScheme.onSurface)),
-                        ]),
+                    child: Text(label(d.date),
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: c.index == i
+                                ? Brand.wineInk
+                                : t.colorScheme.onSurface)),
                   ),
                 ),
               ),
@@ -488,28 +476,111 @@ class _DayStrip extends StatelessWidget {
   }
 }
 
+/// A dish that can be tapped. A favourite sits on lime with a heart.
+class _Dish extends StatelessWidget {
+  const _Dish(this.name,
+      {required this.liked,
+      required this.onTap,
+      this.size = 15.5,
+      this.onWine = false});
+  final String name;
+  final bool liked;
+  final VoidCallback onTap;
+  final double size;
+  final bool onWine;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final ink = onWine ? Brand.wineInk : t.colorScheme.onSurface;
+    return Material(
+      color: liked ? Brand.lime : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: liked
+              ? const EdgeInsets.fromLTRB(8, 2, 8, 3)
+              : const EdgeInsets.symmetric(vertical: 2),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (liked) ...[
+              const Icon(Icons.favorite, size: 14, color: Brand.wine),
+              const SizedBox(width: 5),
+            ],
+            Flexible(
+              child: Text(name,
+                  style: TextStyle(
+                      fontSize: size,
+                      height: 1.25,
+                      fontWeight: liked ? FontWeight.w700 : FontWeight.w500,
+                      color: liked ? Brand.wine : ink)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// The everyday dishes as one quiet line, each still tappable.
+class _Sides extends StatelessWidget {
+  const _Sides(this.items,
+      {required this.favs, required this.onTap, this.onWine = false});
+  final List<String> items;
+  final List<String> favs;
+  final void Function(String) onTap;
+  final bool onWine;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = onWine
+        ? Brand.wineInk.withOpacity(0.7)
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    final style = TextStyle(fontSize: 13.5, height: 1.4, color: muted);
+    return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: 2,
+        children: [
+          Text('With ', style: style),
+          for (final (i, x) in items.indexed)
+            isFavourite(x, favs)
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: _Dish(x, liked: true, size: 13.5, onTap: () => onTap(x)))
+                : GestureDetector(
+                    onTap: () => onTap(x),
+                    child: Text(
+                        '${x.toLowerCase()}${i < items.length - 1 ? ', ' : ''}',
+                        style: style)),
+        ]);
+  }
+}
+
 /// The coming meal, raised in wine so it is the first thing seen.
 class _NextMeal extends StatelessWidget {
-  const _NextMeal(this.m, {required this.favs, required this.onTap});
+  const _NextMeal(this.m,
+      {required this.label, required this.favs, required this.onTap});
   final Meal m;
+  final String label;
   final List<String> favs;
   final void Function(String) onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final (own, sides) = _split(m);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       decoration: BoxDecoration(
           color: dark ? Brand.wineDark : Brand.wine,
-          borderRadius: BorderRadius.circular(22)),
+          borderRadius: BorderRadius.circular(24)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(_mealIcon(m.name), size: 20, color: Brand.lime),
+          Icon(_mealIcon(m.name), size: 18, color: Brand.lime),
           const SizedBox(width: 8),
-          const Text('UP NEXT',
-              style: TextStyle(
+          Text(label.toUpperCase(),
+              style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
@@ -518,80 +589,134 @@ class _NextMeal extends StatelessWidget {
         const SizedBox(height: 6),
         Text(m.name,
             style: const TextStyle(
-                fontSize: 26,
-                height: 1.15,
+                fontSize: 34,
+                height: 1.1,
                 fontWeight: FontWeight.w700,
-                letterSpacing: -0.9,
+                letterSpacing: -1.2,
                 color: Brand.wineInk)),
         const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final x in m.items)
-            Material(
-              color: isFavourite(x, favs)
-                  ? Brand.lime
-                  : Brand.wineInk.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(99),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(99),
-                onTap: () => onTap(x),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(
-                        isFavourite(x, favs)
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        size: 15,
-                        color: isFavourite(x, favs)
-                            ? Brand.wine
-                            : Brand.wineInk.withOpacity(0.7)),
-                    const SizedBox(width: 6),
-                    Text(x,
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isFavourite(x, favs)
-                                ? Brand.wine
-                                : Brand.wineInk)),
-                  ]),
-                ),
-              ),
-            ),
-        ]),
+        for (final x in own)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _Dish(x,
+                liked: isFavourite(x, favs),
+                size: 19,
+                onWine: true,
+                onTap: () => onTap(x)),
+          ),
+        if (sides.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _Sides(sides, favs: favs, onTap: onTap, onWine: true),
+        ],
       ]),
     );
   }
 }
 
-class _Dish extends StatelessWidget {
-  const _Dish(this.name, {required this.liked, required this.onTap});
-  final String name;
-  final bool liked;
-  final VoidCallback onTap;
+/// A meal still to come.
+class _MealCard extends StatelessWidget {
+  const _MealCard(this.m,
+      {required this.hours, required this.favs, required this.onTap});
+  final Meal m;
+  final String hours;
+  final List<String> favs;
+  final void Function(String) onTap;
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: liked ? t.colorScheme.primary.withOpacity(0.07) : null,
-        padding: const EdgeInsets.fromLTRB(66, 10, 16, 10),
-        child: Row(children: [
-          Expanded(
-            child: Text(name,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: liked ? FontWeight.w600 : FontWeight.w400,
-                    color: liked ? t.colorScheme.primary : null)),
-          ),
-          Icon(liked ? Icons.favorite : Icons.favorite_border,
-              size: 19,
-              color: liked
-                  ? t.colorScheme.primary
-                  : t.colorScheme.onSurfaceVariant.withOpacity(0.45)),
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final (own, sides) = _split(m);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(_mealIcon(m.name), size: 18, color: muted),
+            const SizedBox(width: 8),
+            Text(m.name,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4)),
+            const Spacer(),
+            Text(hours, style: TextStyle(fontSize: 13, color: muted)),
+          ]),
+          const SizedBox(height: 10),
+          Wrap(
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final (i, x) in own.indexed)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    _Dish(x, liked: isFavourite(x, favs), onTap: () => onTap(x)),
+                    if (i < own.length - 1)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 7),
+                        child: Text('·', style: TextStyle(color: muted)),
+                      ),
+                  ]),
+              ]),
+          if (sides.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _Sides(sides, favs: favs, onTap: onTap),
+          ],
         ]),
+      ),
+    );
+  }
+}
+
+/// A meal already over today: one line, opened again with a tap.
+class _OverMeal extends StatefulWidget {
+  const _OverMeal(this.m,
+      {required this.hours, required this.favs, required this.onTap});
+  final Meal m;
+  final String hours;
+  final List<String> favs;
+  final void Function(String) onTap;
+
+  @override
+  State<_OverMeal> createState() => _OverMealState();
+}
+
+class _OverMealState extends State<_OverMeal> {
+  bool open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    if (open) {
+      return Opacity(
+        opacity: 0.6,
+        child: _MealCard(widget.m,
+            hours: widget.hours, favs: widget.favs, onTap: widget.onTap),
+      );
+    }
+    final (own, _) = _split(widget.m);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => open = true),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
+        child: Opacity(
+          opacity: 0.55,
+          child: Row(children: [
+            Text(widget.m.name,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            Text('Over', style: TextStyle(fontSize: 13, color: muted)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(own.join(', '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: muted)),
+            ),
+            Icon(Icons.expand_more, size: 18, color: muted),
+          ]),
+        ),
       ),
     );
   }

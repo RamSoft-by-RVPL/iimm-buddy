@@ -46,22 +46,59 @@ MenuDay? menuOn(List<MenuDay> days, DateTime day) {
   return null;
 }
 
-/// Roughly when each meal is over, to know which one is next. The menu
-/// itself has no times, so these only decide what the home screen shows.
-int _endsAt(String meal, int index) {
+/// The mess hours as posted at the counter, in minutes from midnight.
+/// The menu itself has no times; these decide which meal is next and when
+/// one is being served.
+(int, int) _hours(String meal, int index) {
+  const breakfast = (7 * 60 + 30, 10 * 60 + 15);
+  const lunch = (12 * 60 + 10, 15 * 60);
+  const snacks = (17 * 60, 18 * 60 + 15);
+  const dinner = (20 * 60 + 15, 22 * 60 + 30);
   final n = meal.toLowerCase();
-  if (n.contains('break')) return 10 * 60;
-  if (n.contains('brunch')) return 12 * 60;
-  if (n.contains('lunch')) return 14 * 60 + 30;
-  if (n.contains('snack') || n.contains('tea')) return 18 * 60 + 30;
-  if (n.contains('dinner') || n.contains('supper')) return 22 * 60;
-  return const [
-    10 * 60,
-    14 * 60 + 30,
-    18 * 60 + 30,
-    22 * 60
-  ][index.clamp(0, 3)];
+  if (n.contains('break')) return breakfast;
+  if (n.contains('brunch') || n.contains('lunch')) return lunch;
+  if (n.contains('snack') || n.contains('tea')) return snacks;
+  if (n.contains('dinner') || n.contains('supper')) return dinner;
+  return const [breakfast, lunch, snacks, dinner][index.clamp(0, 3)];
 }
+
+int _endsAt(String meal, int index) => _hours(meal, index).$2;
+
+String _clock(int m, {bool half = true}) {
+  final h = m ~/ 60 % 12 == 0 ? 12 : m ~/ 60 % 12;
+  final t = '$h:${(m % 60).toString().padLeft(2, '0')}';
+  return half ? '$t ${m < 12 * 60 ? 'am' : 'pm'}' : t;
+}
+
+/// When a meal is served, as "12:10 to 3:00 pm".
+String mealHours(String meal, int index) {
+  final (a, b) = _hours(meal, index);
+  final same = (a < 12 * 60) == (b < 12 * 60);
+  return '${_clock(a, half: !same)} to ${_clock(b)}';
+}
+
+/// When a meal is over, as "3:00 pm".
+String mealEnds(String meal, int index) => _clock(_hours(meal, index).$2);
+
+/// Whether the mess is serving this meal at [now].
+bool isServing(String meal, int index, DateTime now) {
+  final (a, b) = _hours(meal, index);
+  final m = now.hour * 60 + now.minute;
+  return m >= a && m < b;
+}
+
+const _sides = [
+  'salad', 'chapati', 'fulka', 'roti', 'plain rice', 'curd rice', 'jeera rice',
+  'papad', 'pickle', 'bread', 'tea', 'coffee', 'milk', 'banana', 'fruit',
+  'sauce', 'onion', 'lemon', 'rasna', 'buttermilk', 'curd',
+];
+
+/// Whether a dish comes with nearly every meal (rice, chapati, pickle). These
+/// are shown quieter so the day's own dishes stand out; nothing is hidden.
+bool isSide(String item) => _sideWords.hasMatch(item);
+
+final _sideWords =
+    RegExp('\\b(${_sides.join('|')})\\b', caseSensitive: false);
 
 /// The meal to show now: the next one today, or tomorrow's first once
 /// dinner is over. Null when the menu does not cover that day.

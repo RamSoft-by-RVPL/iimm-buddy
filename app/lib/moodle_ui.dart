@@ -242,143 +242,120 @@ class MoodleTabState extends State<MoodleTab> {
                 ),
               ),
             if (d.isNotEmpty)
+              _NextDue(
+                  due: d.first,
+                  info: moodle.assigns[linkId(d.first.url)],
+                  now: now,
+                  onTap: d.first.url.isEmpty ? null : () => _openDue(d.first)),
+            if (d.length > 1) ...[
+              const SizedBox(height: 8),
               GroupCard(children: [
-                for (final e in d)
-                  InkWell(
-                    onTap: e.url.isEmpty
-                        ? null
-                        : () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => WebPage(
-                                    title: e.name,
-                                    url: e.url,
-                                    moodle: moodle))),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
-                      child: Row(children: [
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(e.name,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: -0.15)),
-                                const SizedBox(height: 2),
-                                Builder(builder: (context) {
-                                  final a = moodle.assigns[linkId(e.url)];
-                                  final soon =
-                                      e.due.difference(now).inHours < 48;
-                                  return Text(
-                                      [
-                                        codeOf(e.course),
-                                        if (a != null) a.label(now),
-                                        dueText(e.due, now).split(' · ').first,
-                                      ].join(' · '),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontSize: 13,
-                                          color: a?.submitted == true
-                                              ? tone.good
-                                              : soon
-                                                  ? tone.bad
-                                                  : t.colorScheme
-                                                      .onSurfaceVariant));
-                                }),
-                              ]),
-                        ),
-                        const SizedBox(width: 12),
-                        Builder(builder: (context) {
-                          final h = e.due.difference(now).inHours;
-                          final (n, unit) = h < 24
-                              ? ('${h < 1 ? 1 : h}', h <= 1 ? 'hour' : 'hours')
-                              : (
-                                  '${(h / 24).ceil()}',
-                                  (h / 24).ceil() == 1 ? 'day' : 'days'
-                                );
-                          return Column(children: [
-                            Text(n,
-                                style: TextStyle(
-                                    fontSize: 24,
-                                    height: 1,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.8,
-                                    color: h < 48 ? tone.bad : null)),
-                            Text(unit,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: t.colorScheme.onSurfaceVariant)),
-                          ]);
-                        }),
-                      ]),
-                    ),
-                  ),
+                for (final e in d.skip(1)) _dueRow(context, e, now),
               ]),
-            const SectionTitle('Courses'),
-            GroupCard(children: [
-              for (final x in c)
-                InkWell(
-                  onTap: () async {
-                    await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                CourseScreen(moodle: moodle, course: x)));
-                    if (mounted) setState(() {});
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
-                    child: Row(children: [
-                      Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(codeOf(x.name),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.3)),
-                              if (codeOf(x.name) != x.name) ...[
-                                const SizedBox(height: 2),
-                                Text(x.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        color: t.colorScheme.onSurfaceVariant)),
-                              ],
-                            ]),
-                      ),
-                      const SizedBox(width: 10),
-                      if (moodle.newCount(x.id) > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                              color: t.brightness == Brightness.dark
-                                  ? Brand.wineDark
-                                  : Brand.wine,
-                              borderRadius: BorderRadius.circular(99)),
-                          child: Text('${moodle.newCount(x.id)} new',
-                              style: const TextStyle(
-                                  color: Brand.wineInk,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
-                        )
-                      else
-                        Icon(Icons.chevron_right,
-                            size: 20, color: t.colorScheme.onSurfaceVariant),
-                    ]),
+            ],
+            SectionTitle('Courses',
+                trailing: Text('${c.length}',
+                    style: TextStyle(
+                        fontSize: 13, color: t.colorScheme.onSurfaceVariant))),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.25,
+              children: [
+                for (final (n, x) in c.indexed)
+                  _CourseTile(
+                    code: codeOf(x.name),
+                    name: x.name,
+                    color: _courseColor(context, n),
+                    files: [
+                      for (final s in moodle.cachedSections(x.id) ??
+                          const <MoodleSection>[])
+                        for (final i in s.items)
+                          if (i.isFile) i
+                    ].length,
+                    fresh: moodle.newCount(x.id),
+                    due: d.where((e) => e.course == x.name).length,
+                    onTap: () async {
+                      await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  CourseScreen(moodle: moodle, course: x)));
+                      if (mounted) setState(() {});
+                    },
                   ),
-                ),
-            ]),
+              ],
+            ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _openDue(Deadline e) => Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => WebPage(title: e.name, url: e.url, moodle: moodle)));
+
+  Widget _dueRow(BuildContext context, Deadline e, DateTime now) {
+    final t = Theme.of(context);
+    final tone = Tone.of(context);
+    final a = moodle.assigns[linkId(e.url)];
+    final h = e.due.difference(now).inHours;
+    final soon = h < 48;
+    final (n, unit) = h < 24
+        ? ('${h < 1 ? 1 : h}', h <= 1 ? 'hour' : 'hours')
+        : ('${(h / 24).ceil()}', (h / 24).ceil() == 1 ? 'day' : 'days');
+    return InkWell(
+      onTap: e.url.isEmpty ? null : () => _openDue(e),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+        child: Row(children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(e.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15)),
+              const SizedBox(height: 2),
+              Text(
+                  [
+                    codeOf(e.course),
+                    if (a != null) a.label(now),
+                    dueText(e.due, now).split(' · ').first,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: a?.submitted == true
+                          ? tone.good
+                          : soon
+                              ? tone.bad
+                              : t.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Column(children: [
+            Text(n,
+                style: TextStyle(
+                    fontSize: 24,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.8,
+                    color: soon ? tone.bad : null)),
+            Text(unit,
+                style: TextStyle(
+                    fontSize: 11, color: t.colorScheme.onSurfaceVariant)),
+          ]),
+        ]),
       ),
     );
   }
@@ -699,6 +676,9 @@ class _CourseScreenState extends State<CourseScreen> {
     }
   }
 
+  /// Sections the student folded away on this visit.
+  final closed = <String>{};
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
@@ -710,15 +690,22 @@ class _CourseScreenState extends State<CourseScreen> {
     ];
     final saved = files.where((i) => onPhone.contains(i.id)).length;
     final code = codeOf(widget.course.name);
+    final now = DateTime.now();
+    final pending = [
+      for (final x in s ?? const <MoodleSection>[])
+        for (final i in x.items)
+          if (assigns[i.id] != null &&
+              !assigns[i.id]!.submitted &&
+              assigns[i.id]!.due != null &&
+              assigns[i.id]!.due!.isAfter(now))
+            i
+    ]..sort((a, b) => assigns[a.id]!.due!.compareTo(assigns[b.id]!.due!));
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 76,
         titleSpacing: 0,
         title: BigTitle(code == widget.course.name ? 'Course' : code,
-            subtitle: bulk ??
-                (files.isEmpty
-                    ? widget.course.name
-                    : '$saved of ${files.length} files saved on this phone')),
+            subtitle: code == widget.course.name ? null : widget.course.name),
         actions: [
           IconButton(
             tooltip: 'Download all notes',
@@ -744,74 +731,302 @@ class _CourseScreenState extends State<CourseScreen> {
                           child: const Text('Try again')),
                     ]))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
               children: [
-                if (code != widget.course.name)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-                    child: Text(widget.course.name,
-                        style: TextStyle(
-                            fontSize: 14,
-                            color: t.colorScheme.onSurfaceVariant)),
-                  ),
                 if (error != null)
                   Padding(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
                     child: Text('Showing the saved list. $error',
                         style: t.textTheme.bodySmall),
                   ),
+                _CourseSummary(
+                  saved: saved,
+                  files: files.length,
+                  fresh: fresh.length,
+                  bulk: bulk,
+                  next: pending.isEmpty ? null : pending.first,
+                  nextInfo: pending.isEmpty ? null : assigns[pending.first.id],
+                  onDownload: bulk != null ? null : downloadAll,
+                  onNext: pending.isEmpty ? null : () => open(pending.first),
+                ),
                 for (final x in s) ...[
-                  SectionTitle(x.title),
-                  GroupCard(children: [
-                    for (var n = 0; n < x.items.length; n++)
-                      Builder(builder: (context) {
-                        final i = x.items[n];
-                        return ListTile(
-                          enabled: i.open,
-                          leading: IconTile(iconFor(i)),
-                          title: Text(i.name),
-                          subtitle: progress.containsKey(i.id)
-                              ? Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: LinearProgressIndicator(
-                                      value: progress[i.id] == 0
-                                          ? null
-                                          : progress[i.id]),
-                                )
-                              : assigns[i.id] != null
-                                  ? assignLine(assigns[i.id]!, t)
-                                  : !i.open
-                                      ? const Text('Not available to you yet')
-                                      : i.module == 'securepdf'
-                                          ? const Text(
-                                              'Protected: opens in Moodle\'s viewer')
-                                          : null,
-                          trailing:
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                            if (fresh.contains(i.id))
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child:
-                                    Pill('New', color: t.colorScheme.primary),
-                              ),
-                            onPhone.contains(i.id)
-                                ? Icon(Icons.check_circle,
-                                    size: 20, color: Tone.of(context).good)
-                                : i.isFile
-                                    ? Icon(Icons.download_outlined,
-                                        size: 20,
-                                        color: t.colorScheme.onSurfaceVariant)
-                                    : Icon(Icons.chevron_right,
-                                        size: 20,
-                                        color: t.colorScheme.onSurfaceVariant),
-                          ]),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => setState(() => closed.contains(x.title)
+                        ? closed.remove(x.title)
+                        : closed.add(x.title)),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+                      child: Row(children: [
+                        Expanded(
+                          child: Text(x.title,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3)),
+                        ),
+                        if (x.items.any((i) => fresh.contains(i.id)))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Pill('New', color: t.colorScheme.primary),
+                          ),
+                        Text('${x.items.length}',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: t.colorScheme.onSurfaceVariant)),
+                        Icon(
+                            closed.contains(x.title)
+                                ? Icons.expand_more
+                                : Icons.expand_less,
+                            size: 20,
+                            color: t.colorScheme.onSurfaceVariant),
+                      ]),
+                    ),
+                  ),
+                  if (!closed.contains(x.title))
+                    GroupCard(children: [
+                      for (final i in x.items)
+                        _ItemRow(
+                          item: i,
+                          saved: onPhone.contains(i.id),
+                          fresh: fresh.contains(i.id),
+                          progress: progress[i.id],
+                          assign: assigns[i.id],
                           onTap: () => open(i),
-                        );
-                      }),
-                  ]),
+                        ),
+                    ]),
                 ],
               ],
             ),
+    );
+  }
+}
+
+/// What a course page is for at a glance: how much of it is on the phone,
+/// what is new, and the next piece of work due.
+class _CourseSummary extends StatelessWidget {
+  const _CourseSummary(
+      {required this.saved,
+      required this.files,
+      required this.fresh,
+      required this.bulk,
+      required this.next,
+      required this.nextInfo,
+      required this.onDownload,
+      required this.onNext});
+  final int saved;
+  final int files;
+  final int fresh;
+  final String? bulk;
+  final MoodleItem? next;
+  final AssignInfo? nextInfo;
+  final VoidCallback? onDownload;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final muted = t.colorScheme.onSurfaceVariant;
+    final all = files > 0 && saved == files;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (files > 0) ...[
+            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text('$saved',
+                  style: const TextStyle(
+                      fontSize: 30,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1)),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 3),
+                child: Text('of $files notes on this phone',
+                    style: TextStyle(fontSize: 14, color: muted)),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                  value: files == 0 ? 0 : saved / files,
+                  minHeight: 6,
+                  backgroundColor: t.colorScheme.surfaceContainerHigh,
+                  color: all ? Tone.of(context).good : t.colorScheme.primary),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: Text(
+                    bulk ??
+                        (all
+                            ? 'Everything here opens without internet'
+                            : 'Save them to read and search offline'),
+                    style: TextStyle(fontSize: 13, color: muted)),
+              ),
+              if (!all)
+                FilledButton.tonalIcon(
+                    onPressed: onDownload,
+                    icon: const Icon(Icons.download, size: 18),
+                    label: const Text('Download all')),
+            ]),
+          ],
+          if (fresh > 0) ...[
+            if (files > 0) const Divider(height: 26),
+            Row(children: [
+              Icon(Icons.fiber_new_outlined,
+                  size: 20, color: t.colorScheme.primary),
+              const SizedBox(width: 10),
+              Text('$fresh new since you last looked',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
+            ]),
+          ],
+          if (next != null) ...[
+            if (files > 0 || fresh > 0) const Divider(height: 26),
+            InkWell(
+              onTap: onNext,
+              child: Row(children: [
+                Icon(Icons.assignment_outlined, size: 20, color: muted),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(next!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                        assignLine(nextInfo!, t),
+                      ]),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: muted),
+              ]),
+            ),
+          ],
+          if (files == 0 && fresh == 0 && next == null)
+            Text('Nothing to download in this course',
+                style: TextStyle(fontSize: 13.5, color: muted)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The colour a kind of Moodle item is shown in.
+Color _tint(BuildContext context, MoodleItem i) {
+  final t = Theme.of(context);
+  return switch (i.module) {
+    'resource' ||
+    'securepdf' =>
+      t.brightness == Brightness.dark ? Brand.wineMuted : t.colorScheme.primary,
+    'assign' => const Color(0xFFB26A00),
+    'quiz' => const Color(0xFF2F6FB0),
+    'forum' => const Color(0xFF5E7A1F),
+    _ => t.colorScheme.onSurfaceVariant,
+  };
+}
+
+/// One item of a course: its kind as a tinted tile (ticked once it is on
+/// the phone), its name, and what state it is in.
+class _ItemRow extends StatelessWidget {
+  const _ItemRow(
+      {required this.item,
+      required this.saved,
+      required this.fresh,
+      required this.progress,
+      required this.assign,
+      required this.onTap});
+  final MoodleItem item;
+  final bool saved;
+  final bool fresh;
+  final double? progress;
+  final AssignInfo? assign;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final muted = t.colorScheme.onSurfaceVariant;
+    final c = _tint(context, item);
+    final note = !item.open
+        ? 'Not available to you yet'
+        : item.module == 'securepdf'
+            ? 'Protected: opens in Moodle\'s viewer'
+            : null;
+    return Opacity(
+      opacity: item.open ? 1 : 0.5,
+      child: InkWell(
+        onTap: item.open ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Row(children: [
+            SizedBox(
+              width: 42,
+              height: 42,
+              child: Stack(clipBehavior: Clip.none, children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                      color: c.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Icon(iconFor(item), size: 21, color: c),
+                ),
+                if (saved)
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      decoration: BoxDecoration(
+                          color: t.colorScheme.surface, shape: BoxShape.circle),
+                      child: Icon(Icons.check_circle,
+                          size: 17, color: Tone.of(context).good),
+                    ),
+                  ),
+              ]),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w500)),
+                    if (progress != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: LinearProgressIndicator(
+                            value: progress == 0 ? null : progress),
+                      )
+                    else if (assign != null)
+                      DefaultTextStyle.merge(
+                          style: const TextStyle(fontSize: 13),
+                          child: assignLine(assign!, t))
+                    else if (note != null)
+                      Text(note, style: TextStyle(fontSize: 13, color: muted)),
+                  ]),
+            ),
+            if (fresh)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                    color: t.colorScheme.primary, shape: BoxShape.circle),
+              ),
+            const SizedBox(width: 8),
+            if (item.isFile && !saved)
+              Icon(Icons.download_outlined, size: 20, color: muted)
+            else if (!item.isFile)
+              Icon(Icons.chevron_right, size: 20, color: muted),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -882,7 +1097,6 @@ class _FolderScreenState extends State<FolderScreen> {
   @override
   Widget build(BuildContext context) {
     final l = links;
-    final t = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
           toolbarHeight: 76,
@@ -917,20 +1131,13 @@ class _FolderScreenState extends State<FolderScreen> {
                   children: [
                       GroupCard(children: [
                         for (final u in l)
-                          ListTile(
-                            leading: const IconTile(Icons.description_outlined),
-                            title: Text(fileName(u)),
-                            subtitle: busy == u.path
-                                ? const Padding(
-                                    padding: EdgeInsets.only(top: 6),
-                                    child: LinearProgressIndicator())
-                                : null,
-                            trailing: have.contains(fileName(u))
-                                ? Icon(Icons.check_circle,
-                                    size: 20, color: Tone.of(context).good)
-                                : Icon(Icons.download_outlined,
-                                    size: 20,
-                                    color: t.colorScheme.onSurfaceVariant),
+                          _ItemRow(
+                            item: MoodleItem(
+                                0, fileName(u), 'resource', '', true),
+                            saved: have.contains(fileName(u)),
+                            fresh: false,
+                            progress: busy == u.path ? 0 : null,
+                            assign: null,
                             onTap: () => open(u),
                           ),
                       ]),
@@ -1020,6 +1227,191 @@ class _WebPageState extends State<WebPage> {
             : null,
       ),
       body: WebViewWidget(controller: controller),
+    );
+  }
+}
+
+const _courseHues = [
+  Color(0xFF4A1F28), Color(0xFF2F6FB0), Color(0xFF5E7A1F), //
+  Color(0xFFB26A00), Color(0xFF7A3E8C), Color(0xFF1F7A72),
+];
+const _courseHuesDark = [
+  Color(0xFFDCC9C6), Color(0xFF8DB8E8), Color(0xFFB9D46A), //
+  Color(0xFFF2B45C), Color(0xFFD1A4E0), Color(0xFF7FD3C8),
+];
+
+Color _courseColor(BuildContext context, int n) =>
+    (Theme.of(context).brightness == Brightness.dark
+        ? _courseHuesDark
+        : _courseHues)[n % _courseHues.length];
+
+/// The nearest deadline, large, with how long is left.
+class _NextDue extends StatelessWidget {
+  const _NextDue(
+      {required this.due,
+      required this.info,
+      required this.now,
+      required this.onTap});
+  final Deadline due;
+  final AssignInfo? info;
+  final DateTime now;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final h = due.due.difference(now).inHours;
+    final left = h < 1
+        ? 'DUE WITHIN THE HOUR'
+        : h < 24
+            ? 'DUE IN $h ${h == 1 ? 'HOUR' : 'HOURS'}'
+            : 'DUE IN ${(h / 24).ceil()} ${(h / 24).ceil() == 1 ? 'DAY' : 'DAYS'}';
+    final done = info?.submitted == true;
+    return Material(
+      color: dark ? Brand.wineDark : Brand.wine,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(due.due.isBefore(now) ? 'OVERDUE' : left,
+                        style: const TextStyle(
+                            fontSize: 11.5,
+                            letterSpacing: 0.8,
+                            fontWeight: FontWeight.w700,
+                            color: Brand.lime)),
+                    const SizedBox(height: 6),
+                    Text(due.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 21,
+                            height: 1.2,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: Brand.wineInk)),
+                    const SizedBox(height: 4),
+                    Text(
+                        '${codeOf(due.course)} · '
+                        '${dueText(due.due, now).split(' · ').first}',
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            color: Brand.wineInk.withOpacity(0.72))),
+                    if (info != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: done
+                                ? Brand.lime
+                                : Brand.wineInk.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(99)),
+                        child: Text(info!.label(now),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: done ? Brand.wine : Brand.wineInk)),
+                      ),
+                    ],
+                  ]),
+            ),
+            if (onTap != null)
+              Icon(Icons.chevron_right, color: Brand.wineInk.withOpacity(0.6)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// One course: its short name large, with what is waiting in it.
+class _CourseTile extends StatelessWidget {
+  const _CourseTile(
+      {required this.code,
+      required this.name,
+      required this.color,
+      required this.files,
+      required this.fresh,
+      required this.due,
+      required this.onTap});
+  final String code;
+  final String name;
+  final Color color;
+  final int files;
+  final int fresh;
+  final int due;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final muted = t.colorScheme.onSurfaceVariant;
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                      color: color, borderRadius: BorderRadius.circular(3))),
+              const Spacer(),
+              if (fresh > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: Brand.lime,
+                      borderRadius: BorderRadius.circular(99)),
+                  child: Text('$fresh new',
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Brand.wine)),
+                ),
+            ]),
+            const SizedBox(height: 10),
+            Text(code,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 22,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6)),
+            if (code != name) ...[
+              const SizedBox(height: 3),
+              Text(name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, height: 1.3, color: muted)),
+            ],
+            const Spacer(),
+            Text(
+                [
+                  if (files > 0) '$files ${files == 1 ? 'file' : 'files'}',
+                  if (due > 0) '$due due',
+                ].join(' · '),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: due > 0 ? Tone.of(context).warn : muted)),
+          ]),
+        ),
+      ),
     );
   }
 }

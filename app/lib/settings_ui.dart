@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cookie_bridge/cookie_bridge.dart';
 import 'package:flutter/material.dart';
 
@@ -108,23 +110,119 @@ class _SettingsScreenState extends State<SettingsScreen>
     void say(String text) => ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(text)));
 
+    final (name, roll) = _student(store.prefs.getString('summary'));
+    final batch = batchKey(store.prefs.getString('summary'));
+
     return Scaffold(
-      appBar: screenBar('Settings', subtitle: 'Version $appVersion'),
+      appBar: screenBar('Settings'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
         children: [
-          if (update != null)
-            Strip(
-              inset: false,
-              icon: Icons.system_update_outlined,
-              text: 'Version ${update.version} is ready. You have $appVersion.',
-              action: 'Update',
-              filled: true,
-              onAction: () => runUpdate(context, store.prefs, update),
-            ),
+          _Profile(
+            name: name,
+            line: [
+              if (roll.isNotEmpty) roll,
+              if (batch != null) batch.toUpperCase(),
+            ].join(' · '),
+            version: update == null
+                ? 'Version $appVersion'
+                : 'Version ${update.version} is ready',
+            action: playStore
+                ? null
+                : update == null
+                    ? 'Check'
+                    : 'Update',
+            onAction: () async {
+              if (update != null) {
+                return runUpdate(context, store.prefs, update);
+              }
+              final u = await checkUpdate(store.prefs);
+              if (!context.mounted) return;
+              setState(() {});
+              if (u == null) say('You have the newest version');
+            },
+          ),
           if (health != null)
             HealthCard(
                 state: health!.$1, problems: health!.$2, onFixed: _count),
+          SectionTitle('Alerts',
+              trailing: Text(
+                  '${[
+                    store.remindClasses,
+                    store.warnChanges,
+                    store.warnAttendance,
+                    store.notifyMoodle,
+                    store.dishAlerts,
+                    store.calendarSync,
+                  ].where((on) => on).length} of 6 on',
+                  style: TextStyle(
+                      fontSize: 13, color: t.colorScheme.onSurfaceVariant))),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.45,
+            children: [
+              _AlertTile(
+                  icon: Icons.alarm_outlined,
+                  title: 'Classes',
+                  note: '${store.leadMinutes} min before each',
+                  on: store.remindClasses,
+                  onTap: () => changed(
+                      () => store.remindClasses = !store.remindClasses)),
+              _AlertTile(
+                  icon: Icons.swap_horiz,
+                  title: 'Class changes',
+                  note: 'Moved or cancelled',
+                  on: store.warnChanges,
+                  onTap: () =>
+                      changed(() => store.warnChanges = !store.warnChanges)),
+              _AlertTile(
+                  icon: Icons.notification_important_outlined,
+                  title: 'Attendance',
+                  note: 'Absent, or below ${store.minPct}%',
+                  on: store.warnAttendance,
+                  onTap: () => changed(
+                      () => store.warnAttendance = !store.warnAttendance)),
+              _AlertTile(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Moodle',
+                  note: 'New notes and deadlines',
+                  on: store.notifyMoodle,
+                  onTap: () =>
+                      changed(() => store.notifyMoodle = !store.notifyMoodle)),
+              _AlertTile(
+                  icon: Icons.favorite_border,
+                  title: 'Favourite dishes',
+                  note: store.favDishes.isEmpty
+                      ? 'Heart dishes in the menu'
+                      : store.favDishes.length == 1
+                          ? store.favDishes.first
+                          : '${store.favDishes.first} and '
+                              '${store.favDishes.length - 1} more',
+                  on: store.dishAlerts,
+                  onTap: () =>
+                      changed(() => store.dishAlerts = !store.dishAlerts)),
+              _AlertTile(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Phone calendar',
+                  note: 'Classes and deadlines',
+                  on: store.calendarSync,
+                  onTap: () async {
+                    final v = !store.calendarSync;
+                    if (v && !await askCalendar()) {
+                      if (context.mounted) {
+                        say('Calendar access was not allowed');
+                      }
+                      return;
+                    }
+                    if (!v) await removeCalendar().catchError((_) {});
+                    changed(() => store.calendarSync = v);
+                  }),
+            ],
+          ),
           const SectionTitle('Attendance'),
           group([
             pick(Icons.flag_outlined, 'Minimum attendance',
@@ -137,13 +235,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                   help: 'The app warns you before a course falls below this.');
               if (n != null) changed(() => store.minPct = n);
             }),
-            toggle(
-                Icons.notification_important_outlined,
-                'Attendance alerts',
-                'When you are marked absent or a course drops below the '
-                    'minimum',
-                store.warnAttendance,
-                (v) => changed(() => store.warnAttendance = v)),
             pick(
                 Icons.mail_outline,
                 'Send corrections to',
@@ -161,16 +252,10 @@ class _SettingsScreenState extends State<SettingsScreen>
               if (v != null) changed(() => store.fixEmail = v);
             }),
           ]),
-          const SectionTitle('Class reminders'),
+          const SectionTitle('Classes'),
           group([
-            toggle(
-                Icons.alarm_outlined,
-                'Remind me before each class',
-                null,
-                store.remindClasses,
-                (v) => changed(() => store.remindClasses = v)),
-            pick(Icons.timer_outlined, 'How early',
-                '${store.leadMinutes} minutes before', () async {
+            pick(Icons.timer_outlined, 'Remind me',
+                '${store.leadMinutes} minutes before each class', () async {
               final n = await askNumber(context,
                   title: 'Minutes before class',
                   initial: store.leadMinutes,
@@ -178,35 +263,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                   max: 180);
               if (n != null) changed(() => store.leadMinutes = n);
             }, enabled: store.remindClasses),
-            toggle(
-                Icons.favorite_border,
-                'Favourite dishes',
-                store.favDishes.isEmpty
-                    ? 'Pick dishes with the hearts in the mess menu'
-                    : 'Before meals with ${store.favDishes.take(3).join(', ')}'
-                        '${store.favDishes.length > 3 ? ' and more' : ''}',
-                store.dishAlerts,
-                (v) => changed(() => store.dishAlerts = v)),
-            toggle(
-                Icons.swap_horiz,
-                'Class changes',
-                'When a class in the coming week moves, is cancelled, '
-                    'changes room or is added',
-                store.warnChanges,
-                (v) => changed(() => store.warnChanges = v)),
-            toggle(
-                Icons.calendar_month_outlined,
-                'Add classes to my phone calendar',
-                'A calendar named IIMM Buddy with coming classes and Moodle '
-                    'deadlines, kept up to date',
-                store.calendarSync, (v) async {
-              if (v && !await askCalendar()) {
-                if (context.mounted) say('Calendar access was not allowed');
-                return;
-              }
-              if (!v) await removeCalendar().catchError((_) {});
-              changed(() => store.calendarSync = v);
-            }),
             ListTile(
               leading: const IconTile(Icons.table_chart_outlined),
               title: const Text('Weekly timetable'),
@@ -220,13 +276,6 @@ class _SettingsScreenState extends State<SettingsScreen>
           ]),
           const SectionTitle('Moodle'),
           group([
-            toggle(
-                Icons.notifications_outlined,
-                'Moodle alerts',
-                'New notes and assignments, and reminders before each '
-                    'deadline',
-                store.notifyMoodle,
-                (v) => changed(() => store.notifyMoodle = v)),
             pick(Icons.assignment_late_outlined, 'Assignment reminders',
                 dueSummary(store.dueHours), () async {
               if (await askDueTimes(context, store)) changed(() {});
@@ -238,34 +287,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                 store.autoDownload,
                 (v) => changed(() => store.autoDownload = v)),
           ]),
-          const SectionTitle('About'),
+          const SectionTitle('Privacy'),
           group([
             ListTile(
-              leading: const IconTile(Icons.system_update_outlined),
-              title: Text(update == null
-                  ? 'Version $appVersion'
-                  : 'Version ${update.version} is ready'),
-              subtitle: Text(playStore
-                  ? 'Updates come through Google Play'
-                  : update == null
-                      ? 'Tap to check for a newer version'
-                      : 'You have $appVersion. Tap to update.'),
-              onTap: playStore
-                  ? null
-                  : () async {
-                      if (update != null) {
-                        return runUpdate(context, store.prefs, update);
-                      }
-                      final u = await checkUpdate(store.prefs);
-                      if (!context.mounted) return;
-                      setState(() {});
-                      if (u == null) say('You have the newest version');
-                    },
-            ),
-            ListTile(
               leading: const IconTile(Icons.privacy_tip_outlined),
-              title: const Text('Privacy'),
-              subtitle: const Text('What the app does with your data'),
+              title: const Text('What the app does with your data'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const PrivacyScreen())),
@@ -392,6 +418,186 @@ class _SettingsScreenState extends State<SettingsScreen>
               style: t.textTheme.bodySmall
                   ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
         ],
+      ),
+    );
+  }
+}
+
+/// The student's name and roll number from the attendance site's answer.
+(String, String) _student(String? raw) {
+  try {
+    final st = ((jsonDecode(raw!) as Map)['data'] as Map)['student'] as Map;
+    return ('${st['name'] ?? ''}'.trim(), '${st['roll_number'] ?? ''}'.trim());
+  } catch (_) {
+    return ('', '');
+  }
+}
+
+String _initials(String name) {
+  final w = name.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  if (w.isEmpty) return 'C';
+  return (w.first[0] + (w.length > 1 ? w.last[0] : '')).toUpperCase();
+}
+
+/// Who is signed in, and which version this is.
+class _Profile extends StatelessWidget {
+  const _Profile(
+      {required this.name,
+      required this.line,
+      required this.version,
+      required this.action,
+      required this.onAction});
+  final String name;
+  final String line;
+  final String version;
+  final String? action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    const ink = Brand.wineInk;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+      decoration: BoxDecoration(
+          color: Brand.wine, borderRadius: BorderRadius.circular(22)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration:
+                const BoxDecoration(color: Brand.lime, shape: BoxShape.circle),
+            child: Text(_initials(name),
+                style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: Brand.wine)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name.isEmpty ? 'Crony' : name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.textTheme.titleMedium?.copyWith(
+                      color: ink, fontWeight: FontWeight.w700, height: 1.2)),
+              if (line.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(line,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: ink.withOpacity(0.7),
+                        fontFeatures: const [FontFeature.tabularFigures()])),
+              ],
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        Divider(height: 1, color: ink.withOpacity(0.14)),
+        const SizedBox(height: 4),
+        Row(children: [
+          Icon(Icons.system_update_outlined,
+              size: 18, color: ink.withOpacity(0.7)),
+          const SizedBox(width: 8),
+          Expanded(
+              child:
+                  Text(version, style: const TextStyle(fontSize: 13.5, color: ink))),
+          if (action != null)
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(foregroundColor: Brand.lime),
+              child: Text(action!),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text('Updates through Google Play',
+                  style: TextStyle(fontSize: 12, color: ink.withOpacity(0.6))),
+            ),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// One kind of alert, on or off at a tap.
+class _AlertTile extends StatelessWidget {
+  const _AlertTile(
+      {required this.icon,
+      required this.title,
+      required this.note,
+      required this.on,
+      required this.onTap});
+  final IconData icon;
+  final String title;
+  final String note;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final dark = t.brightness == Brightness.dark;
+    final bg = on
+        ? (dark ? Brand.wineDark : Brand.wine)
+        : t.cardTheme.color ?? t.colorScheme.surface;
+    final fg = on ? Brand.wineInk : t.colorScheme.onSurface;
+    final sub =
+        on ? Brand.wineInk.withOpacity(0.72) : t.colorScheme.onSurfaceVariant;
+    return Semantics(
+      toggled: on,
+      button: true,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(icon, size: 22, color: on ? Brand.lime : sub),
+                const Spacer(),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  width: 34,
+                  height: 20,
+                  padding: const EdgeInsets.all(3),
+                  alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                      color: on
+                          ? Brand.lime
+                          : t.colorScheme.outlineVariant.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                          color: on ? Brand.wine : t.colorScheme.surface,
+                          shape: BoxShape.circle)),
+                ),
+              ]),
+              const Spacer(),
+              Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600, color: fg)),
+              const SizedBox(height: 2),
+              Text(on ? note : 'Off',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: sub)),
+            ]),
+          ),
+        ),
       ),
     );
   }
