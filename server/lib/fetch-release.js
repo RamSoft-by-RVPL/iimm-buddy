@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const repo = process.env.RELEASE_REPO || 'bvmanas/iimm-buddy';
+const repo = process.env.RELEASE_REPO || 'RamSoft-by-RVPL/iimm-buddy';
 const base = `https://github.com/${repo}/releases/latest/download`;
 const out = path.join(__dirname, '..', 'public');
 

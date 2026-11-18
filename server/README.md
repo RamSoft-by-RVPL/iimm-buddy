@@ -27,7 +27,7 @@ Environment variables: `DATABASE_URL`, `ADMIN_KEY`, `FCM_SERVICE_ACCOUNT`
 the handlers locally for testing.
 
 Deploys come from GitHub: Vercel builds the `server/` folder of
-`bvmanas/iimm-buddy` on every push to `main`, and again when the app workflow
+`RamSoft-by-RVPL/iimm-buddy` on every push to `main`, and again when the app workflow
 publishes a release (deploy hook). The APK is not kept in git. The build
 command (`lib/fetch-release.js`, set in `vercel.json`) copies
 `IIMM-Buddy.apk` and `version.json` from the newest GitHub Release into
