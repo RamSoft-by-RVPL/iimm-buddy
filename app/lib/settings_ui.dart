@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'backend.dart';
 import 'background.dart';
+import 'crony_ui.dart';
 import 'health.dart';
 import 'leave_ui.dart';
 import 'log.dart';
@@ -77,9 +78,10 @@ class _SettingsScreenState extends State<SettingsScreen>
     final publisher = (store.prefs.getString('pub_key') ?? '').isNotEmpty;
 
     Widget group(List<Widget> rows) => Card(
+          clipBehavior: Clip.antiAlias,
           child: Column(children: [
             for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) const Divider(indent: 56),
+              if (i > 0) const Divider(indent: 72),
               rows[i],
             ],
           ]),
@@ -88,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             {bool enabled = true}) =>
         ListTile(
           enabled: enabled,
-          leading: Icon(icon),
+          leading: IconTile(icon),
           title: Text(title),
           subtitle: Text(value),
           trailing: const Icon(Icons.chevron_right),
@@ -97,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     Widget toggle(IconData icon, String title, String? about, bool value,
             ValueChanged<bool> onChanged) =>
         SwitchListTile(
-          secondary: Icon(icon),
+          secondary: IconTile(icon),
           title: Text(title),
           subtitle: about == null ? null : Text(about),
           value: value,
@@ -107,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         .showSnackBar(SnackBar(content: Text(text)));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: screenBar('Settings', subtitle: 'Version $appVersion'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
         children: [
@@ -206,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               changed(() => store.calendarSync = v);
             }),
             ListTile(
-              leading: const Icon(Icons.table_chart_outlined),
+              leading: const IconTile(Icons.table_chart_outlined),
               title: const Text('Weekly timetable'),
               subtitle: Text(sheetAt == null
                   ? 'Not received yet. It arrives by itself when your '
@@ -239,25 +241,29 @@ class _SettingsScreenState extends State<SettingsScreen>
           const SectionTitle('About'),
           group([
             ListTile(
-              leading: const Icon(Icons.system_update_outlined),
+              leading: const IconTile(Icons.system_update_outlined),
               title: Text(update == null
                   ? 'Version $appVersion'
                   : 'Version ${update.version} is ready'),
-              subtitle: Text(update == null
-                  ? 'Tap to check for a newer version'
-                  : 'You have $appVersion. Tap to update.'),
-              onTap: () async {
-                if (update != null) {
-                  return runUpdate(context, store.prefs, update);
-                }
-                final u = await checkUpdate(store.prefs);
-                if (!context.mounted) return;
-                setState(() {});
-                if (u == null) say('You have the newest version');
-              },
+              subtitle: Text(playStore
+                  ? 'Updates come through Google Play'
+                  : update == null
+                      ? 'Tap to check for a newer version'
+                      : 'You have $appVersion. Tap to update.'),
+              onTap: playStore
+                  ? null
+                  : () async {
+                      if (update != null) {
+                        return runUpdate(context, store.prefs, update);
+                      }
+                      final u = await checkUpdate(store.prefs);
+                      if (!context.mounted) return;
+                      setState(() {});
+                      if (u == null) say('You have the newest version');
+                    },
             ),
             ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
+              leading: const IconTile(Icons.privacy_tip_outlined),
               title: const Text('Privacy'),
               subtitle: const Text('What the app does with your data'),
               trailing: const Icon(Icons.chevron_right),
@@ -280,7 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             child: Theme(
               data: t.copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
-                leading: const Icon(Icons.build_outlined),
+                leading: const IconTile(Icons.build_outlined),
                 title: const Text('Troubleshooting'),
                 subtitle: Text(last == null
                     ? 'Background check has not run yet'
@@ -289,7 +295,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         '${pending == null ? '' : ' · $pending reminders set'}'),
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.sync),
+                    leading: const IconTile(Icons.sync),
                     title: const Text('Run a background check now'),
                     subtitle: const Text(
                         'Checks attendance and Moodle the way the app does '
@@ -307,12 +313,12 @@ class _SettingsScreenState extends State<SettingsScreen>
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.badge_outlined),
+                    leading: const IconTile(Icons.badge_outlined),
                     title: const Text('Support ID'),
                     subtitle: Text(installId(store.prefs)),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.key_outlined),
+                    leading: const IconTile(Icons.key_outlined),
                     title: const Text('Publisher key'),
                     subtitle: Text(publisher
                         ? 'Set. Opening the mailed timetable sheet with this '
@@ -380,7 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(height: 12),
           Text(
-              'IIMM Buddy is made by a student. It is not an official app of '
+              'Crony is made by a student. It is not an official app of '
               'IIM Mumbai.',
               textAlign: TextAlign.center,
               style: t.textTheme.bodySmall

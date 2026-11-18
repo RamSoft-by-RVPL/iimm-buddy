@@ -7,9 +7,14 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// `-Pstore=play` builds the Google Play bundle: signed with the Play upload
+// key, aimed at the Android version Play asks for, and without the
+// permissions Play does not allow this kind of app (see src/play).
+def playStore = project.findProperty("store") == "play"
+
 android {
     namespace = "in.bharadia.attendance_planner"
-    compileSdk = 35
+    compileSdk = playStore ? 36 : 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -29,7 +34,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23
         multiDexEnabled true
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = playStore ? 36 : flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -38,6 +43,15 @@ android {
     // the first build machine). The GitHub build passes that key's file in
     // APP_KEYSTORE; builds on the Mac use the same key from ~/.android.
     signingConfigs {
+        play {
+            def ks = System.getenv("UPLOAD_KEYSTORE")
+            if (ks) {
+                storeFile = file(ks)
+                storePassword = System.getenv("UPLOAD_STORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS") ?: "upload"
+                keyPassword = System.getenv("UPLOAD_KEY_PASSWORD") ?: System.getenv("UPLOAD_STORE_PASSWORD")
+            }
+        }
         app {
             def ks = System.getenv("APP_KEYSTORE")
             if (ks) {
@@ -49,9 +63,17 @@ android {
         }
     }
 
+    if (playStore) {
+        if (!System.getenv("UPLOAD_KEYSTORE")) {
+            throw new GradleException("The Play build needs UPLOAD_KEYSTORE and UPLOAD_STORE_PASSWORD")
+        }
+        sourceSets.release.manifest.srcFile "src/play/AndroidManifest.xml"
+    }
+
     buildTypes {
         release {
-            signingConfig = System.getenv("APP_KEYSTORE") ? signingConfigs.app : signingConfigs.debug
+            signingConfig = playStore ? signingConfigs.play
+                : System.getenv("APP_KEYSTORE") ? signingConfigs.app : signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

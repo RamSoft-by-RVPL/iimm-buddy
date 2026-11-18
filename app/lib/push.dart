@@ -57,7 +57,7 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
         await prefs.setInt('upd_told', u.build);
         await notify(
             5,
-            'IIMM Buddy ${u.version} is ready',
+            'Crony ${u.version} is ready',
             u.notes.isEmpty ? 'Open the app and press Update.' : u.notes,
             'news',
             key: 'update:${u.build}');

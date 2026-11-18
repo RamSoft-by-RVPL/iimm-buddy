@@ -90,15 +90,29 @@ class _FileViewScreenState extends State<FileViewScreen> {
         );
     return Scaffold(
       appBar: AppBar(
-        title: Text(name, style: t.textTheme.titleMedium),
+        toolbarHeight: 64,
+        titleSpacing: 0,
+        title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3)),
+              Text(
+                  pages > 0
+                      ? 'Page $page of $pages'
+                      : fileKind(file.path) == 'pdf'
+                          ? 'Opening...'
+                          : 'Picture',
+                  style: TextStyle(
+                      fontSize: 13, color: t.colorScheme.onSurfaceVariant)),
+            ]),
         actions: [
-          if (pages > 0)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text('$page / $pages', style: t.textTheme.labelLarge),
-              ),
-            ),
           IconButton(
             tooltip: 'Share',
             onPressed: () => Share.shareXFiles([XFile(file.path)]),

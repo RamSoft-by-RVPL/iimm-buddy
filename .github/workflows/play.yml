@@ -1,0 +1,111 @@
+# Builds the Google Play bundle by hand (Actions, "Play bundle", Run).
+# It never runs on a push and never touches the GitHub Release, the site or
+# the phones that installed the APK: it only leaves crony.aab to download
+# from the run and upload in Play Console.
+#
+# The bundle is the same app with the Play differences from
+# app/android/app/src/play and PLAY_STORE=true: no self-update, no
+# USE_EXACT_ALARM, no battery-exemption request, no media permissions, and
+# targetSdk 36 as Play requires.
+#
+# Secrets:
+#   UPLOAD_KEYSTORE_B64    base64 of the Play upload key (crony-upload.jks)
+#   UPLOAD_STORE_PASSWORD  its password
+#   GOOGLE_SERVICES_B64    the same Firebase config the APK build uses
+
+name: Play bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Version code (blank: the latest release's build)"
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Kolkata
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Test
+        run: flutter test
+
+      - name: Number the version
+        id: v
+        env:
+          INPUT: ${{ github.event.inputs.build }}
+        run: |
+          curl -sfL "https://github.com/${{ github.repository }}/releases/latest/download/version.json" -o /tmp/last.json || echo '{}' > /tmp/last.json
+          python3 - "$INPUT" /tmp/last.json >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          given, last = sys.argv[1].strip(), json.load(open(sys.argv[2]))
+          build = int(given or last.get('build', 0))
+          assert build > 0, 'No build number: give one when starting the run'
+          print(f"version={last.get('version', '0.8.0')}")
+          print(f'build={build}')
+          PY
+
+      - name: Put the upload key and Firebase config in place
+        env:
+          UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+          GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_B64 }}
+        run: |
+          [ -n "$UPLOAD_KEYSTORE_B64" ] && [ -n "$GOOGLE_SERVICES_B64" ] || { echo "Upload key or Firebase config secret missing"; exit 1; }
+          echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          echo "$GOOGLE_SERVICES_B64" | base64 -d > android/app/google-services.json
+
+      - name: Build the bundle
+        env:
+          UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+        run: |
+          flutter build appbundle --release -Pstore=play \
+            --build-name ${{ steps.v.outputs.version }} \
+            --build-number ${{ steps.v.outputs.build }} \
+            --dart-define=APP_VERSION=${{ steps.v.outputs.version }} \
+            --dart-define=APP_BUILD=${{ steps.v.outputs.build }} \
+            --dart-define=PLAY_STORE=true
+          cp build/app/outputs/bundle/release/app-release.aab /tmp/crony.aab
+
+      - name: Check it is signed with the upload key
+        run: |
+          keytool -printcert -jarfile /tmp/crony.aab | tee /tmp/cert.txt
+          grep -q '60:24:9D:45:A8:46:16:3C:F1:A8:19:5A:76:51:1F:19:68:88:56:F5:EB:13:C6:C2:9B:E4:8B:A1:D7:BD:0B:CB' /tmp/cert.txt \
+            || { echo "Not signed with the Play upload key: Play Console would refuse it"; exit 1; }
+
+      - name: Check the Play permissions
+        run: |
+          m=build/app/intermediates/merged_manifests/release/AndroidManifest.xml
+          grep -q 'targetSdkVersion="36"' "$m" || { echo "Play needs targetSdk 36"; exit 1; }
+          for p in REQUEST_INSTALL_PACKAGES USE_EXACT_ALARM REQUEST_IGNORE_BATTERY_OPTIMIZATIONS READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_EXTERNAL_STORAGE; do
+            if grep -q "permission.$p\"" "$m"; then echo "$p is still in the manifest"; exit 1; fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crony-${{ steps.v.outputs.version }}-${{ steps.v.outputs.build }}
+          path: /tmp/crony.aab
+          retention-days: 30

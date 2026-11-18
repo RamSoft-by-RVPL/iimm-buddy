@@ -1,48 +1,65 @@
-// The app's look: calm neutral surfaces, one brand colour, and a few small
-// building blocks every screen shares.
+// The app's look: warm paper surfaces, wine as the one brand colour, lime only
+// for Crony's crest and the "can still skip" marks, and Geist throughout.
 
 import 'package:flutter/material.dart';
 
-const _brand = Color(0xFF9B1C1C);
+import 'mascot.dart';
+
+/// Brand colours used outside the colour scheme (the mascot, the Now card).
+class Brand {
+  static const wine = Color(0xFF4A1F28);
+  static const wineDark = Color(0xFF5C2733);
+  static const wineInk = Color(0xFFF7F1EC);
+  static const wineMuted = Color(0xFFDCC9C6);
+  static const lime = Color(0xFFD6EE4A);
+  static const limeDeep = Color(0xFFA3BA14);
+}
 
 ThemeData appTheme(Brightness b) {
   final dark = b == Brightness.dark;
+  final ink = dark ? const Color(0xFFF1EEE9) : const Color(0xFF191714);
+  final ink2 = dark ? const Color(0xFFA9A39B) : const Color(0xFF5F5A52);
   final scheme =
-      ColorScheme.fromSeed(seedColor: _brand, brightness: b).copyWith(
-    primary: dark ? const Color(0xFFFFB4AB) : _brand,
-    onPrimary: dark ? const Color(0xFF5F1412) : Colors.white,
-    primaryContainer: dark ? const Color(0xFF6E211D) : const Color(0xFFFBE3E0),
-    onPrimaryContainer:
-        dark ? const Color(0xFFFFDAD6) : const Color(0xFF5C0F0F),
+      ColorScheme.fromSeed(seedColor: Brand.wine, brightness: b).copyWith(
+    primary: dark ? const Color(0xFFE6BFC6) : Brand.wine,
+    onPrimary: dark ? const Color(0xFF3A1219) : Brand.wineInk,
+    primaryContainer: dark ? const Color(0xFF3A2229) : const Color(0xFFF0E5E2),
+    onPrimaryContainer: dark ? const Color(0xFFF0DADD) : Brand.wine,
     secondaryContainer:
-        dark ? const Color(0xFF34302F) : const Color(0xFFF1ECEA),
-    onSecondaryContainer:
-        dark ? const Color(0xFFECE7E6) : const Color(0xFF2B2726),
-    surface: dark ? const Color(0xFF121111) : const Color(0xFFF8F6F5),
-    onSurface: dark ? const Color(0xFFECE7E6) : const Color(0xFF1C1A1A),
-    onSurfaceVariant: dark ? const Color(0xFFB5AEAC) : const Color(0xFF615C5A),
+        dark ? const Color(0xFF26242A) : const Color(0xFFECE9E3),
+    onSecondaryContainer: ink,
+    tertiary: dark ? Brand.lime : Brand.limeDeep,
+    surface: dark ? const Color(0xFF121113) : const Color(0xFFF3F1EC),
+    onSurface: ink,
+    onSurfaceVariant: ink2,
     surfaceContainerLowest:
-        dark ? const Color(0xFF0D0C0C) : const Color(0xFFFFFFFF),
+        dark ? const Color(0xFF0D0C0E) : const Color(0xFFFFFFFF),
     surfaceContainerLow:
-        dark ? const Color(0xFF1A1919) : const Color(0xFFFFFFFF),
-    surfaceContainer: dark ? const Color(0xFF1F1D1D) : const Color(0xFFF2EFEE),
+        dark ? const Color(0xFF1B1A1D) : const Color(0xFFFFFFFF),
+    surfaceContainer: dark ? const Color(0xFF1F1D21) : const Color(0xFFEEEBE5),
     surfaceContainerHigh:
-        dark ? const Color(0xFF292727) : const Color(0xFFECE8E7),
+        dark ? const Color(0xFF26242A) : const Color(0xFFE8E4DD),
     surfaceContainerHighest:
-        dark ? const Color(0xFF343131) : const Color(0xFFE5E1E0),
-    outline: dark ? const Color(0xFF8E8785) : const Color(0xFF8A8482),
-    outlineVariant: dark ? const Color(0xFF3A3736) : const Color(0xFFE2DCDA),
+        dark ? const Color(0xFF2E2B31) : const Color(0xFFE1DDD5),
+    outline: dark ? const Color(0xFF6C6770) : const Color(0xFF9A948A),
+    outlineVariant: dark ? const Color(0xFF2A282D) : const Color(0xFFE4E1DA),
     surfaceTint: Colors.transparent,
   );
-  final base = ThemeData(colorScheme: scheme, useMaterial3: true);
+  final base =
+      ThemeData(colorScheme: scheme, useMaterial3: true, fontFamily: 'Geist');
   final text = base.textTheme;
+  TextStyle? tight(TextStyle? s, FontWeight w, double spacing) =>
+      s?.copyWith(fontWeight: w, letterSpacing: spacing);
   return base.copyWith(
     scaffoldBackgroundColor: scheme.surface,
     textTheme: text.copyWith(
-      headlineSmall: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-      titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-      titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-      titleSmall: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      displaySmall: tight(text.displaySmall, FontWeight.w700, -1.6),
+      headlineMedium: tight(text.headlineMedium, FontWeight.w700, -1.0),
+      headlineSmall: tight(text.headlineSmall, FontWeight.w700, -0.8),
+      titleLarge: tight(text.titleLarge, FontWeight.w600, -0.4),
+      titleMedium: tight(text.titleMedium, FontWeight.w600, -0.2),
+      titleSmall: tight(text.titleSmall, FontWeight.w600, -0.1),
+      labelLarge: tight(text.labelLarge, FontWeight.w600, 0),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
@@ -51,47 +68,135 @@ ThemeData appTheme(Brightness b) {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontSize: 22, fontWeight: FontWeight.w700, color: scheme.onSurface),
+          fontFamily: 'Geist',
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -1.0,
+          color: scheme.onSurface),
     ),
     cardTheme: CardTheme(
       elevation: 0,
       color: scheme.surfaceContainerLow,
-      margin: const EdgeInsets.symmetric(vertical: 5),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(20),
+        side: dark ? BorderSide(color: scheme.outlineVariant) : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: scheme.surfaceContainerLow,
+      backgroundColor: scheme.surface,
       indicatorColor: scheme.primaryContainer,
       elevation: 0,
-      height: 68,
+      height: 72,
+      iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
+          color: s.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.onSurfaceVariant)),
       labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
+          fontFamily: 'Geist',
           fontSize: 12,
           fontWeight: s.contains(WidgetState.selected)
-              ? FontWeight.w700
+              ? FontWeight.w600
               : FontWeight.w500,
           color: s.contains(WidgetState.selected)
               ? scheme.onSurface
               : scheme.onSurfaceVariant)),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
-    listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 2)),
+    listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+        minVerticalPadding: 10,
+        horizontalTitleGap: 14,
+        iconColor: scheme.onSurfaceVariant,
+        titleTextStyle: TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.15,
+            color: scheme.onSurface),
+        subtitleTextStyle: TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 13,
+            height: 1.35,
+            color: scheme.onSurfaceVariant)),
+    switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? (dark ? Brand.wine : Colors.white)
+                : scheme.outline),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? (dark ? const Color(0xFFE6BFC6) : Brand.wine)
+                : scheme.surfaceContainerHighest),
+        trackOutlineColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? Colors.transparent
+                : scheme.outline.withOpacity(0.5))),
+    checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
+    tabBarTheme: TabBarTheme(
+        labelColor: scheme.onSurface,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorColor: scheme.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: scheme.outlineVariant,
+        labelStyle: const TextStyle(
+            fontFamily: 'Geist', fontSize: 15, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(
+            fontFamily: 'Geist', fontSize: 15, fontWeight: FontWeight.w500)),
+    expansionTileTheme:
+        const ExpansionTileThemeData(shape: Border(), collapsedShape: Border()),
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)))),
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+            minimumSize: const Size(0, 46),
+            textStyle: const TextStyle(
+                fontFamily: 'Geist', fontWeight: FontWeight.w600, fontSize: 15),
+            shape: const StadiumBorder())),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            side: BorderSide(color: scheme.outline.withOpacity(0.5)),
+            shape: const StadiumBorder())),
+    textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+            textStyle: const TextStyle(
+                fontFamily: 'Geist', fontWeight: FontWeight.w600))),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+            selectedBackgroundColor: scheme.surfaceContainerLow,
+            backgroundColor: scheme.surfaceContainer,
+            side: BorderSide.none)),
+    chipTheme: ChipThemeData(
+        shape: const StadiumBorder(),
+        side: BorderSide(color: scheme.outlineVariant)),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary, linearTrackColor: scheme.surfaceContainerHigh),
+    snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            dark ? const Color(0xFF2E2B31) : const Color(0xFF191714),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
     dialogTheme: DialogTheme(
         backgroundColor: scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+        titleTextStyle: TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+            color: scheme.onSurface),
+        contentTextStyle: TextStyle(
+            fontFamily: 'Geist',
+            fontSize: 15,
+            height: 1.45,
+            color: scheme.onSurfaceVariant),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
     bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: scheme.surface,
+        showDragHandle: true,
+        dragHandleColor: scheme.outline.withOpacity(0.4),
         shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)))),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerLow,
@@ -114,10 +219,10 @@ class Tone {
 
   static Tone of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? Tone._(const Color(0xFF7FCB8A), const Color(0xFFF2B45A),
-              const Color(0xFFFF8F87))
-          : Tone._(const Color(0xFF1F7A36), const Color(0xFFA65F00),
-              const Color(0xFFBF2A2A));
+          ? Tone._(const Color(0xFF7FD39D), const Color(0xFFF2B45C),
+              const Color(0xFFFF8C82))
+          : Tone._(const Color(0xFF1E6B40), const Color(0xFF9A5400),
+              const Color(0xFFB3261E));
 }
 
 /// A small rounded label: "Can miss 3", "Present", "Not on portal yet".
@@ -150,7 +255,7 @@ class Pill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: t.textTheme.labelMedium
-                  ?.copyWith(color: c, fontWeight: FontWeight.w700)),
+                  ?.copyWith(color: c, fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -167,14 +272,12 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 18, 4, 6),
+      padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
       child: Row(children: [
         Expanded(
-          child: Text(text.toUpperCase(),
-              style: t.textTheme.labelMedium?.copyWith(
-                  letterSpacing: 0.8,
-                  fontWeight: FontWeight.w700,
-                  color: t.colorScheme.onSurfaceVariant)),
+          child: Text(text,
+              style: t.textTheme.titleMedium
+                  ?.copyWith(fontSize: 17, fontWeight: FontWeight.w600)),
         ),
         if (trailing != null) trailing!,
       ]),
@@ -211,8 +314,8 @@ class Strip extends StatelessWidget {
       margin: EdgeInsets.fromLTRB(inset ? 12 : 0, 4, inset ? 12 : 0, 4),
       padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
       decoration: BoxDecoration(
-        color: c.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(14),
+        color: c.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(children: [
         Icon(icon, size: 20, color: c),
@@ -254,10 +357,10 @@ class Meter extends StatelessWidget {
       child: LayoutBuilder(
         builder: (_, box) => Stack(alignment: Alignment.centerLeft, children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
               value: (value / 100).clamp(0, 1),
-              minHeight: 8,
+              minHeight: 6,
               color: color,
               backgroundColor: t.colorScheme.surfaceContainerHighest,
             ),
@@ -265,12 +368,80 @@ class Meter extends StatelessWidget {
           Positioned(
             left: box.maxWidth * min / 100 - 1,
             child: Container(
-                width: 2, height: 12, color: t.colorScheme.onSurfaceVariant),
+                width: 2,
+                height: 12,
+                decoration: BoxDecoration(
+                    color: t.colorScheme.onSurface,
+                    borderRadius: BorderRadius.circular(1))),
           ),
         ]),
       ),
     );
   }
+}
+
+enum Punch { attended, missed, pending, due, spare }
+
+/// One tick per class: the classes held so far, then the ones still to come,
+/// with the last few in lime: the classes that can still be missed, as on
+/// the app icon.
+class PunchStrip extends StatelessWidget {
+  const PunchStrip(this.ticks, {super.key});
+  final List<Punch> ticks;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final tone = Tone.of(context);
+    final dark = t.brightness == Brightness.dark;
+    return SizedBox(
+      height: 14,
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _PunchPainter(ticks, {
+          Punch.attended: t.colorScheme.onSurface,
+          Punch.missed: tone.bad,
+          Punch.pending: tone.warn,
+          Punch.due: t.colorScheme.onSurface.withOpacity(dark ? 0.16 : 0.14),
+          Punch.spare: dark ? Brand.lime : Brand.limeDeep,
+        }),
+      ),
+    );
+  }
+}
+
+class _PunchPainter extends CustomPainter {
+  _PunchPainter(this.ticks, this.colors);
+  final List<Punch> ticks;
+  final Map<Punch, Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = ticks.length;
+    if (n == 0) return;
+    final gap = n > 60 ? 1.0 : 2.0;
+    final w = (size.width - gap * (n - 1)) / n;
+    final r = Radius.circular(w < 4 ? w / 2 : 2);
+    final fill = Paint();
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 0; i < n; i++) {
+      final box = Rect.fromLTWH(i * (w + gap), 0, w, size.height);
+      final p = ticks[i];
+      if (p == Punch.due && w >= 4) {
+        canvas.drawRRect(RRect.fromRectAndRadius(box.deflate(0.5), r),
+            edge..color = colors[p]!);
+        continue;
+      }
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(box, r), fill..color = colors[p]!);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PunchPainter old) =>
+      old.ticks != ticks || old.colors != colors;
 }
 
 /// A friendly message for a screen with nothing to show.
@@ -287,8 +458,8 @@ class EmptyNote extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       child: Column(children: [
-        Icon(icon, size: 40, color: t.colorScheme.onSurfaceVariant),
-        const SizedBox(height: 10),
+        const Crony(mood: Mood.sleep, size: 64),
+        const SizedBox(height: 12),
         Text(title,
             style: t.textTheme.titleMedium, textAlign: TextAlign.center),
         if (text != null) ...[

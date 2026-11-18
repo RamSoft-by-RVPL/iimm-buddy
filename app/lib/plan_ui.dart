@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'acal.dart';
+import 'crony_ui.dart';
+import 'mascot.dart';
 import 'planner.dart';
 import 'site.dart';
 import 'theme.dart';
@@ -12,7 +14,9 @@ class PlanTab extends StatefulWidget {
       {super.key,
       required this.snap,
       required this.minPct,
-      this.calendar = const []});
+      this.calendar = const [],
+      this.shortNames = const {}});
+  final Map<String, String> shortNames;
   final Snapshot snap;
   final int minPct;
   final List<TermEvent> calendar;
@@ -41,6 +45,149 @@ class _PlanTabState extends State<PlanTab> {
   }
 
   String days(int n) => '$n ${n == 1 ? 'day' : 'days'}';
+
+  /// Taps on the calendar: the first picks a day, a later one stretches it
+  /// into a range, any other starts again.
+  void tapDay(DateTime d) => setState(() {
+        final r = range;
+        if (r != null && r.start == r.end && d.isAfter(r.start)) {
+          range = DateTimeRange(start: r.start, end: d);
+        } else if (r != null && r.start == d && r.end == d) {
+          range = null;
+        } else {
+          range = DateTimeRange(start: d, end: d);
+        }
+      });
+
+  /// What one day away costs: 0 nothing (no classes), 1 fine, 2 uses a
+  /// last spare somewhere, 3 puts a course below the limit.
+  Object? _costFor;
+  final Map<DateTime, int> _cost = {};
+  int cost(DateTime d) {
+    final key = (widget.snap, widget.minPct, today);
+    if (_costFor != key) {
+      _costFor = key;
+      _cost.clear();
+    }
+    return _cost.putIfAbsent(d, () {
+      var missed = 0, worst = 1;
+      for (final c in widget.snap.courses) {
+        final i = holidayImpact(c, today, d, d, widget.minPct);
+        missed += i.missed;
+        if (i.missed == 0) continue;
+        if (breaksCourse(i, widget.minPct)) {
+          worst = 3;
+        } else if (i.leaveAfter == 0 && worst < 2) {
+          worst = 2;
+        }
+      }
+      return missed == 0 ? 0 : worst;
+    });
+  }
+
+  Widget calendar(BuildContext context) {
+    final t = Theme.of(context);
+    final tone = Tone.of(context);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final r = range;
+    final colors = {
+      1: tone.good,
+      2: tone.warn,
+      3: tone.bad,
+    };
+    Widget cell(DateTime d) {
+      final past = d.isBefore(today);
+      final isToday = d == today;
+      final c = past ? 0 : cost(d);
+      final inRange = r != null && !d.isBefore(r.start) && !d.isAfter(r.end);
+      final edge = r != null && (d == r.start || d == r.end);
+      final wine =
+          t.brightness == Brightness.dark ? Brand.wineDark : Brand.wine;
+      return GestureDetector(
+        onTap: past ? null : () => tapDay(d),
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: edge
+                ? wine
+                : inRange
+                    ? wine.withOpacity(0.12)
+                    : null,
+            border: isToday && !edge
+                ? Border.all(color: t.colorScheme.outlineVariant, width: 1.5)
+                : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text('${d.day}',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    color: edge
+                        ? Brand.wineInk
+                        : past || d.weekday == DateTime.sunday
+                            ? t.colorScheme.onSurfaceVariant.withOpacity(0.55)
+                            : t.colorScheme.onSurface)),
+            const SizedBox(height: 4),
+            Dot(
+                c == 0
+                    ? Colors.transparent
+                    : edge
+                        ? Brand.wineInk
+                        : colors[c]!,
+                size: 5),
+          ]),
+        ),
+      );
+    }
+
+    Widget key(Color c, String label) =>
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Dot(c, size: 6),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, color: t.colorScheme.onSurfaceVariant)),
+        ]);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
+        child: Column(children: [
+          Row(children: [
+            for (final d in const ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+              Expanded(
+                  child: Center(
+                      child: Text(d,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: t.colorScheme.onSurfaceVariant)))),
+          ]),
+          const SizedBox(height: 6),
+          for (var w = 0; w < 5; w++)
+            SizedBox(
+              height: 50,
+              child: Row(children: [
+                for (var i = 0; i < 7; i++)
+                  Expanded(
+                      child: cell(DateTime(
+                          monday.year, monday.month, monday.day + w * 7 + i))),
+              ]),
+            ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Wrap(spacing: 16, runSpacing: 6, children: [
+              key(tone.good, 'Free'),
+              key(tone.warn, 'Uses a last spare'),
+              key(tone.bad, 'Breaks ${widget.minPct}%'),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 
   // The idea lists take a moment to work out, so keep them until the
   // attendance, the limit or the calendar changes.
@@ -78,40 +225,50 @@ class _PlanTabState extends State<PlanTab> {
     final guess = widget.snap.courses.any((c) => isEstimated(c, i.to));
     final holiday = _holiday(i);
     final picked = range?.start == i.from && range?.end == i.to;
-    return Card(
-      child: InkWell(
-        onTap: () =>
-            setState(() => range = DateTimeRange(start: i.from, end: i.to)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(children: [
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${fmtDate(i.from)} to ${fmtDate(i.to)}',
-                        style: t.textTheme.titleSmall),
-                    if (holiday != null) ...[
-                      const SizedBox(height: 2),
-                      Text(holiday,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.textTheme.bodySmall?.copyWith(
-                              color: t.colorScheme.onSurfaceVariant)),
-                    ],
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 8, runSpacing: 6, children: [
-                      Pill('${days(i.days)} away', color: tone.good),
-                      if (weekend) Pill('${days(i.leave)} of leave'),
-                      Pill('Misses ${classes(i.missed)}'),
-                      if (guess) const Pill('Estimate', outlined: true),
-                    ]),
-                  ]),
-            ),
-            Icon(picked ? Icons.check_circle : Icons.chevron_right,
-                color: picked ? tone.good : null),
+    return InkWell(
+      onTap: () =>
+          setState(() => range = DateTimeRange(start: i.from, end: i.to)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+        child: Row(children: [
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${fmtDate(i.from)} to ${fmtDate(i.to)}',
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15)),
+              const SizedBox(height: 2),
+              Text(
+                  [
+                    if (weekend) '${days(i.leave)} of leave',
+                    'misses ${classes(i.missed)}',
+                    if (holiday != null) holiday,
+                    if (guess) 'estimate',
+                  ].join(' · '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13, color: t.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('${i.days}',
+                style: TextStyle(
+                    fontSize: 24,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.8,
+                    color: picked ? tone.good : null)),
+            Text(picked ? 'picked' : (i.days == 1 ? 'day' : 'days'),
+                style: TextStyle(
+                    fontSize: 11,
+                    color:
+                        picked ? tone.good : t.colorScheme.onSurfaceVariant)),
           ]),
-        ),
+        ]),
       ),
     );
   }
@@ -131,46 +288,87 @@ class _PlanTabState extends State<PlanTab> {
 
     final children = <Widget>[
       // ---- the one number most people want
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(until == null ? 'Tomorrow' : 'From tomorrow', style: dim),
-            const SizedBox(height: 4),
-            Text(
-                until == null
-                    ? 'One day away puts a course below $min%'
-                    : 'You can be away until ${fmtDate(until)}',
-                style: t.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-                until == null
-                    ? (_weekends.isEmpty && _breaks.isEmpty
-                        ? 'Attend for a while before taking leave.'
-                        : 'Attend the next few days and the dates below '
-                            'still work.')
-                    : '${days(until.difference(tomorrow).inDays + 1)} and every '
-                        'course stays at or above $min% by the end of term.',
-                style: t.textTheme.bodyMedium),
-          ]),
-        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+        child: Text(
+            until == null
+                ? 'One day away puts a course below $min%.'
+                : until == tomorrow
+                    ? 'You can be away tomorrow, ${fmtDate(tomorrow)}.'
+                    : 'You can be away until ${fmtDate(until)}.',
+            style: TextStyle(
+                fontSize: 24,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+                color: t.colorScheme.onSurface)),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
+        child: Text(
+            until == null
+                ? (_weekends.isEmpty && _breaks.isEmpty
+                    ? 'Attend for a while before taking leave.'
+                    : 'Attend the next few days and the dates below still work.')
+                : '${days(until.difference(tomorrow).inDays + 1)} in a row and '
+                    'every course stays at or above $min% by the end of term.',
+            style: TextStyle(
+                fontSize: 15,
+                height: 1.45,
+                color: t.colorScheme.onSurfaceVariant)),
       ),
 
       // ---- check given days
-      const SectionTitle('Check your dates'),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.date_range),
-          title: Text(r == null
-              ? 'Pick the days you will be away'
-              : '${fmtDate(r.start)} to ${fmtDate(r.end)}'),
-          subtitle: r == null ? null : Text(days(r.duration.inDays + 1)),
-          trailing: TextButton(
-              onPressed: pick, child: Text(r == null ? 'Pick' : 'Change')),
-          onTap: pick,
+      calendar(context),
+      if (r == null)
+        Card(
+          child: InkWell(
+            onTap: pick,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(children: [
+                const Crony(mood: Mood.idle, size: 44),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Pick the days you will be away',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        Text(
+                            'Tap a day above, then a later one for a longer '
+                            'trip. I add up the classes you would miss in '
+                            'each course.',
+                            style: TextStyle(
+                                fontSize: 13,
+                                height: 1.4,
+                                color: t.colorScheme.onSurfaceVariant)),
+                      ]),
+                ),
+              ]),
+            ),
+          ),
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 10, 0, 2),
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                  '${fmtDate(r.start)}${r.end == r.start ? '' : ' to ${fmtDate(r.end)}'}'
+                  ' · ${days(r.duration.inDays + 1)}',
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w600)),
+            ),
+            TextButton(onPressed: pick, child: const Text('Change')),
+            TextButton(
+                onPressed: () => setState(() => range = null),
+                child: const Text('Clear')),
+          ]),
         ),
-      ),
     ];
 
     if (r != null) {
@@ -184,70 +382,91 @@ class _PlanTabState extends State<PlanTab> {
           if (e.dayOff && !e.to.isBefore(r.start) && !e.from.isAfter(r.end)) e
       ];
       children.add(Card(
-        child: Column(children: [
-          ListTile(
-            leading: Icon(
-                hit.isEmpty ? Icons.check_circle_outline : Icons.error_outline,
-                color: hit.isEmpty ? tone.good : tone.bad),
-            title: Text(
-                missed == 0
-                    ? 'No classes on these days'
-                    : hit.isEmpty
-                        ? 'Fine: every course stays above $min%'
-                        : '${hit.length} ${hit.length == 1 ? 'course falls' : 'courses fall'} below $min%',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text([
-              if (missed > 0) 'About ${classes(missed)} missed in all',
-              if (off.isNotEmpty)
-                '${off.map((e) => e.title).toSet().join(' and ')} '
-                    '${off.map((e) => e.title).toSet().length == 1 ? 'falls' : 'fall'} in these days',
-            ].join('. ')),
-          ),
-          if (missed > 0) ...[
-            const Divider(indent: 16, endIndent: 16),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Row(children: [
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Crony(
+                  mood: missed == 0 || hit.isEmpty ? Mood.happy : Mood.alarmed,
+                  size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    missed == 0
+                        ? 'No classes on these days.'
+                        : hit.isEmpty
+                            ? 'Fine. Every course can still finish at $min% or above.'
+                            : '${hit.length} ${hit.length == 1 ? 'course falls' : 'courses fall'} below $min%.',
+                    style: TextStyle(
+                        fontSize: 18,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                        color: hit.isEmpty ? null : tone.bad)),
+              ),
+            ]),
+            if (missed > 0 || off.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                  [
+                    if (missed > 0) 'About ${classes(missed)} missed in all',
+                    if (off.isNotEmpty)
+                      '${off.map((e) => e.title).toSet().join(' and ')} '
+                          '${off.map((e) => e.title).toSet().length == 1 ? 'falls' : 'fall'} in these days',
+                  ].join('. '),
+                  style: TextStyle(
+                      fontSize: 14, color: t.colorScheme.onSurfaceVariant)),
+            ],
+            if (missed > 0) ...[
+              const SizedBox(height: 12),
+              Row(children: [
                 Expanded(child: Text('Course', style: dim)),
                 SizedBox(
                     width: 56,
                     child:
                         Text('Misses', style: dim, textAlign: TextAlign.end)),
                 SizedBox(
-                    width: 70,
+                    width: 74,
                     child: Text('After', style: dim, textAlign: TextAlign.end)),
               ]),
-            ),
-            for (final i in list)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                child: Row(children: [
-                  Expanded(
-                      child: Text(i.course.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.textTheme.bodyMedium)),
-                  SizedBox(
-                      width: 56,
-                      child: Text('${i.missed}',
-                          textAlign: TextAlign.end,
-                          style: t.textTheme.bodyMedium)),
-                  SizedBox(
-                      width: 70,
-                      child: Text(fmtPct(i.percentAfter),
-                          textAlign: TextAlign.end,
-                          style: t.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: !i.safe
-                                  ? tone.bad
-                                  : i.leaveAfter == 0
-                                      ? tone.warn
-                                      : tone.good))),
-                ]),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ]),
+              for (final i in list)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                      border: Border(
+                          top: BorderSide(
+                              color: t.colorScheme.outlineVariant
+                                  .withOpacity(0.5)))),
+                  child: Row(children: [
+                    Expanded(
+                        child: Text(codeOf(i.course.name, widget.shortNames),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600))),
+                    SizedBox(
+                        width: 56,
+                        child: Text('${i.missed}',
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(fontSize: 15))),
+                    SizedBox(
+                        width: 74,
+                        child: Text(fmtPct(i.percentAfter),
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: !i.safe
+                                    ? tone.bad
+                                    : i.leaveAfter == 0
+                                        ? tone.warn
+                                        : tone.good))),
+                  ]),
+                ),
+            ],
+          ]),
+        ),
       ));
     }
 
@@ -269,9 +488,9 @@ class _PlanTabState extends State<PlanTab> {
             'to check it.',
             style: dim),
       ));
-      for (final i in _weekends) {
-        children.add(_idea(i, weekend: true));
-      }
+      children.add(GroupCard(children: [
+        for (final i in _weekends) _idea(i, weekend: true),
+      ]));
     }
 
     children.add(const SectionTitle('Longest breaks you can take'));
@@ -284,48 +503,45 @@ class _PlanTabState extends State<PlanTab> {
             style: dim),
       ));
     } else {
-      for (final i in _breaks) {
-        children.add(_idea(i, weekend: false));
-      }
+      children.add(GroupCard(children: [
+        for (final i in _breaks) _idea(i, weekend: false),
+      ]));
     }
 
     // ---- leave left in each course
     final sorted = [...courses]
       ..sort((a, b) => leaveLeft(a, min).compareTo(leaveLeft(b, min)));
     children.add(const SectionTitle('Leave left in each course'));
-    children.add(Card(
-      child: Column(children: [
-        for (var n = 0; n < sorted.length; n++) ...[
-          if (n > 0) const Divider(indent: 16, endIndent: 16),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: Row(children: [
-              Expanded(
-                  child: Text(sorted[n].name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.textTheme.bodyMedium)),
-              const SizedBox(width: 8),
-              Text(
-                  leaveLeft(sorted[n], min) < 0 ||
-                          !meets(sorted[n].attended, sorted[n].held, min)
-                      ? 'Below $min%'
-                      : leaveLeft(sorted[n], min) == 0
-                          ? 'None'
-                          : classes(leaveLeft(sorted[n], min)),
-                  style: t.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: leaveLeft(sorted[n], min) < 0 ||
-                              !meets(sorted[n].attended, sorted[n].held, min)
-                          ? tone.bad
-                          : leaveLeft(sorted[n], min) == 0
-                              ? tone.warn
-                              : null)),
-            ]),
-          ),
-        ],
-      ]),
-    ));
+    children.add(GroupCard(children: [
+      for (final c in sorted)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+          child: Row(children: [
+            Expanded(
+                child: Text(codeOf(c.name, widget.shortNames),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600))),
+            const SizedBox(width: 8),
+            Text(
+                leaveLeft(c, min) < 0 || !meets(c.attended, c.held, min)
+                    ? 'Below $min%'
+                    : leaveLeft(c, min) == 0
+                        ? 'None left'
+                        : '${classes(leaveLeft(c, min))} left',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        leaveLeft(c, min) < 0 || !meets(c.attended, c.held, min)
+                            ? tone.bad
+                            : leaveLeft(c, min) == 0
+                                ? tone.warn
+                                : t.colorScheme.onSurfaceVariant)),
+          ]),
+        ),
+    ]));
 
     // ---- days off already coming
     final coming = [
@@ -363,6 +579,6 @@ class _PlanTabState extends State<PlanTab> {
     ));
 
     return ListView(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 28), children: children);
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28), children: children);
   }
 }

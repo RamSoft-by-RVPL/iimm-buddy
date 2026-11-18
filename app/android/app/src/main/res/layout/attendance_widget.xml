@@ -7,10 +7,10 @@
     android:background="@drawable/widget_bg"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="10dp">
+    android:paddingStart="18dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="12dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -27,20 +27,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.08"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.1"
                 android:text="NEXT CLASS"
                 android:textColor="@color/w_dim"
-                android:textSize="10sp"
-                android:textStyle="bold"/>
+                android:textSize="10sp"/>
 
             <Chronometer
                 android:id="@+id/w_timer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:fontFamily="sans-serif-medium"
                 android:textColor="@color/w_brand"
                 android:textSize="11sp"
-                android:textStyle="bold"
                 android:visibility="gone"/>
         </LinearLayout>
 
@@ -51,10 +51,11 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="-0.01"
             android:text="Open the app to sign in"
             android:textColor="@color/w_text"
-            android:textSize="16sp"
-            android:textStyle="bold"/>
+            android:textSize="17sp"/>
 
         <TextView
             android:id="@+id/w_when"
@@ -67,10 +68,17 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
+    <ImageView
+        android:layout_width="1dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="14dp"
+        android:importantForAccessibility="no"
+        android:background="@drawable/widget_rule"/>
+
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="14dp"
         android:gravity="end"
         android:orientation="vertical">
 
@@ -78,9 +86,10 @@
             android:id="@+id/w_pct"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="-0.02"
             android:textColor="@color/w_text"
-            android:textSize="22sp"
-            android:textStyle="bold"/>
+            android:textSize="26sp"/>
 
         <TextView
             android:id="@+id/w_state"

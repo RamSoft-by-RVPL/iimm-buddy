@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'background.dart';
+import 'crony_ui.dart';
 import 'menu.dart';
 import 'site.dart';
 import 'theme.dart';
@@ -88,37 +89,58 @@ class MenuCard extends StatelessWidget {
       Card(
         child: InkWell(
           onTap: open,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon, color: t.colorScheme.primary),
+              IconTile(icon),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title,
-                          style: t.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(body,
-                          style: t.textTheme.bodyMedium?.copyWith(
-                              color: t.colorScheme.onSurfaceVariant)),
-                      if (liked.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          Icon(Icons.favorite,
-                              size: 16, color: t.colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(liked.join(', '),
-                                style: t.textTheme.bodyMedium?.copyWith(
-                                    color: t.colorScheme.primary,
-                                    fontWeight: FontWeight.w600)),
-                          ),
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2)),
+                      const SizedBox(height: 8),
+                      if (next == null)
+                        Text(body,
+                            style: t.textTheme.bodyMedium?.copyWith(
+                                color: t.colorScheme.onSurfaceVariant))
+                      else
+                        Wrap(spacing: 6, runSpacing: 6, children: [
+                          for (final i in next.$2.items)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                  color: liked.contains(i)
+                                      ? t.colorScheme.primary
+                                      : t.colorScheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(99)),
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (liked.contains(i)) ...[
+                                      Icon(Icons.favorite,
+                                          size: 13,
+                                          color: t.colorScheme.onPrimary),
+                                      const SizedBox(width: 5),
+                                    ],
+                                    Text(i,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: liked.contains(i)
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: liked.contains(i)
+                                                ? t.colorScheme.onPrimary
+                                                : t.colorScheme.onSurface)),
+                                  ]),
+                            ),
                         ]),
-                      ],
                     ]),
               ),
             ]),
@@ -177,16 +199,12 @@ Future<void> editFavourites(BuildContext context, Store store) async {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Favourite dishes', style: t.textTheme.titleLarge),
-                const SizedBox(height: 4),
-                Text(
-                    'When one is on the menu you get a note before that '
-                    'meal. A word is enough: "Paneer" covers every paneer '
-                    'dish.',
-                    style: t.textTheme.bodyMedium
-                        ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 12),
-                if (favs.isNotEmpty)
+                const SheetHead('Favourite dishes',
+                    subtitle: 'When one is on the menu you get a note before '
+                        'that meal. A word is enough: "Paneer" covers every '
+                        'paneer dish.'),
+                if (favs.isNotEmpty) ...[
+                  FieldLabel('Your dishes · ${favs.length}'),
                   Wrap(spacing: 8, runSpacing: 4, children: [
                     for (final f in favs)
                       InputChip(
@@ -199,7 +217,8 @@ Future<void> editFavourites(BuildContext context, Store store) async {
                         ]),
                       ),
                   ]),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 14),
+                ],
                 TextField(
                   controller: input,
                   textCapitalization: TextCapitalization.words,
@@ -213,7 +232,8 @@ Future<void> editFavourites(BuildContext context, Store store) async {
                         onPressed: () => add(input.text)),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                const FieldLabel('Suggestions'),
                 Wrap(spacing: 8, runSpacing: 4, children: [
                   for (final d in _suggested)
                     if (!favs.any((f) => f.toLowerCase() == d.toLowerCase()))
@@ -266,7 +286,6 @@ class _MenuScreenState extends State<MenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     final now = DateTime.now();
     final days = store.menu;
     final favs = store.favDishes;
@@ -275,96 +294,272 @@ class _MenuScreenState extends State<MenuScreen> {
       for (final d in days)
         if (!d.date.isBefore(today)) d
     ];
+    final heart = IconButton(
+      tooltip: 'Favourite dishes',
+      icon: Icon(favs.isEmpty ? Icons.favorite_border : Icons.favorite),
+      onPressed: () async {
+        await editFavourites(context, store);
+        if (mounted) setState(() {});
+      },
+    );
     if (shown.isEmpty) {
       return Scaffold(
-          appBar: AppBar(title: const Text('Mess menu')),
-          body: const EmptyNote(
-              icon: Icons.restaurant_outlined,
-              title: 'No menu yet',
-              text: 'The menu shows here once it is published.'));
+          appBar: screenBar('Mess menu', actions: [heart]),
+          body: const Center(
+            child: EmptyNote(
+                icon: Icons.restaurant_outlined,
+                title: 'No menu yet',
+                text: 'The menu shows here once it is published.'),
+          ));
     }
     final next = nextMeal(days, now);
+    final likedToday = [
+      for (final m in shown.first.date == today ? shown.first.meals : <Meal>[])
+        for (final i in m.items)
+          if (isFavourite(i, favs)) i
+    ];
     return DefaultTabController(
       length: shown.length,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Mess menu'),
-          actions: [
-            IconButton(
-              tooltip: 'Favourite dishes',
-              icon: Icon(favs.isEmpty ? Icons.favorite_border : Icons.favorite),
-              onPressed: () async {
-                await editFavourites(context, store);
-                if (mounted) setState(() {});
-              },
-            ),
-          ],
-          bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: [
+        appBar: screenBar('Mess menu',
+            subtitle: likedToday.isEmpty
+                ? '${shown.length} ${shown.length == 1 ? 'day' : 'days'} published'
+                : '${likedToday.length} of your favourites today',
+            actions: [heart]),
+        body: Column(children: [
+          _DayStrip(days: shown, today: today),
+          Expanded(
+            child: TabBarView(children: [
               for (final d in shown)
-                Tab(
-                    text: d.date == today
-                        ? 'Today'
-                        : '${_weekdays[d.date.weekday - 1].substring(0, 3)} '
-                            '${d.date.day}'),
-            ],
+                _dayView(context, d, today, now, next, favs),
+            ]),
           ),
-        ),
-        body: TabBarView(children: [
-          for (final d in shown)
-            ListView(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
-              children: [
-                SectionTitle(d.date.difference(today).inDays <= 1
-                    ? '${_dayName(d.date, now)}, ${fmtDate(d.date)}'
-                    : fmtDate(d.date)),
-                if (d.meals.isEmpty)
-                  const Card(
-                      child: ListTile(title: Text('No meals listed this day'))),
-                for (final m in d.meals)
-                  Card(
-                    shape: next != null && next.$1 == d && next.$2 == m
-                        ? RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                                color: t.colorScheme.primary, width: 1.5))
-                        : null,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        ]),
+      ),
+    );
+  }
+
+  Widget _dayView(BuildContext context, MenuDay d, DateTime today, DateTime now,
+      (MenuDay, Meal)? next, List<String> favs) {
+    final t = Theme.of(context);
+    final muted = t.colorScheme.onSurfaceVariant;
+    final nextAt = next != null && next.$1 == d ? d.meals.indexOf(next.$2) : -1;
+    final isToday = d.date == today;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      children: [
+        SectionTitle(d.date.difference(today).inDays <= 1
+            ? '${_dayName(d.date, now)}, ${fmtDate(d.date)}'
+            : fmtDate(d.date)),
+        if (d.meals.isEmpty)
+          const EmptyNote(
+              icon: Icons.no_meals_outlined, title: 'No meals listed this day'),
+        for (final (i, m) in d.meals.indexed)
+          Rise(
+            index: i,
+            child: i == nextAt
+                ? _NextMeal(m, favs: favs, onTap: _toggle)
+                : Opacity(
+                    opacity: isToday && nextAt > i ? 0.55 : 1,
+                    child: Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      clipBehavior: Clip.antiAlias,
                       child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Row(children: [
-                              Icon(_mealIcon(m.name),
-                                  size: 20, color: t.colorScheme.primary),
-                              const SizedBox(width: 10),
-                              Text(m.name,
-                                  style: t.textTheme.titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w700)),
-                            ]),
-                            const SizedBox(height: 8),
-                            for (final i in m.items)
-                              _Dish(i,
-                                  liked: isFavourite(i, favs),
-                                  onTap: () => _toggle(i)),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(14, 14, 16, 8),
+                              child: Row(children: [
+                                IconTile(_mealIcon(m.name)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(m.name,
+                                      style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.3)),
+                                ),
+                                if (isToday && nextAt > i)
+                                  Text('Over',
+                                      style:
+                                          TextStyle(fontSize: 13, color: muted))
+                                else
+                                  Text(
+                                      '${m.items.length} '
+                                      '${m.items.length == 1 ? 'dish' : 'dishes'}',
+                                      style: TextStyle(
+                                          fontSize: 13, color: muted)),
+                              ]),
+                            ),
+                            for (final x in m.items)
+                              _Dish(x,
+                                  liked: isFavourite(x, favs),
+                                  onTap: () => _toggle(x)),
+                            const SizedBox(height: 6),
                           ]),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-                  child: Text(
-                      'Tap a heart to hear when that dish is on the menu. '
-                      'From the mess\'s weekly menu; the mess may change a '
-                      'dish on the day.',
-                      style: t.textTheme.bodySmall
-                          ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.favorite_border, size: 15, color: muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                  'Tap a heart to hear when that dish is on the menu. '
+                  'From the mess\'s weekly menu; the mess may change a '
+                  'dish on the day.',
+                  style: TextStyle(fontSize: 12.5, height: 1.4, color: muted)),
+            ),
+          ]),
+        ),
+      ],
+    );
+  }
+}
+
+/// The days of the menu as a row of dates, following the swipe.
+class _DayStrip extends StatelessWidget {
+  const _DayStrip({required this.days, required this.today});
+  final List<MenuDay> days;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final c = DefaultTabController.of(context);
+    final dark = t.brightness == Brightness.dark;
+    return AnimatedBuilder(
+      animation: c,
+      builder: (context, _) => SizedBox(
+        height: 74,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+          children: [
+            for (final (i, d) in days.indexed)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => c.animateTo(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: const Cubic(0.23, 1, 0.32, 1),
+                    width: 52,
+                    decoration: BoxDecoration(
+                      color: c.index == i
+                          ? (dark ? Brand.wineDark : Brand.wine)
+                          : t.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                              d.date == today
+                                  ? 'Today'
+                                  : _weekdays[d.date.weekday - 1]
+                                      .substring(0, 3),
+                              style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: c.index == i
+                                      ? Brand.wineInk.withOpacity(0.8)
+                                      : t.colorScheme.onSurfaceVariant)),
+                          const SizedBox(height: 2),
+                          Text('${d.date.day}',
+                              style: TextStyle(
+                                  fontSize: 19,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
+                                  color: c.index == i
+                                      ? Brand.wineInk
+                                      : t.colorScheme.onSurface)),
+                        ]),
+                  ),
                 ),
-              ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The coming meal, raised in wine so it is the first thing seen.
+class _NextMeal extends StatelessWidget {
+  const _NextMeal(this.m, {required this.favs, required this.onTap});
+  final Meal m;
+  final List<String> favs;
+  final void Function(String) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+          color: dark ? Brand.wineDark : Brand.wine,
+          borderRadius: BorderRadius.circular(22)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(_mealIcon(m.name), size: 20, color: Brand.lime),
+          const SizedBox(width: 8),
+          const Text('UP NEXT',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                  color: Brand.lime)),
+        ]),
+        const SizedBox(height: 6),
+        Text(m.name,
+            style: const TextStyle(
+                fontSize: 26,
+                height: 1.15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.9,
+                color: Brand.wineInk)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final x in m.items)
+            Material(
+              color: isFavourite(x, favs)
+                  ? Brand.lime
+                  : Brand.wineInk.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(99),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(99),
+                onTap: () => onTap(x),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                        isFavourite(x, favs)
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 15,
+                        color: isFavourite(x, favs)
+                            ? Brand.wine
+                            : Brand.wineInk.withOpacity(0.7)),
+                    const SizedBox(width: 6),
+                    Text(x,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isFavourite(x, favs)
+                                ? Brand.wine
+                                : Brand.wineInk)),
+                  ]),
+                ),
+              ),
             ),
         ]),
-      ),
+      ]),
     );
   }
 }
@@ -380,23 +575,22 @@ class _Dish extends StatelessWidget {
     final t = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Container(
+        color: liked ? t.colorScheme.primary.withOpacity(0.07) : null,
+        padding: const EdgeInsets.fromLTRB(66, 10, 16, 10),
         child: Row(children: [
           Expanded(
             child: Text(name,
-                style: liked
-                    ? t.textTheme.bodyMedium?.copyWith(
-                        color: t.colorScheme.primary,
-                        fontWeight: FontWeight.w600)
-                    : t.textTheme.bodyMedium),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: liked ? FontWeight.w600 : FontWeight.w400,
+                    color: liked ? t.colorScheme.primary : null)),
           ),
           Icon(liked ? Icons.favorite : Icons.favorite_border,
-              size: 18,
+              size: 19,
               color: liked
                   ? t.colorScheme.primary
-                  : t.colorScheme.onSurfaceVariant.withOpacity(0.5)),
+                  : t.colorScheme.onSurfaceVariant.withOpacity(0.45)),
         ]),
       ),
     );

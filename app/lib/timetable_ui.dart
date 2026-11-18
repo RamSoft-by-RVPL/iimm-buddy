@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'absence.dart';
 import 'acal.dart';
+import 'attendance_ui.dart' show NowCard;
+import 'crony_ui.dart';
 import 'exams.dart';
 import 'moodle.dart';
 import 'site.dart';
@@ -18,7 +20,9 @@ class TimetableTab extends StatefulWidget {
       this.fixEmail = '',
       this.exams = const [],
       this.calendar = const [],
+      this.shortNames = const {},
       this.onOpenDeadline});
+  final Map<String, String> shortNames;
   final List<TermEvent> calendar;
   final List<Exam> exams;
   final void Function(Deadline)? onOpenDeadline;
@@ -35,95 +39,174 @@ class _TimetableTabState extends State<TimetableTab> {
   int week = 0; // 0 = this week
   int monthOff = 0; // 0 = this month
   bool byMonth = false;
-  final todayKey = GlobalKey();
+
+  /// The day highlighted in the strip, 0 = Monday. Opens on today.
+  int picked = DateTime.now().weekday - 1;
+  final dayKeys = List.generate(7, (_) => GlobalKey());
 
   @override
   void initState() {
     super.initState();
     // Open on today, not on Monday.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final c = todayKey.currentContext;
-      if (c != null) Scrollable.ensureVisible(c, alignment: 0.02);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => jump(picked, 0));
+  }
+
+  void jump(int i, int ms) {
+    final c = dayKeys[i].currentContext;
+    if (c == null) return;
+    Scrollable.ensureVisible(c,
+        alignment: 0,
+        duration: ms == 0 || calm(context)
+            ? Duration.zero
+            : Duration(milliseconds: ms),
+        curve: const Cubic(0.23, 1, 0.32, 1));
   }
 
   static DateTime day(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  Widget classTile(BuildContext context, ClassSlot s, DateTime now) {
+  Widget classTile(BuildContext context, ClassSlot s, DateTime now,
+      {bool next = false}) {
     final t = Theme.of(context);
     final tone = Tone.of(context);
     final live = !s.startsAt.isAfter(now) && s.endsAt.isAfter(now);
-    final (label, color) = switch (s) {
-      _ when live => ('Now', t.colorScheme.primary),
-      _ when s.upcoming => ('Upcoming', t.colorScheme.onSurfaceVariant),
-      _ when s.fromSheet => ('To be updated', t.colorScheme.onSurfaceVariant),
-      _ when s.status == 'Present' => ('Present', tone.good),
-      _ when s.status == 'Late' => ('Late', tone.warn),
-      _ when s.status == 'Absent' => ('Absent', tone.bad),
-      _ => ('Not marked', tone.warn),
+    final soon = next && s.startsAt.difference(now).inHours < 12;
+    final wine = t.brightness == Brightness.dark ? Brand.wineDark : Brand.wine;
+    final (label, color, filled) = switch (s) {
+      _ when live => ('Now', wine, true),
+      _ when soon => ('In ${NowCard.countdown(s, now)}', wine, true),
+      _ when s.upcoming => ('Upcoming', t.colorScheme.onSurfaceVariant, false),
+      _ when s.fromSheet => (
+          'To be updated',
+          t.colorScheme.onSurfaceVariant,
+          false
+        ),
+      _ when s.status == 'Present' => ('Present', tone.good, false),
+      _ when s.status == 'Late' => ('Late', tone.warn, false),
+      _ when s.status == 'Absent' => ('Absent', tone.bad, false),
+      _ => ('Not marked', tone.warn, false),
     };
     final onTap = s.upcoming
-        ? () => showSkip(context, widget.snap, s, widget.minPct)
+        ? () => showSkip(context, widget.snap, s, widget.minPct,
+            shortNames: widget.shortNames)
         : canDispute(s)
             ? () => showDispute(context, widget.snap, s, widget.fixEmail)
             : null;
-    return Card(
-      color: live ? t.colorScheme.primaryContainer.withOpacity(0.5) : null,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(
-              width: 50,
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(s.start,
-                        style: t.textTheme.titleSmall?.copyWith(
-                            fontFeatures: const [
-                              FontFeature.tabularFigures()
-                            ])),
-                    Text(s.end,
-                        style: t.textTheme.bodySmall?.copyWith(
-                            color: t.colorScheme.onSurfaceVariant,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures()
-                            ])),
-                  ]),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(s.course,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600, height: 1.25)),
-                    const SizedBox(height: 4),
-                    Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (s.room.isNotEmpty)
-                            Text('Room ${s.room}',
-                                style: t.textTheme.bodySmall?.copyWith(
-                                    color: t.colorScheme.onSurfaceVariant)),
-                          if (s.fromSheet)
-                            Pill('Not on portal yet',
-                                outlined: true,
-                                color: t.colorScheme.onSurfaceVariant),
-                        ]),
-                  ]),
-            ),
-            const SizedBox(width: 8),
-            Pill(label, color: color),
-          ]),
+    final c = widget.snap.courseOf(s);
+    final mono = TextStyle(
+        fontFamily: 'GeistMono',
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: t.colorScheme.onSurfaceVariant);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: 56,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(s.start,
+                  style: mono.copyWith(color: t.colorScheme.onSurface)),
+              const SizedBox(height: 2),
+              Text(s.end, style: mono.copyWith(fontSize: 11)),
+            ]),
+          ),
         ),
-      ),
+        Expanded(
+          child: Material(
+            color: t.colorScheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: live || soon
+                    ? BorderSide(color: wine, width: 1.6)
+                    : BorderSide.none),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              c == null
+                                  ? s.course
+                                  : codeOf(c.name, widget.shortNames),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.3)),
+                          const SizedBox(height: 2),
+                          Text(
+                              [
+                                if (s.fromSheet) 'Not on portal yet',
+                                if (s.room.isNotEmpty) 'Room ${s.room}',
+                                if (c != null &&
+                                    codeOf(c.name, widget.shortNames) != c.name)
+                                  c.name,
+                              ].join(' · '),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: t.colorScheme.onSurfaceVariant)),
+                        ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: filled
+                          ? color
+                          : s.fromSheet && !s.upcoming
+                              ? null
+                              : color.withOpacity(0.12),
+                      border: s.fromSheet && !s.upcoming
+                          ? Border.all(
+                              color: t.colorScheme.outline.withOpacity(0.6))
+                          : null,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: filled ? Brand.wineInk : color)),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  /// The current time as a line across the day.
+  Widget nowLine(BuildContext context, DateTime now) {
+    final t = Theme.of(context);
+    final c = t.brightness == Brightness.dark ? Brand.lime : Brand.wine;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        SizedBox(
+          width: 56,
+          child: Text(hhmm(now),
+              style: TextStyle(
+                  fontFamily: 'GeistMono',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: c)),
+        ),
+        Dot(c, size: 8),
+        Expanded(child: Container(height: 1.5, color: c)),
+      ]),
     );
   }
 
@@ -132,10 +215,9 @@ class _TimetableTabState extends State<TimetableTab> {
     final hh = x.due.hour.toString().padLeft(2, '0');
     final mm = x.due.minute.toString().padLeft(2, '0');
     return Card(
-      color: t.colorScheme.secondaryContainer,
       child: ListTile(
         dense: true,
-        leading: const Icon(Icons.assignment_outlined),
+        leading: Icon(Icons.assignment_outlined, color: t.colorScheme.primary),
         title:
             Text(x.name, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text('${x.course} · due $hh:$mm'),
@@ -161,7 +243,7 @@ class _TimetableTabState extends State<TimetableTab> {
             color: t.colorScheme.onPrimaryContainer),
         title: Text('${x.kind}: ${x.title}',
             style: TextStyle(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: t.colorScheme.onPrimaryContainer)),
         subtitle: Text('${x.course.isEmpty ? '' : '${x.course} · '}$hh:$mm',
             style: TextStyle(color: t.colorScheme.onPrimaryContainer)),
@@ -189,7 +271,7 @@ class _TimetableTabState extends State<TimetableTab> {
         dense: true,
         leading: Icon(icon, color: color),
         title:
-            Text(e.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(e.title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(e.oneDay
             ? (e.dayOff ? 'No classes' : e.label)
             : '${spanText(e)}${e.dayOff ? ' · no classes' : ''}'),
@@ -224,8 +306,16 @@ class _TimetableTabState extends State<TimetableTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(fmtDate(d), style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: 8),
+                  SheetHead(longDay(d),
+                      subtitle: [
+                        fmtDate(d),
+                        if (slots.isNotEmpty)
+                          '${slots.length} ${slots.length == 1 ? 'class' : 'classes'}',
+                        if (ex.isNotEmpty)
+                          '${ex.length} ${ex.length == 1 ? 'exam' : 'exams'}',
+                        if (due.isNotEmpty) '${due.length} due',
+                      ].join(' · '),
+                      trailing: DateBlock(d)),
                   for (final e in term) termTile(ctx, e),
                   if (slots.isEmpty &&
                       due.isEmpty &&
@@ -301,19 +391,20 @@ class _TimetableTabState extends State<TimetableTab> {
             color: missed
                 ? tone.bad.withOpacity(0.10)
                 : marks
-                    ? t.colorScheme.primaryContainer
+                    ? Brand.lime.withOpacity(0.38)
                     : offDay
                         ? tone.good.withOpacity(0.14)
                         : null,
             border: isToday
-                ? Border.all(color: t.colorScheme.primary, width: 1.6)
+                ? Border.all(color: t.colorScheme.primary, width: 1.5)
                 : null,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text('$n',
-                style: t.textTheme.bodyMedium?.copyWith(
-                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500)),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500)),
             const SizedBox(height: 3),
             SizedBox(
               height: 7,
@@ -353,44 +444,38 @@ class _TimetableTabState extends State<TimetableTab> {
         ]);
 
     return [
-      Card(
-        margin: const EdgeInsets.only(bottom: 4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(children: [
-            IconButton(
-                tooltip: 'Earlier month',
-                onPressed: () => setState(() => monthOff--),
-                icon: const Icon(Icons.chevron_left)),
-            Expanded(
-              child: InkWell(
-                onTap:
-                    monthOff == 0 ? null : () => setState(() => monthOff = 0),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(children: [
-                    Text('${names[first.month - 1]} ${first.year}',
-                        style: t.textTheme.titleSmall),
-                    Text(
-                        monthOff == 0
-                            ? 'This month'
-                            : 'Tap to go back to this month',
-                        style: t.textTheme.bodySmall?.copyWith(
-                            color: monthOff == 0
-                                ? t.colorScheme.onSurfaceVariant
-                                : t.colorScheme.primary)),
-                  ]),
-                ),
-              ),
+      Row(children: [
+        IconButton(
+            tooltip: 'Earlier month',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => monthOff--),
+            icon: const Icon(Icons.chevron_left)),
+        Expanded(
+          child: InkWell(
+            onTap: monthOff == 0 ? null : () => setState(() => monthOff = 0),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                  '${names[first.month - 1]} ${first.year}'
+                  '${monthOff == 0 ? '' : ' · back to this month'}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: monthOff == 0
+                          ? t.colorScheme.onSurfaceVariant
+                          : t.colorScheme.primary)),
             ),
-            IconButton(
-                tooltip: 'Later month',
-                onPressed: () => setState(() => monthOff++),
-                icon: const Icon(Icons.chevron_right)),
-          ]),
+          ),
         ),
-      ),
+        IconButton(
+            tooltip: 'Later month',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => monthOff++),
+            icon: const Icon(Icons.chevron_right)),
+      ]),
+      const SizedBox(height: 6),
       Card(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
@@ -426,7 +511,8 @@ class _TimetableTabState extends State<TimetableTab> {
           key(tone.warn, 'Not marked'),
           key(t.colorScheme.outline, 'Coming up'),
           key(t.colorScheme.onSurfaceVariant, 'Deadline', square: true),
-          key(t.colorScheme.primaryContainer, 'Exam day', square: true),
+          key(Brand.lime.withOpacity(0.6), 'Exam day', square: true),
+          key(tone.bad.withOpacity(0.25), 'Day with an absence', square: true),
           if (widget.calendar.isNotEmpty)
             key(tone.good.withOpacity(0.35), 'Holiday or break', square: true),
         ]),
@@ -434,7 +520,7 @@ class _TimetableTabState extends State<TimetableTab> {
       Card(
         margin: const EdgeInsets.only(top: 12),
         child: ListTile(
-          leading: const Icon(Icons.insights_outlined),
+          leading: const IconTile(Icons.insights_outlined),
           title: Text(held == 0
               ? 'No classes held in ${names[first.month - 1]} yet'
               : 'Attended $present of $held classes'),
@@ -455,22 +541,11 @@ class _TimetableTabState extends State<TimetableTab> {
   }
 
   Widget viewSwitch() => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: SegmentedButton<bool>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-                value: false,
-                icon: Icon(Icons.view_agenda_outlined),
-                label: Text('Week')),
-            ButtonSegment(
-                value: true,
-                icon: Icon(Icons.calendar_month_outlined),
-                label: Text('Month')),
-          ],
-          selected: {byMonth},
-          onSelectionChanged: (v) => setState(() => byMonth = v.first),
-        ),
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Segmented(
+            options: const ['Week', 'Month'],
+            selected: byMonth ? 1 : 0,
+            onChanged: (v) => setState(() => byMonth = v == 1)),
       );
 
   @override
@@ -486,67 +561,146 @@ class _TimetableTabState extends State<TimetableTab> {
 
     if (byMonth) {
       return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [viewSwitch(), ...monthView(context)]),
       );
     }
 
-    // The switch and the week stay put; the days scroll under them.
-    final children = <Widget>[];
+    // The switch and the days stay put; the chosen day scrolls under them.
+    const short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final days = [
+      for (var i = 0; i < 7; i++)
+        DateTime(monday.year, monday.month, monday.day + i)
+    ];
+    bool busy(DateTime d) =>
+        slotsOn(d).isNotEmpty ||
+        widget.exams.any((x) => day(x.at) == d) ||
+        widget.deadlines.any((x) => day(x.due) == d) ||
+        termOn(d).isNotEmpty;
+    // Sunday only when something is on it.
+    final count = busy(days[6]) ? 7 : 6;
+    final pick = picked.clamp(0, count - 1);
+    final dark = t.brightness == Brightness.dark;
+
     final pinned = <Widget>[
       viewSwitch(),
-      Card(
-        margin: const EdgeInsets.only(bottom: 4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(children: [
-            IconButton(
-                tooltip: 'Earlier week',
-                onPressed: () => setState(() => week--),
-                icon: const Icon(Icons.chevron_left)),
+      Row(children: [
+        IconButton(
+            tooltip: 'Earlier week',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() {
+                  week--;
+                  picked = 0;
+                }),
+            icon: const Icon(Icons.chevron_left)),
+        Expanded(
+          child: InkWell(
+            onTap: week == 0
+                ? null
+                : () => setState(() {
+                      week = 0;
+                      picked = now.weekday - 1;
+                    }),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                  '${week == 0 ? 'This week' : week == 1 ? 'Next week' : week == -1 ? 'Last week' : 'Week of ${fmtDate(monday)}'}'
+                  ' · ${monday.day} to ${fmtDate(sunday).substring(4)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: week == 0
+                          ? t.colorScheme.onSurfaceVariant
+                          : t.colorScheme.primary)),
+            ),
+          ),
+        ),
+        IconButton(
+            tooltip: 'Later week',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() {
+                  week++;
+                  picked = 0;
+                }),
+            icon: const Icon(Icons.chevron_right)),
+      ]),
+      const SizedBox(height: 6),
+      Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+            color: t.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16)),
+        child: Row(children: [
+          for (var i = 0; i < count; i++)
             Expanded(
-              child: InkWell(
-                onTap: week == 0 ? null : () => setState(() => week = 0),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(children: [
-                    Text(
-                        week == 0
-                            ? 'This week'
-                            : week == 1
-                                ? 'Next week'
-                                : week == -1
-                                    ? 'Last week'
-                                    : '${fmtDate(monday)} to ${fmtDate(sunday)}',
-                        style: t.textTheme.titleSmall),
-                    Text(
-                        week == 0 || week.abs() > 1
-                            ? '${monday.day} to ${fmtDate(sunday).substring(4)}'
-                            : 'Tap to go back to this week',
-                        style: t.textTheme.bodySmall?.copyWith(
-                            color: week == 0 || week.abs() > 1
-                                ? t.colorScheme.onSurfaceVariant
-                                : t.colorScheme.primary)),
-                  ]),
+              child: Semantics(
+                selected: i == pick,
+                button: true,
+                label: fmtDate(days[i]),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => picked = i);
+                    jump(i, 320);
+                  },
+                  child: AnimatedContainer(
+                    duration: calm(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: i == pick
+                          ? (dark ? const Color(0xFF3A373E) : Colors.white)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: i == pick && !dark
+                          ? const [
+                              BoxShadow(
+                                  color: Color(0x14000000),
+                                  blurRadius: 6,
+                                  offset: Offset(0, 1))
+                            ]
+                          : null,
+                    ),
+                    child: Column(children: [
+                      Text(short[i],
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: t.colorScheme.onSurfaceVariant)),
+                      const SizedBox(height: 2),
+                      Text('${days[i].day}',
+                          style: TextStyle(
+                              fontSize: 19,
+                              fontWeight:
+                                  i == pick ? FontWeight.w700 : FontWeight.w500,
+                              color: days[i] == today
+                                  ? t.colorScheme.primary
+                                  : t.colorScheme.onSurface)),
+                      const SizedBox(height: 3),
+                      Dot(
+                          busy(days[i])
+                              ? t.colorScheme.onSurfaceVariant.withOpacity(0.6)
+                              : Colors.transparent,
+                          size: 4),
+                    ]),
+                  ),
                 ),
               ),
             ),
-            IconButton(
-                tooltip: 'Later week',
-                onPressed: () => setState(() => week++),
-                icon: const Icon(Icons.chevron_right)),
-          ]),
-        ),
+        ]),
       ),
+      const SizedBox(height: 12),
     ];
 
+    // Every day of the week in one list; the strip jumps to a day.
+    final children = <Widget>[];
     var any = false;
     var sheetOnly = false;
-    for (var i = 0; i < 7; i++) {
-      final d = DateTime(monday.year, monday.month, monday.day + i);
+    for (var i = 0; i < count; i++) {
+      final d = days[i];
       final slots = slotsOn(d);
       final due = [
         for (final x in widget.deadlines)
@@ -557,11 +711,11 @@ class _TimetableTabState extends State<TimetableTab> {
           if (day(x.at) == d) x
       ];
       final term = termOn(d);
-      if (slots.isEmpty && due.isEmpty && ex.isEmpty && term.isEmpty) continue;
-      any = true;
+      final empty = slots.isEmpty && due.isEmpty && ex.isEmpty && term.isEmpty;
+      any = any || !empty;
       final isToday = d == today;
       children.add(SectionTitle(
-        key: isToday ? todayKey : null,
+        key: dayKeys[i],
         isToday ? 'Today · ${fmtDate(d)}' : fmtDate(d),
         trailing: Text(
             slots.isEmpty
@@ -570,16 +724,37 @@ class _TimetableTabState extends State<TimetableTab> {
             style: t.textTheme.labelSmall
                 ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
       ));
+      if (empty) {
+        children.add(Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+          child: Text(
+              horizon != null && d.isAfter(horizon)
+                  ? 'Not published yet'
+                  : 'No classes',
+              style: TextStyle(
+                  fontSize: 14, color: t.colorScheme.onSurfaceVariant)),
+        ));
+        continue;
+      }
       for (final e in term) {
         children.add(termTile(context, e));
       }
       for (final x in ex) {
         children.add(examTile(context, x));
       }
-      for (final s in slots) {
-        sheetOnly = sheetOnly || s.fromSheet;
-        children.add(classTile(context, s, now));
+      final firstNext =
+          isToday ? slots.indexWhere((x) => x.endsAt.isAfter(now)) : -1;
+      var lineDone = !isToday;
+      for (final (n, x) in slots.indexed) {
+        sheetOnly = sheetOnly || x.fromSheet;
+        if (!lineDone && x.startsAt.isAfter(now)) {
+          children.add(nowLine(context, now));
+          lineDone = true;
+        }
+        children.add(Rise(
+            index: n, child: classTile(context, x, now, next: n == firstNext)));
       }
+      if (!lineDone && slots.isNotEmpty) children.add(nowLine(context, now));
       for (final x in due) {
         children.add(dueTile(context, x));
       }
@@ -587,15 +762,18 @@ class _TimetableTabState extends State<TimetableTab> {
 
     if (!any) {
       final notOut = horizon != null && monday.isAfter(horizon);
-      children.add(EmptyNote(
-        icon: notOut ? Icons.hourglass_empty : Icons.event_available_outlined,
-        title:
-            notOut ? 'This week is not published yet' : 'No classes this week',
-        text: notOut
-            ? 'The timetable is out up to ${fmtDate(horizon)}. Later weeks '
-                'appear here as soon as the college publishes them.'
-            : null,
-      ));
+      children
+        ..clear()
+        ..add(EmptyNote(
+          icon: notOut ? Icons.hourglass_empty : Icons.event_available_outlined,
+          title: notOut
+              ? 'This week is not published yet'
+              : 'No classes this week',
+          text: notOut
+              ? 'The timetable is out up to ${fmtDate(horizon)}. Later weeks '
+                  'appear here as soon as the college publishes them.'
+              : null,
+        ));
     } else {
       children.add(Padding(
         padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
@@ -615,16 +793,28 @@ class _TimetableTabState extends State<TimetableTab> {
 
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch, children: pinned),
       ),
       Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children),
+        child: GestureDetector(
+          // A sideways swipe moves to the next or previous week.
+          onHorizontalDragEnd: (e) {
+            final v = e.primaryVelocity ?? 0;
+            if (v.abs() < 300) return;
+            setState(() {
+              week += v < 0 ? 1 : -1;
+              picked = 0;
+            });
+          },
+          child: SingleChildScrollView(
+            key: ValueKey(week),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children),
+          ),
         ),
       ),
     ]);

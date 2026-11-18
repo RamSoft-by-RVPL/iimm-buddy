@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'crony_ui.dart';
 import 'inbox.dart';
 import 'theme.dart';
 import 'ui_common.dart';
@@ -87,16 +88,67 @@ class _InboxScreenState extends State<InboxScreen> {
   static String _time(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+  Widget _row(BuildContext context, InboxItem i, bool isNew) {
+    final t = Theme.of(context);
+    final muted = t.colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: () => Navigator.pop(context, i.open),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          IconTile(_icon(i.channel)),
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Text(i.title,
+                      style: TextStyle(
+                          fontSize: 15,
+                          height: 1.3,
+                          fontWeight: isNew ? FontWeight.w600 : FontWeight.w500,
+                          color: t.colorScheme.onSurface)),
+                ),
+                const SizedBox(width: 10),
+                Text(_time(i.at),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: muted)),
+                if (isNew) ...[
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Dot(t.colorScheme.primary),
+                  ),
+                ],
+              ]),
+              if (i.body.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(i.body,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(fontSize: 13.5, height: 1.4, color: muted)),
+              ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final tone = Tone.of(context);
     final list = items;
     final now = DateTime.now();
+    final unread = list?.where((i) => i.at.isAfter(seenBefore)).length ?? 0;
 
     Widget body;
     if (list == null) {
-      body = const Center(child: CircularProgressIndicator());
+      body = const Center(child: LoadingNote('Opening notifications...'));
     } else if (list.isEmpty) {
       body = ListView(children: const [
         SizedBox(height: 80),
@@ -108,69 +160,21 @@ class _InboxScreenState extends State<InboxScreen> {
       ]);
     } else {
       final children = <Widget>[];
-      String? day;
+      final days = <String, List<InboxItem>>{};
       for (final i in list) {
-        final d = _day(i.at, now);
-        if (d != day) {
-          day = d;
-          children.add(SectionTitle(d));
-        }
-        final isNew = i.at.isAfter(seenBefore);
-        children.add(Card(
-          child: InkWell(
-            onTap: () => Navigator.pop(context, i.open),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                      color: t.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(11)),
-                  child: Icon(_icon(i.channel),
-                      size: 20, color: t.colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Expanded(
-                            child: Text(i.title,
-                                style: t.textTheme.titleSmall?.copyWith(
-                                    fontWeight: isNew
-                                        ? FontWeight.w700
-                                        : FontWeight.w600)),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(_time(i.at),
-                              style: t.textTheme.bodySmall?.copyWith(
-                                  color: t.colorScheme.onSurfaceVariant)),
-                          if (isNew) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                    color: tone.bad, shape: BoxShape.circle)),
-                          ],
-                        ]),
-                        if (i.body.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(i.body,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.textTheme.bodyMedium?.copyWith(
-                                  color: t.colorScheme.onSurfaceVariant)),
-                        ],
-                      ]),
-                ),
-              ]),
-            ),
-          ),
+        days.putIfAbsent(_day(i.at, now), () => []).add(i);
+      }
+      for (final (k, (d, group))
+          in days.entries.map((e) => (e.key, e.value)).indexed) {
+        children.add(Rise(
+          index: k,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            SectionTitle(d),
+            GroupCard(children: [
+              for (final i in group) _row(context, i, i.at.isAfter(seenBefore)),
+            ]),
+          ]),
         ));
       }
       children.add(Padding(
@@ -181,16 +185,24 @@ class _InboxScreenState extends State<InboxScreen> {
                 ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
       ));
       body = ListView(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
           children: children);
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        toolbarHeight: 76,
+        titleSpacing: 0,
+        title: BigTitle('Notifications',
+            subtitle: list == null || list.isEmpty
+                ? null
+                : unread == 0
+                    ? 'All caught up'
+                    : '$unread new since you last looked'),
         actions: [
           if (list != null && list.isNotEmpty)
             TextButton(onPressed: _clear, child: const Text('Clear all')),
+          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: body),

@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
     <application
-        android:label="IIMM Buddy"
+        android:label="Crony"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -38,13 +38,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- The weekly timetable sheet: "Open with" or "Share" from the mail app. -->
-            <intent-filter android:label="Add timetable to IIMM Buddy">
+            <intent-filter android:label="Add timetable to Crony">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="content"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
             </intent-filter>
-            <intent-filter android:label="Add timetable to IIMM Buddy">
+            <intent-filter android:label="Add timetable to Crony">
                 <action android:name="android.intent.action.SEND"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>

@@ -1,0 +1,19 @@
+<!-- Merged over the main manifest in the Google Play build only.
+     Play installs updates itself and does not allow self-updating apps;
+     USE_EXACT_ALARM is only for alarm and calendar apps, so the Play build
+     asks for SCHEDULE_EXACT_ALARM on every Android version instead (the user
+     grants it, and reminders fall back to inexact when they do not); the
+     battery exemption is reached through the app's settings page instead.
+     Downloaded notes live in the app's own storage, so the media and
+     storage permissions open_filex declares are not needed. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:node="remove"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:remove="android:maxSdkVersion"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
+</manifest>

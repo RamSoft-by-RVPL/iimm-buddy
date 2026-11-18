@@ -258,8 +258,14 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
         "batteryAsk" -> {
           // The system's own "let this app run in the background?" question.
-          // Falls back to the app's settings page where that is not offered.
+          // Falls back to the app's settings page where that is not offered,
+          // or when the build leaves out the permission it needs (Play).
+          val declared = context.packageManager.checkPermission(
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            context.packageName
+          ) == PackageManager.PERMISSION_GRANTED
           try {
+            if (!declared) throw SecurityException("not declared")
             context.startActivity(
               Intent(
                 Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
