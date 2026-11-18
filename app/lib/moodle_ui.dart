@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'crony_ui.dart';
 import 'file_view.dart';
 import 'moodle.dart';
 import 'net.dart';
@@ -173,10 +174,12 @@ class MoodleTabState extends State<MoodleTab> {
     if (c == null) {
       return Center(
         child: error == null
-            ? const CircularProgressIndicator()
+            ? const LoadingNote('Opening Moodle...')
             : Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(error!),
-                const SizedBox(height: 12),
+                EmptyNote(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Could not open Moodle',
+                    text: error),
                 FilledButton(onPressed: load, child: const Text('Try again')),
               ]),
       );
@@ -187,13 +190,25 @@ class MoodleTabState extends State<MoodleTab> {
     return RefreshIndicator(
       onRefresh: load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         children: [
           TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
               hintText: 'Search notes in all courses',
-              isDense: true,
+              filled: true,
+              fillColor: t.colorScheme.surfaceContainerLow,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide:
+                      BorderSide(color: t.colorScheme.primary, width: 1.5)),
             ),
             onChanged: (v) {
               setState(() => query = v.trim().toLowerCase());
@@ -226,70 +241,142 @@ class MoodleTabState extends State<MoodleTab> {
                       : 'Nothing due on Moodle'),
                 ),
               ),
-            for (final e in d)
-              Card(
-                child: InkWell(
-                  onTap: e.url.isEmpty
-                      ? null
-                      : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => WebPage(
-                                  title: e.name, url: e.url, moodle: moodle))),
+            if (d.isNotEmpty)
+              GroupCard(children: [
+                for (final e in d)
+                  InkWell(
+                    onTap: e.url.isEmpty
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => WebPage(
+                                    title: e.name,
+                                    url: e.url,
+                                    moodle: moodle))),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(e.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -0.15)),
+                                const SizedBox(height: 2),
+                                Builder(builder: (context) {
+                                  final a = moodle.assigns[linkId(e.url)];
+                                  final soon =
+                                      e.due.difference(now).inHours < 48;
+                                  return Text(
+                                      [
+                                        codeOf(e.course),
+                                        if (a != null) a.label(now),
+                                        dueText(e.due, now).split(' · ').first,
+                                      ].join(' · '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: a?.submitted == true
+                                              ? tone.good
+                                              : soon
+                                                  ? tone.bad
+                                                  : t.colorScheme
+                                                      .onSurfaceVariant));
+                                }),
+                              ]),
+                        ),
+                        const SizedBox(width: 12),
+                        Builder(builder: (context) {
+                          final h = e.due.difference(now).inHours;
+                          final (n, unit) = h < 24
+                              ? ('${h < 1 ? 1 : h}', h <= 1 ? 'hour' : 'hours')
+                              : (
+                                  '${(h / 24).ceil()}',
+                                  (h / 24).ceil() == 1 ? 'day' : 'days'
+                                );
+                          return Column(children: [
+                            Text(n,
+                                style: TextStyle(
+                                    fontSize: 24,
+                                    height: 1,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.8,
+                                    color: h < 48 ? tone.bad : null)),
+                            Text(unit,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: t.colorScheme.onSurfaceVariant)),
+                          ]);
+                        }),
+                      ]),
+                    ),
+                  ),
+              ]),
+            const SectionTitle('Courses'),
+            GroupCard(children: [
+              for (final x in c)
+                InkWell(
+                  onTap: () async {
+                    await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                CourseScreen(moodle: moodle, course: x)));
+                    if (mounted) setState(() {});
+                  },
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(e.name, style: t.textTheme.titleSmall),
-                          const SizedBox(height: 2),
-                          Text(e.course,
-                              style: t.textTheme.bodySmall?.copyWith(
-                                  color: t.colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 10),
-                          Wrap(spacing: 8, runSpacing: 6, children: [
-                            Pill(dueShort(e.due, now),
-                                icon: Icons.schedule,
-                                color: e.due.difference(now).inHours < 48
-                                    ? tone.bad
-                                    : tone.warn),
-                            if (moodle.assigns[linkId(e.url)] != null)
-                              Pill(moodle.assigns[linkId(e.url)]!.label(now),
-                                  color:
-                                      moodle.assigns[linkId(e.url)]!.submitted
-                                          ? tone.good
-                                          : null),
-                            Pill(dueText(e.due, now).split(' · ').first,
-                                outlined: true),
-                          ]),
-                        ]),
+                    padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+                    child: Row(children: [
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(codeOf(x.name),
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.3)),
+                              if (codeOf(x.name) != x.name) ...[
+                                const SizedBox(height: 2),
+                                Text(x.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: t.colorScheme.onSurfaceVariant)),
+                              ],
+                            ]),
+                      ),
+                      const SizedBox(width: 10),
+                      if (moodle.newCount(x.id) > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: t.brightness == Brightness.dark
+                                  ? Brand.wineDark
+                                  : Brand.wine,
+                              borderRadius: BorderRadius.circular(99)),
+                          child: Text('${moodle.newCount(x.id)} new',
+                              style: const TextStyle(
+                                  color: Brand.wineInk,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        )
+                      else
+                        Icon(Icons.chevron_right,
+                            size: 20, color: t.colorScheme.onSurfaceVariant),
+                    ]),
                   ),
                 ),
-              ),
-            const SectionTitle('Courses'),
-            Card(
-              child: Column(children: [
-                for (var i = 0; i < c.length; i++) ...[
-                  if (i > 0) const Divider(indent: 56),
-                  ListTile(
-                    leading: const Icon(Icons.menu_book_outlined),
-                    title: Text(c[i].name),
-                    trailing: moodle.newCount(c[i].id) > 0
-                        ? Pill('${moodle.newCount(c[i].id)} new',
-                            color: t.colorScheme.primary)
-                        : const Icon(Icons.chevron_right),
-                    onTap: () async {
-                      await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  CourseScreen(moodle: moodle, course: c[i])));
-                      if (mounted) setState(() {});
-                    },
-                  ),
-                ],
-              ]),
-            ),
+            ]),
           ],
         ],
       ),
@@ -318,21 +405,16 @@ class MoodleTabState extends State<MoodleTab> {
               leading: Icon(Icons.search_off), title: Text('No title matches')),
         )
       else
-        Card(
-          child: Column(children: [
-            for (var n = 0; n < hits.length && n < 40; n++) ...[
-              if (n > 0) const Divider(indent: 56),
-              ListTile(
-                enabled: hits[n].$2.open,
-                leading: Icon(iconFor(hits[n].$2)),
-                title: Text(hits[n].$2.name),
-                subtitle: Text(hits[n].$1.name),
-                onTap: () =>
-                    openItem(context, moodle, hits[n].$1.id, hits[n].$2),
-              ),
-            ],
-          ]),
-        ),
+        GroupCard(children: [
+          for (var n = 0; n < hits.length && n < 40; n++)
+            ListTile(
+              enabled: hits[n].$2.open,
+              leading: IconTile(iconFor(hits[n].$2)),
+              title: Text(hits[n].$2.name),
+              subtitle: Text(codeOf(hits[n].$1.name)),
+              onTap: () => openItem(context, moodle, hits[n].$1.id, hits[n].$2),
+            ),
+        ]),
       const SectionTitle('Inside your notes'),
       if (query.length < 3)
         const Card(
@@ -363,31 +445,27 @@ class MoodleTabState extends State<MoodleTab> {
           ),
         )
       else ...[
-        Card(
-          child: Column(children: [
-            for (var n = 0; n < inside.length; n++) ...[
-              if (n > 0) const Divider(indent: 56),
-              ListTile(
-                leading: const Icon(Icons.find_in_page_outlined),
-                title: Text(
-                    names['${inside[n].folders[0]}/${inside[n].folders[1]}'] ??
-                        inside[n].fileName,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                    '${inside[n].snippet}\n'
-                    '${[
-                      courseNames[inside[n].folders[0]] ?? 'Linked file',
+        GroupCard(children: [
+          for (var n = 0; n < inside.length; n++)
+            ListTile(
+              leading: const IconTile(Icons.find_in_page_outlined),
+              title: Text(
+                  names['${inside[n].folders[0]}/${inside[n].folders[1]}'] ??
                       inside[n].fileName,
-                      if (inside[n].page > 0) 'page ${inside[n].page}'
-                    ].join(' · ')}',
-                    style: t.textTheme.bodySmall),
-                isThreeLine: true,
-                onTap: () => openFile(context, File(inside[n].path),
-                    page: inside[n].page < 1 ? 1 : inside[n].page),
-              ),
-            ],
-          ]),
-        ),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                  '${inside[n].snippet}\n'
+                  '${[
+                    courseNames[inside[n].folders[0]] ?? 'Linked file',
+                    inside[n].fileName,
+                    if (inside[n].page > 0) 'page ${inside[n].page}'
+                  ].join(' · ')}',
+                  style: t.textTheme.bodySmall),
+              isThreeLine: true,
+              onTap: () => openFile(context, File(inside[n].path),
+                  page: inside[n].page < 1 ? 1 : inside[n].page),
+            ),
+        ]),
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
           child: Text(
@@ -425,7 +503,41 @@ Future<void> openItem(
   showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()));
+      builder: (ctx) => Center(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Theme.of(ctx).colorScheme.primary)),
+                  const SizedBox(width: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Getting the file',
+                              style: TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w600)),
+                          Text(i.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                        ]),
+                  ),
+                ]),
+              ),
+            ),
+          ));
   try {
     final f = await moodle.fileFor(courseId, i);
     if (!context.mounted) return;
@@ -591,9 +703,22 @@ class _CourseScreenState extends State<CourseScreen> {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final s = sections;
+    final files = [
+      for (final x in s ?? const <MoodleSection>[])
+        for (final i in x.items)
+          if (i.isFile) i
+    ];
+    final saved = files.where((i) => onPhone.contains(i.id)).length;
+    final code = codeOf(widget.course.name);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.course.name),
+        toolbarHeight: 76,
+        titleSpacing: 0,
+        title: BigTitle(code == widget.course.name ? 'Course' : code,
+            subtitle: bulk ??
+                (files.isEmpty
+                    ? widget.course.name
+                    : '$saved of ${files.length} files saved on this phone')),
         actions: [
           IconButton(
             tooltip: 'Download all notes',
@@ -601,79 +726,89 @@ class _CourseScreenState extends State<CourseScreen> {
             icon: const Icon(Icons.download_for_offline_outlined),
           ),
         ],
-        bottom: bulk == null
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(28),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(bulk!, style: t.textTheme.bodySmall),
-                ),
-              ),
       ),
       body: s == null
           ? Center(
               child: error == null
-                  ? const CircularProgressIndicator()
-                  : Text(error!))
+                  ? const LoadingNote('Opening the course...')
+                  : Column(mainAxisSize: MainAxisSize.min, children: [
+                      EmptyNote(
+                          icon: Icons.cloud_off_outlined,
+                          title: 'Could not open this course',
+                          text: error),
+                      FilledButton(
+                          onPressed: () {
+                            setState(() => error = null);
+                            load(moodle.seen(cid));
+                          },
+                          child: const Text('Try again')),
+                    ]))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
               children: [
+                if (code != widget.course.name)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                    child: Text(widget.course.name,
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: t.colorScheme.onSurfaceVariant)),
+                  ),
                 if (error != null)
                   Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(4),
                     child: Text('Showing the saved list. $error',
                         style: t.textTheme.bodySmall),
                   ),
                 for (final x in s) ...[
                   SectionTitle(x.title),
-                  Card(
-                    child: Column(children: [
-                      for (var n = 0; n < x.items.length; n++) ...[
-                        if (n > 0) const Divider(indent: 56),
-                        Builder(builder: (context) {
-                          final i = x.items[n];
-                          return ListTile(
-                            enabled: i.open,
-                            leading: Icon(iconFor(i)),
-                            title: Text(i.name),
-                            subtitle: progress.containsKey(i.id)
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: LinearProgressIndicator(
-                                        value: progress[i.id] == 0
-                                            ? null
-                                            : progress[i.id]),
-                                  )
-                                : assigns[i.id] != null
-                                    ? assignLine(assigns[i.id]!, t)
-                                    : !i.open
-                                        ? const Text('Not available to you yet')
-                                        : i.module == 'securepdf'
-                                            ? const Text(
-                                                'Protected: opens in Moodle\'s viewer')
-                                            : null,
-                            trailing:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              if (fresh.contains(i.id))
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child:
-                                      Pill('New', color: t.colorScheme.primary),
-                                ),
-                              onPhone.contains(i.id)
-                                  ? Icon(Icons.offline_pin,
-                                      color: Tone.of(context).good)
-                                  : i.isFile
-                                      ? const Icon(Icons.download_outlined)
-                                      : const Icon(Icons.chevron_right),
-                            ]),
-                            onTap: () => open(i),
-                          );
-                        }),
-                      ],
-                    ]),
-                  ),
+                  GroupCard(children: [
+                    for (var n = 0; n < x.items.length; n++)
+                      Builder(builder: (context) {
+                        final i = x.items[n];
+                        return ListTile(
+                          enabled: i.open,
+                          leading: IconTile(iconFor(i)),
+                          title: Text(i.name),
+                          subtitle: progress.containsKey(i.id)
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: LinearProgressIndicator(
+                                      value: progress[i.id] == 0
+                                          ? null
+                                          : progress[i.id]),
+                                )
+                              : assigns[i.id] != null
+                                  ? assignLine(assigns[i.id]!, t)
+                                  : !i.open
+                                      ? const Text('Not available to you yet')
+                                      : i.module == 'securepdf'
+                                          ? const Text(
+                                              'Protected: opens in Moodle\'s viewer')
+                                          : null,
+                          trailing:
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                            if (fresh.contains(i.id))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child:
+                                    Pill('New', color: t.colorScheme.primary),
+                              ),
+                            onPhone.contains(i.id)
+                                ? Icon(Icons.check_circle,
+                                    size: 20, color: Tone.of(context).good)
+                                : i.isFile
+                                    ? Icon(Icons.download_outlined,
+                                        size: 20,
+                                        color: t.colorScheme.onSurfaceVariant)
+                                    : Icon(Icons.chevron_right,
+                                        size: 20,
+                                        color: t.colorScheme.onSurfaceVariant),
+                          ]),
+                          onTap: () => open(i),
+                        );
+                      }),
+                  ]),
                 ],
               ],
             ),
@@ -747,29 +882,59 @@ class _FolderScreenState extends State<FolderScreen> {
   @override
   Widget build(BuildContext context) {
     final l = links;
+    final t = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.item.name)),
+      appBar: AppBar(
+          toolbarHeight: 76,
+          titleSpacing: 0,
+          title: BigTitle(widget.item.name,
+              subtitle: l == null || l.isEmpty
+                  ? null
+                  : '${l.where((u) => have.contains(fileName(u))).length} of '
+                      '${l.length} files saved on this phone')),
       body: l == null
           ? Center(
               child: error == null
-                  ? const CircularProgressIndicator()
-                  : Text(error!))
+                  ? const LoadingNote('Opening the folder...')
+                  : Column(mainAxisSize: MainAxisSize.min, children: [
+                      EmptyNote(
+                          icon: Icons.cloud_off_outlined,
+                          title: 'Could not open this folder',
+                          text: error),
+                      FilledButton(
+                          onPressed: () {
+                            setState(() => error = null);
+                            load();
+                          },
+                          child: const Text('Try again')),
+                    ]))
           : l.isEmpty
-              ? const Center(child: Text('This folder is empty'))
-              : ListView(children: [
-                  for (final u in l)
-                    ListTile(
-                      leading: const Icon(Icons.description_outlined),
-                      title: Text(fileName(u)),
-                      subtitle: busy == u.path
-                          ? const LinearProgressIndicator()
-                          : null,
-                      trailing: have.contains(fileName(u))
-                          ? const Icon(Icons.offline_pin, color: Colors.green)
-                          : const Icon(Icons.download_outlined),
-                      onTap: () => open(u),
-                    ),
-                ]),
+              ? const EmptyNote(
+                  icon: Icons.folder_off_outlined,
+                  title: 'This folder is empty')
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  children: [
+                      GroupCard(children: [
+                        for (final u in l)
+                          ListTile(
+                            leading: const IconTile(Icons.description_outlined),
+                            title: Text(fileName(u)),
+                            subtitle: busy == u.path
+                                ? const Padding(
+                                    padding: EdgeInsets.only(top: 6),
+                                    child: LinearProgressIndicator())
+                                : null,
+                            trailing: have.contains(fileName(u))
+                                ? Icon(Icons.check_circle,
+                                    size: 20, color: Tone.of(context).good)
+                                : Icon(Icons.download_outlined,
+                                    size: 20,
+                                    color: t.colorScheme.onSurfaceVariant),
+                            onTap: () => open(u),
+                          ),
+                      ]),
+                    ]),
     );
   }
 }
@@ -841,7 +1006,13 @@ class _WebPageState extends State<WebPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(widget.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2)),
         bottom: loading || fetching
             ? const PreferredSize(
                 preferredSize: Size.fromHeight(2),

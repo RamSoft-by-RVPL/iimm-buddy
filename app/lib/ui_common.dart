@@ -4,6 +4,7 @@ import 'package:cookie_bridge/cookie_bridge.dart';
 
 import 'absence.dart';
 import 'background.dart';
+import 'crony_ui.dart';
 import 'planner.dart';
 import 'site.dart';
 
@@ -126,46 +127,13 @@ bool canSkip(Course c, int minPct) =>
         minPct) >=
     0;
 
-/// "Can I skip this class?"
-void showSkip(BuildContext context, Snapshot snap, ClassSlot s, int minPct) {
+/// "Can I skip this class?": the course sheet with the skip simulator.
+void showSkip(BuildContext context, Snapshot snap, ClassSlot s, int minPct,
+    {Map<String, String> shortNames = const {}}) {
   final c = snap.courseOf(s);
   if (c == null) return;
-  Course? part;
-  for (final p in c.parts) {
-    if (p.id == s.courseId) part = p;
-  }
-  final ok = canSkip(c, minPct);
-  final partOk = part == null || canSkip(part, minPct);
-  final t = Theme.of(context);
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(ok
-          ? (partOk ? 'You can skip this one' : 'Careful')
-          : 'Better not skip this'),
-      content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${s.course}\n${fmtDate(s.date)}, ${s.start} to ${s.end}'
-                '${s.room.isEmpty ? '' : ' · Room ${s.room}'}'),
-            const SizedBox(height: 12),
-            Text(c.parts.isEmpty ? 'If you miss it' : 'Whole course',
-                style: t.textTheme.labelLarge),
-            Text(skipLine(c, minPct), style: TextStyle(color: ok ? null : bad)),
-            if (part != null) ...[
-              const SizedBox(height: 10),
-              Text('${part.label} on its own', style: t.textTheme.labelLarge),
-              Text(skipLine(part, minPct),
-                  style: TextStyle(color: partOk ? null : bad)),
-            ],
-          ]),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-      ],
-    ),
-  );
+  openCourseSheet(context,
+      course: c, snap: snap, minPct: minPct, slot: s, shortNames: shortNames);
 }
 
 /// "Were you present?" for a finished class that shows absent or unmarked:

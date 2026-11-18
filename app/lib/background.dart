@@ -114,7 +114,7 @@ Future<void> runChecks(SharedPreferences prefs, {bool onWifi = false}) async {
   final u = await checkUpdate(prefs);
   if (u != null && prefs.getInt('upd_told') != u.build) {
     await prefs.setInt('upd_told', u.build);
-    await notify(5, 'IIMM Buddy ${u.version} is ready',
+    await notify(5, 'Crony ${u.version} is ready',
         u.notes.isEmpty ? 'Open the app and press Update.' : u.notes, 'news',
         key: 'update:${u.build}');
   }

@@ -4,8 +4,12 @@
 import 'package:cookie_bridge/cookie_bridge.dart';
 import 'package:flutter/material.dart';
 
+import 'mascot.dart';
+
 import 'notify.dart';
+import 'crony_ui.dart';
 import 'theme.dart';
+import 'update.dart';
 
 class Problem {
   Problem(this.code, this.title, this.how, this.button, this.fix);
@@ -70,8 +74,10 @@ List<Problem> problemsFrom(NotifyState s, bool battery, String maker) => [
             'The phone limits this app in the background',
             'Reminders and Moodle alerts can be dropped. Allow the app to '
                 'run in the background.'
+                '${playStore ? ' In the page that opens, tap "App battery '
+                    'usage" and choose "Unrestricted".' : ''}'
                 '${makerTip(maker) == null ? '' : ' ${makerTip(maker)}'}',
-            'Allow',
+            playStore ? 'Open settings' : 'Allow',
             askBatteryUnrestricted),
     ];
 
@@ -108,21 +114,49 @@ class HealthCard extends StatelessWidget {
         text: 'Reminders can reach you. ${state.next} are set.',
       );
     }
+    final bad = Tone.of(context).bad;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
-      color: Tone.of(context).bad.withOpacity(0.10),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Reminders may not arrive on this phone',
-              style: t.textTheme.titleSmall),
-          for (final p in problems) ...[
-            const SizedBox(height: 10),
-            Text(p.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(p.how, style: t.textTheme.bodySmall),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          color: bad.withOpacity(0.10),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(children: [
+            IconTile(Icons.notifications_off_outlined, color: bad),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Reminders may not arrive on this phone',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15,
+                      color: t.colorScheme.onSurface)),
+            ),
+          ]),
+        ),
+        for (final (i, p) in problems.indexed) ...[
+          if (i > 0)
+            Divider(
+                height: 1,
+                color: t.colorScheme.outlineVariant.withOpacity(0.5)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p.title,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Text(p.how,
+                  style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: t.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 10),
+              FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
                   onPressed: () async {
                     try {
                       await p.fix();
@@ -130,10 +164,10 @@ class HealthCard extends StatelessWidget {
                     onFixed();
                   },
                   child: Text(p.button)),
-            ),
-          ],
-        ]),
-      ),
+            ]),
+          ),
+        ],
+      ]),
     );
   }
 }
@@ -155,11 +189,19 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   bool busy = false;
   final asked = <String>{};
 
+  /// 0 the welcome, 1 the permissions. Sign-in follows as the third step.
+  int step = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _check().then((_) => _askNext());
+    _check();
+  }
+
+  void _toPermissions() {
+    setState(() => step = 1);
+    _askNext();
   }
 
   @override
@@ -171,7 +213,9 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     // Back from a system screen: see what was granted, ask the next one.
-    if (s == AppLifecycleState.resumed) _check().then((_) => _askNext());
+    if (s == AppLifecycleState.resumed && step == 1) {
+      _check().then((_) => _askNext());
+    }
   }
 
   Future<void> _check() async {
@@ -211,90 +255,214 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final tone = Tone.of(context);
     final s = state;
     final allDone = s != null && s.allowed && s.exact && battery;
+    const h2 = TextStyle(
+        fontSize: 34,
+        height: 1.05,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.5);
+    final p = TextStyle(
+        fontSize: 16, height: 1.45, color: t.colorScheme.onSurfaceVariant);
+
     Widget row(
             bool ok, String title, String why, Future<void> Function() ask) =>
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(ok ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: ok ? Tone.of(context).good : t.colorScheme.outline),
-          title: Text(title),
-          subtitle: Text(why),
-          trailing: ok
-              ? null
-              : FilledButton.tonal(
-                  onPressed: () async {
-                    try {
-                      await ask();
-                    } catch (_) {}
-                    await _check();
-                  },
-                  child: const Text('Allow')),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(why,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: t.colorScheme.onSurfaceVariant)),
+                  ]),
+            ),
+            const SizedBox(width: 10),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: ok
+                  ? Row(
+                      key: const ValueKey('ok'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                          Icon(Icons.check, size: 16, color: tone.good),
+                          const SizedBox(width: 4),
+                          Text('Allowed',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: tone.good)),
+                        ])
+                  : FilledButton.tonal(
+                      key: const ValueKey('ask'),
+                      style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 38),
+                          padding: const EdgeInsets.symmetric(horizontal: 16)),
+                      onPressed: () async {
+                        try {
+                          await ask();
+                        } catch (_) {}
+                        await _check();
+                      },
+                      child: const Text('Allow')),
+            ),
+          ]),
         );
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(24), children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-                color: t.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16)),
-            child: Icon(Icons.notifications_active_outlined,
-                color: t.colorScheme.onPrimaryContainer, size: 28),
-          ),
-          const SizedBox(height: 16),
-          Text('Welcome to IIMM Buddy', style: t.textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          Text(
-              'The app reminds you before every class and before assignment '
-              'deadlines. To do that reliably on this phone it needs three '
-              'things from you.',
-              style: t.textTheme.bodyLarge
-                  ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 16),
-          if (s == null)
-            const Center(child: CircularProgressIndicator())
-          else ...[
-            row(s.allowed, 'Notifications',
-                'To show class and deadline reminders.', () async {
-              await askNotificationPermission();
-              if (!(await notifyState()).allowed) await openAppInfo();
-            }),
-            row(
-                s.exact,
-                'Alarms and reminders',
-                'So a reminder comes at the exact minute, not late.',
-                askExactAlarms),
-            row(
-                battery,
-                'Run in the background',
-                'So the phone does not stop the app and drop reminders.',
-                askBatteryUnrestricted),
+
+    final pages = [
+      Column(
+          key: const ValueKey(0),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Crony(mood: Mood.idle, size: 116),
+            const SizedBox(height: 20),
+            const Text('Your attendance, worked out.', style: h2),
+            const SizedBox(height: 14),
+            Text(
+                "I'm Crony. I count every class, tell you what you can skip, "
+                'and remind you before anything is due.',
+                style: p),
+          ]),
+      Column(
+          key: const ValueKey(1),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Crony(mood: allDone ? Mood.happy : Mood.idle, size: 72),
+            const SizedBox(height: 18),
+            const Text('So reminders arrive on time.', style: h2),
+            const SizedBox(height: 12),
+            Text('Android needs three permissions for exact reminders.',
+                style: p),
+            const SizedBox(height: 18),
+            if (s == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: LinearProgressIndicator(minHeight: 3),
+              )
+            else
+              Card(
+                margin: EdgeInsets.zero,
+                child: Column(children: [
+                  row(s.allowed, 'Notifications',
+                      'Class and deadline reminders', () async {
+                    await askNotificationPermission();
+                    if (!(await notifyState()).allowed) await openAppInfo();
+                  }),
+                  Divider(
+                      height: 1,
+                      color: t.colorScheme.outlineVariant.withOpacity(0.5)),
+                  row(
+                      s.exact,
+                      'Alarms and reminders',
+                      'So a reminder comes at the exact minute',
+                      askExactAlarms),
+                  Divider(
+                      height: 1,
+                      color: t.colorScheme.outlineVariant.withOpacity(0.5)),
+                  row(
+                      battery,
+                      'Run in the background',
+                      'So the phone does not drop reminders',
+                      askBatteryUnrestricted),
+                ]),
+              ),
             if (makerTip(maker) != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(makerTip(maker)!, style: t.textTheme.bodySmall),
             ],
-          ],
-          const SizedBox(height: 24),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: s == null ? null : widget.onDone,
-            child: Text(allDone ? 'Continue to sign in' : 'Continue anyway'),
-          ),
-          if (!allDone && s != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                  'You can allow these later in Settings, but reminders may '
-                  'not arrive until you do.',
-                  textAlign: TextAlign.center,
-                  style: t.textTheme.bodySmall),
+          ]),
+    ];
+
+    Widget dot(bool on) => AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: const Cubic(0.23, 1, 0.32, 1),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: on ? 22 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+              color: on ? t.colorScheme.primary : t.colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(3)),
+        );
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: step == 0 ? _toPermissions : widget.onDone,
+                child: Text('Skip',
+                    style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
+              ),
             ),
-        ]),
+            Expanded(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height * 0.62),
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.of(context).disableAnimations
+                        ? Duration.zero
+                        : const Duration(milliseconds: 380),
+                    switchInCurve: const Cubic(0.23, 1, 0.32, 1),
+                    transitionBuilder: (w, a) => FadeTransition(
+                        opacity: a,
+                        child: SlideTransition(
+                            position: Tween(
+                                    begin: const Offset(0.08, 0),
+                                    end: Offset.zero)
+                                .animate(a),
+                            child: w)),
+                    layoutBuilder: (cur, prev) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [...prev, if (cur != null) cur]),
+                    child: pages[step],
+                  ),
+                ),
+              ),
+            ),
+            Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [dot(step == 0), dot(step == 1), dot(false)]),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 54)),
+              onPressed: step == 0
+                  ? _toPermissions
+                  : s == null
+                      ? null
+                      : widget.onDone,
+              child: Text(step == 0
+                  ? 'Continue'
+                  : allDone
+                      ? 'Continue to sign in'
+                      : 'Continue anyway'),
+            ),
+            if (step == 1 && !allDone && s != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                    'You can allow these later in Settings, but reminders may '
+                    'not arrive until you do.',
+                    textAlign: TextAlign.center,
+                    style: t.textTheme.bodySmall
+                        ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+              ),
+          ]),
+        ),
       ),
     );
   }

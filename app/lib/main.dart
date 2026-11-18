@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'attendance_ui.dart';
 import 'backend.dart';
+import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
 import 'health.dart';
@@ -15,6 +16,7 @@ import 'inbox_ui.dart';
 import 'leave.dart';
 import 'leave_ui.dart';
 import 'log.dart';
+import 'mascot.dart';
 import 'menu_ui.dart';
 import 'moodle.dart';
 import 'moodle_ui.dart';
@@ -59,7 +61,7 @@ class AttendanceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'IIMM Buddy',
+      title: 'Crony',
       debugShowCheckedModeBanner: false,
       theme: appTheme(Brightness.light),
       darkTheme: appTheme(Brightness.dark),
@@ -83,6 +85,17 @@ class Root extends StatefulWidget {
 }
 
 class _RootState extends State<Root> with WidgetsBindingObserver {
+  /// Crony's first-visit note for each tab.
+  static const _tips = [
+    "I keep count so you don't have to. Your next class and anything that "
+        'needs you sit right here.',
+    'Each bar is one class. The lime ones at the end are classes you can '
+        'still miss.',
+    "Tap any upcoming class and I'll show you what skipping it does.",
+    "Tap days on the calendar. I'll check them against every course.",
+    'Search reads inside every saved PDF and slide, not just the file names.',
+  ];
+
   Snapshot? snap;
   String? error;
   bool syncing = false;
@@ -155,7 +168,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         snap = s ?? snap;
-        tab = 1;
+        tab = 2;
       });
       if (s != null) await afterSync(store, old, s, alert: false);
       // The publisher's phone passes it on to the whole batch.
@@ -213,15 +226,15 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     logEvent(store.prefs, 'opened_from', place);
     Navigator.of(context).popUntil((r) => r.isFirst);
     if (place == 'timetable') {
-      setState(() => tab = 1);
+      setState(() => tab = 2);
     } else if (place == 'menu') {
       setState(() => tab = 0);
       Navigator.push(
           context, MaterialPageRoute(builder: (_) => MenuScreen(store: store)));
     } else if (place == 'moodle') {
-      setState(() => tab = 3);
+      setState(() => tab = 4);
     } else if (place.startsWith('course:')) {
-      setState(() => tab = 3);
+      setState(() => tab = 4);
       final id = int.tryParse(place.substring(7));
       MoodleCourse? course;
       for (final c in moodle.cachedCourses ?? const <MoodleCourse>[]) {
@@ -385,11 +398,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
                     FilledButton(
                         onPressed: refresh, child: const Text('Try again')),
                   ])
-                : const Column(mainAxisSize: MainAxisSize.min, children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Getting your attendance...'),
-                  ]),
+                : const LoadingNote('Getting your attendance...'),
           )
         : Column(children: [
             if (update != null)
@@ -445,27 +454,106 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
             Expanded(child: build(s)),
           ]);
 
+    final now = DateTime.now();
+    final shown = snap;
+    final synced = shown?.syncedAt;
+    final (title, subtitle) = switch (tab) {
+      0 => (
+          longDay(now),
+          syncing
+              ? 'Updating from the portal'
+              : synced == null
+                  ? null
+                  : 'Updated ${DateUtils.isSameDay(synced, now) ? '' : '${fmtDate(synced)}, '}${hhmm(synced)} from the portal'
+        ),
+      1 => ('Register', '${store.minPct}% needed in every course'),
+      2 => ('Timetable', null),
+      3 => ('Plan leave', null),
+      _ => ('Moodle', null),
+    };
+    final below = shown != null &&
+        shown.courses.any((c) => statusColor(c, store.minPct) == bad);
+    final tight = shown != null &&
+        shown.courses.any((c) => statusColor(c, store.minPct) == warn);
+
+    Widget attendance(Snapshot s, {bool register = false}) => AttendanceTab(
+          register: register,
+          snap: s,
+          minPct: store.minPct,
+          onRefresh: refresh,
+          fixEmail: store.fixEmail,
+          leaveCount:
+              absences(s).where((x) => store.leaves.containsKey(x.id)).length,
+          onOpenTimetable: () => setState(() => tab = 2),
+          onOpenRegister: () => setState(() => tab = 1),
+          exams:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            MenuCard(
+                store: store,
+                onChanged: () {
+                  if (mounted) setState(() {});
+                }),
+            ExamsCard(
+                store: store,
+                snap: s,
+                onChanged: () {
+                  if (mounted) setState(() {});
+                }),
+            TermCard(events: store.calendar),
+          ]),
+          shortNames: store.shortNames,
+          onShortName: (c, v) {
+            store.setShortName(c.name, v);
+            settingsChanged(); // reminders and widget use the new name
+          },
+          onOpenLeave: () async {
+            await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => LeaveLogScreen(
+                        store: store, snap: s, minPct: store.minPct)));
+            if (mounted) setState(() {});
+          },
+          onEditTotal: (c, total) {
+            store.setTotal(c.id, total);
+            setState(() => snap = store.cached ?? snap);
+          },
+        );
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            const ['IIMM Buddy', 'Timetable', 'Plan leave', 'Moodle'][tab]),
+        toolbarHeight: 76,
+        titleSpacing: 20,
+        title: BigTitle(title, subtitle: subtitle),
         actions: [
+          if (tab == 0 && shown != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 2),
+              child: Crony(
+                  mood: below
+                      ? Mood.worried
+                      : tight
+                          ? Mood.idle
+                          : Mood.happy,
+                  size: 34),
+            ),
           InboxBell(unread: _unread, onPressed: _openInbox),
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: syncing
-                ? null
-                : () {
-                    refresh();
-                    moodleKey.currentState?.load();
-                  },
-            icon: syncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.refresh),
-          ),
+          if (tab != 0)
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: syncing
+                  ? null
+                  : () {
+                      refresh();
+                      moodleKey.currentState?.load();
+                    },
+              icon: syncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh),
+            ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
@@ -479,80 +567,73 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: switch (tab) {
-        0 => needData((s) => AttendanceTab(
-              snap: s,
-              minPct: store.minPct,
-              onRefresh: refresh,
-              fixEmail: store.fixEmail,
-              leaveCount: absences(s)
-                  .where((x) => store.leaves.containsKey(x.id))
-                  .length,
-              onOpenTimetable: () => setState(() => tab = 1),
-              exams: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    MenuCard(
-                        store: store,
-                        onChanged: () {
-                          if (mounted) setState(() {});
-                        }),
-                    ExamsCard(
-                        store: store,
-                        snap: s,
-                        onChanged: () {
-                          if (mounted) setState(() {});
-                        }),
-                    TermCard(events: store.calendar),
-                  ]),
-              shortNames: store.shortNames,
-              onShortName: (c, v) {
-                store.setShortName(c.name, v);
-                settingsChanged(); // reminders and widget use the new name
-              },
-              onOpenLeave: () async {
-                await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => LeaveLogScreen(
-                            store: store, snap: s, minPct: store.minPct)));
-                if (mounted) setState(() {});
-              },
-              onEditTotal: (c, total) {
-                store.setTotal(c.id, total);
-                setState(() => snap = store.cached ?? snap);
-              },
-            )),
-        1 => needData((s) => TimetableTab(
-            snap: s,
-            minPct: store.minPct,
-            fixEmail: store.fixEmail,
-            exams: store.allExams(s.courses),
-            calendar: store.calendar,
-            onOpenDeadline: (d) {
-              if (d.url.isEmpty) return;
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          WebPage(title: d.name, url: d.url, moodle: moodle)));
-            },
-            deadlines: moodle.cachedDeadlines ?? const [])),
-        2 => needData((s) =>
-            PlanTab(snap: s, minPct: store.minPct, calendar: store.calendar)),
-        _ => MoodleTab(key: moodleKey, moodle: moodle),
-      },
+      body: Stack(children: [
+        Positioned.fill(
+            child: TweenAnimationBuilder<double>(
+          key: ValueKey(tab),
+          tween: Tween(begin: calm(context) ? 1 : 0, end: 1),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          builder: (_, v, child) => Opacity(
+              opacity: v,
+              child: Transform.translate(
+                  offset: Offset(0, 6 * (1 - v)), child: child)),
+          child: switch (tab) {
+            0 => needData((s) => attendance(s)),
+            1 => needData((s) => attendance(s, register: true)),
+            2 => needData((s) => TimetableTab(
+                snap: s,
+                minPct: store.minPct,
+                fixEmail: store.fixEmail,
+                exams: store.allExams(s.courses),
+                calendar: store.calendar,
+                shortNames: store.shortNames,
+                onOpenDeadline: (d) {
+                  if (d.url.isEmpty) return;
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => WebPage(
+                              title: d.name, url: d.url, moodle: moodle)));
+                },
+                deadlines: moodle.cachedDeadlines ?? const [])),
+            3 => needData((s) => PlanTab(
+                snap: s,
+                minPct: store.minPct,
+                calendar: store.calendar,
+                shortNames: store.shortNames)),
+            _ => MoodleTab(key: moodleKey, moodle: moodle),
+          },
+        )),
+        if ((s != null || tab == 4) && store.prefs.getBool('tip_$tab') != true)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: CronyTip(
+                key: ValueKey('tip$tab'),
+                text: _tips[tab],
+                onDone: () async {
+                  await store.prefs.setBool('tip_$tab', true);
+                  if (mounted) setState(() {});
+                }),
+          ),
+      ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home'),
+              icon: Icon(Icons.today_outlined),
+              selectedIcon: Icon(Icons.today),
+              label: 'Today'),
           NavigationDestination(
-              icon: Icon(Icons.calendar_today_outlined),
-              selectedIcon: Icon(Icons.calendar_today_rounded),
+              icon: Icon(Icons.view_week_outlined),
+              selectedIcon: Icon(Icons.view_week),
+              label: 'Register'),
+          NavigationDestination(
+              icon: Icon(Icons.schedule_outlined),
+              selectedIcon: Icon(Icons.schedule),
               label: 'Timetable'),
           NavigationDestination(
               icon: Icon(Icons.event_busy_outlined),
@@ -576,7 +657,10 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign in'),
+        toolbarHeight: 76,
+        titleSpacing: 20,
+        title: const BigTitle('Sign in once',
+            subtitle: 'Your IIM Mumbai Microsoft account'),
         actions: [
           IconButton(
             tooltip: 'Start the sign-in again',

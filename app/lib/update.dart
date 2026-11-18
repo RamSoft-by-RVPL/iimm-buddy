@@ -49,12 +49,17 @@ Update? parseUpdate(String? raw, {int current = appBuild}) {
   }
 }
 
+/// Built for Google Play (`--dart-define=PLAY_STORE=true`): Play installs
+/// updates itself, and Play does not allow an app to update itself.
+const playStore = bool.fromEnvironment('PLAY_STORE');
+
 /// The update found by the last check, if it is still newer than this build.
 Update? knownUpdate(SharedPreferences prefs) =>
-    parseUpdate(prefs.getString('upd'));
+    playStore ? null : parseUpdate(prefs.getString('upd'));
 
 /// Asks the server which build is newest. Never throws.
 Future<Update?> checkUpdate(SharedPreferences prefs) async {
+  if (playStore) return null;
   try {
     final (status, text) =
         await apiSend('GET', Uri.parse('$apiBase/version.json'));
@@ -123,7 +128,7 @@ Future<void> runUpdate(
         type: 'application/vnd.android.package-archive');
     if (r.type != ResultType.done) {
       problem = r.type == ResultType.permissionDenied
-          ? 'Allow IIMM Buddy to install apps when the phone asks, then '
+          ? 'Allow Crony to install apps when the phone asks, then '
               'press Update again.'
           : 'Could not open the installer.';
     }

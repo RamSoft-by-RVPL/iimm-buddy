@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'crony_ui.dart';
 import 'leave.dart';
 import 'site.dart';
+import 'theme.dart';
 import 'ui_common.dart';
 
 /// Every absence, with the reason the student notes against it.
@@ -40,10 +42,11 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.course, style: Theme.of(ctx).textTheme.titleMedium),
-                Text('${fmtDate(s.date)}, ${s.start} to ${s.end}'),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, children: [
+                SheetHead(s.course,
+                    subtitle: '${fmtDate(s.date)}, ${s.start} to ${s.end}',
+                    trailing: DateBlock(s.date)),
+                const FieldLabel('Why you missed it'),
+                Wrap(spacing: 8, runSpacing: 8, children: [
                   for (final e in leaveKinds.entries)
                     ChoiceChip(
                       label: Text(e.value),
@@ -51,21 +54,23 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
                       onSelected: (on) => set(() => kind = on ? e.key : null),
                     ),
                 ]),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
+                const FieldLabel('Note'),
                 TextField(
                   controller: note,
                   decoration: const InputDecoration(
                       labelText: 'Note (optional)',
                       hintText: 'Fever, doctor\'s letter given on 12 Nov'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 Row(children: [
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () {
                       Navigator.pop(ctx);
                       showDispute(context, snap, s, store.fixEmail);
                     },
-                    child: const Text('I was present'),
+                    icon: const Icon(Icons.mail_outline, size: 18),
+                    label: const Text('I was present'),
                   ),
                   const Spacer(),
                   FilledButton(
@@ -84,6 +89,7 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final tone = Tone.of(context);
     final log = store.leaves;
     final rows = absences(snap);
     final noted = rows.where((s) => log.containsKey(s.id)).length;
@@ -91,69 +97,169 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
       for (final c in snap.courses)
         if (notedFor(c, snap, log) > 0) c
     ];
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Absences and leave'),
-        actions: [
-          IconButton(
-            tooltip: 'Share the list',
-            onPressed: rows.isEmpty
-                ? null
-                : () => Share.share(leaveReport(snap, log),
-                    subject: 'Absences of ${snap.studentName}'),
-            icon: const Icon(Icons.share_outlined),
-          ),
-        ],
-      ),
-      body: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(
-                  rows.isEmpty
-                      ? 'No absences so far.'
-                      : '${rows.length} ${rows.length == 1 ? 'absence' : 'absences'}, '
-                          '$noted with a reason noted. Tap one to note why you '
-                          'missed it. This is your own record: it does not change '
-                          'anything on the college site.',
-                  style: t.textTheme.bodyMedium),
-            ),
-            if (helped.isNotEmpty)
-              Card(
-                color: t.colorScheme.secondaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('If the college counts these as present',
-                            style: t.textTheme.titleSmall),
-                        const SizedBox(height: 6),
-                        for (final c in helped)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text('${c.name}: ${fmtPct(c.percent)} now, '
-                                '${fmtPct(percentIfExcused(c, notedFor(c, snap, log)))} '
-                                'with ${notedFor(c, snap, log)} excused'),
-                          ),
-                      ]),
-                ),
-              ),
-            for (final s in rows)
-              Card(
-                child: ListTile(
-                  title: Text(s.course),
-                  subtitle: Text('${fmtDate(s.date)}, ${s.start}'
-                      '${(log[s.id]?.note ?? '').isEmpty ? '' : '\n${log[s.id]!.note}'}'),
-                  trailing: log[s.id] == null
-                      ? Text('Add reason',
-                          style: TextStyle(color: t.colorScheme.primary))
-                      : Chip(label: Text(log[s.id]!.label)),
-                  onTap: () => edit(s),
-                ),
-              ),
+    final months = <String, List<ClassSlot>>{};
+    for (final s in rows) {
+      months.putIfAbsent(monthTitle(s.date), () => []).add(s);
+    }
+    final muted = t.colorScheme.onSurfaceVariant;
+
+    Widget stat(String n, String label, Color? c) => Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(n,
+                style: TextStyle(
+                    fontSize: 34,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -1.4,
+                    color: c)),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 13, color: muted)),
           ]),
+        );
+
+    Widget row(ClassSlot s) {
+      final l = log[s.id];
+      return InkWell(
+        onTap: () => edit(s),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Row(children: [
+            DateBlock(s.date, color: l == null ? muted : tone.good),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.course,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.15)),
+                    const SizedBox(height: 2),
+                    Text(
+                        [
+                          '${fmtDate(s.date).split(' ').first}, ${s.start}',
+                          if ((l?.note ?? '').isNotEmpty) l!.note,
+                        ].join(' · '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: muted)),
+                  ]),
+            ),
+            const SizedBox(width: 10),
+            l == null
+                ? Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                            color: t.colorScheme.primary.withOpacity(0.5)),
+                        borderRadius: BorderRadius.circular(99)),
+                    child: Text('Add reason',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: t.colorScheme.primary)),
+                  )
+                : Pill(l.label, color: tone.good),
+          ]),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: screenBar('Absences and leave',
+          subtitle: rows.isEmpty ? null : 'Your own record of why',
+          actions: [
+            IconButton(
+              tooltip: 'Share the list',
+              onPressed: rows.isEmpty
+                  ? null
+                  : () => Share.share(leaveReport(snap, log),
+                      subject: 'Absences of ${snap.studentName}'),
+              icon: const Icon(Icons.share_outlined),
+            ),
+          ]),
+      body: rows.isEmpty
+          ? const Center(
+              child: EmptyNote(
+                  icon: Icons.event_available_outlined,
+                  title: 'No absences so far.'))
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+              children: [
+                  Rise(
+                    index: 0,
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                stat(
+                                    '${rows.length}',
+                                    rows.length == 1 ? 'absence' : 'absences',
+                                    null),
+                                stat('$noted', 'with a reason noted',
+                                    noted > 0 ? tone.good : muted),
+                              ]),
+                              const SizedBox(height: 14),
+                              Text(
+                                  'Tap one to note why you missed it. This is '
+                                  'your own record: it does not change anything '
+                                  'on the college site.',
+                                  style: TextStyle(
+                                      fontSize: 13, height: 1.4, color: muted)),
+                            ]),
+                      ),
+                    ),
+                  ),
+                  if (helped.isNotEmpty) ...[
+                    const SectionTitle(
+                        'If the college counts these as present'),
+                    GroupCard(children: [
+                      for (final c in helped)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: Row(children: [
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(codeOf(c.name, store.shortNames),
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600)),
+                                    Text(
+                                        '${fmtPct(c.percent)} now, '
+                                        'with ${notedFor(c, snap, log)} excused',
+                                        style: TextStyle(
+                                            fontSize: 13, color: muted)),
+                                  ]),
+                            ),
+                            Text(
+                                fmtPct(percentIfExcused(
+                                    c, notedFor(c, snap, log))),
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.6,
+                                    color: tone.good)),
+                          ]),
+                        ),
+                    ]),
+                  ],
+                  for (final m in months.entries) ...[
+                    SectionTitle(m.key,
+                        trailing: Text('${m.value.length}',
+                            style: TextStyle(fontSize: 13, color: muted))),
+                    GroupCard(children: [for (final s in m.value) row(s)]),
+                  ],
+                ]),
     );
   }
 }
@@ -165,7 +271,7 @@ class PrivacyScreen extends StatelessWidget {
   static const sections = [
     (
       'In short',
-      'IIMM Buddy is made by a student. It is not an official app of IIM '
+      'Crony is made by a student. It is not an official app of IIM '
           'Mumbai. Your attendance and Moodle data stay on your phone. The '
           'maker runs a small server for the shared class timetable and for '
           'a diagnostic log, described below. There are no ads.'
@@ -233,19 +339,90 @@ class PrivacyScreen extends StatelessWidget {
     ),
   ];
 
+  static const _icons = [
+    Icons.favorite_outline,
+    Icons.lock_outline,
+    Icons.visibility_outlined,
+    Icons.smartphone_outlined,
+    Icons.cloud_upload_outlined,
+    Icons.notifications_none,
+    Icons.monitor_heart_outlined,
+    Icons.verified_user_outlined,
+    Icons.delete_outline,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final (head0, body0) = sections.first;
+    final dark = t.brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy')),
-      body: ListView(padding: const EdgeInsets.all(20), children: [
-        for (final (head, body) in sections) ...[
-          Text(head, style: t.textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(body),
-          const SizedBox(height: 18),
-        ],
-      ]),
+      appBar: screenBar('Privacy', subtitle: 'What Crony does with your data'),
+      body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+          children: [
+            Rise(
+              index: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                decoration: BoxDecoration(
+                    color: dark ? Brand.wineDark : Brand.wine,
+                    borderRadius: BorderRadius.circular(22)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(head0.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.8,
+                              color: Brand.lime)),
+                      const SizedBox(height: 8),
+                      Text(body0,
+                          style: const TextStyle(
+                              fontSize: 15.5,
+                              height: 1.45,
+                              color: Brand.wineInk)),
+                    ]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final (i, (head, body)) in sections.indexed.skip(1))
+              Rise(
+                index: i,
+                child: Card(
+                  margin: const EdgeInsets.only(top: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 18, 18),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          IconTile(_icons[i]),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 2),
+                                  Text(head,
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.2)),
+                                  const SizedBox(height: 6),
+                                  Text(body,
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          height: 1.5,
+                                          color: t.colorScheme.onSurface
+                                              .withOpacity(0.82))),
+                                ]),
+                          ),
+                        ]),
+                  ),
+                ),
+              ),
+          ]),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'acal.dart';
+import 'crony_ui.dart';
 import 'exams.dart';
 import 'notify.dart';
 import 'site.dart';
@@ -31,17 +32,13 @@ Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(exam == null ? 'Add an exam or quiz' : 'Change',
-                    style: Theme.of(ctx).textTheme.titleLarge),
-                const SizedBox(height: 14),
-                Wrap(spacing: 8, children: [
-                  for (final k in examKinds)
-                    ChoiceChip(
-                        label: Text(k),
-                        selected: kind == k,
-                        onSelected: (_) => set(() => kind = k)),
-                ]),
-                const SizedBox(height: 12),
+                SheetHead(exam == null ? 'Add an exam or quiz' : 'Change',
+                    subtitle: 'Get a countdown and reminders'),
+                Segmented(
+                    options: examKinds,
+                    selected: examKinds.indexOf(kind).clamp(0, 9),
+                    onChanged: (i) => set(() => kind = examKinds[i])),
+                const SizedBox(height: 16),
                 TextField(
                   controller: title,
                   textCapitalization: TextCapitalization.sentences,
@@ -65,7 +62,8 @@ Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
                   ],
                   onChanged: (v) => set(() => course = v ?? ''),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                const FieldLabel('When'),
                 Row(children: [
                   Expanded(
                     child: OutlinedButton.icon(
@@ -103,12 +101,22 @@ Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
                     ),
                   ),
                 ]),
-                const SizedBox(height: 6),
-                Text(
-                    'You get a reminder a week before, the evening before '
-                    'and two hours before.',
-                    style: Theme.of(ctx).textTheme.bodySmall),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.notifications_none,
+                      size: 16,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                        'You get a reminder a week before, the evening before '
+                        'and two hours before.',
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+                  ),
+                ]),
+                const SizedBox(height: 18),
                 Row(children: [
                   if (exam != null)
                     TextButton(
@@ -155,20 +163,24 @@ void _showPaper(BuildContext context, Exam e) => showModalBottomSheet<void>(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(e.course, style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text('${fmtDate(e.at)} · ${examWhere(e)}',
-                  style: Theme.of(ctx).textTheme.bodyLarge),
-              if (e.note.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(e.note),
-              ],
-              const SizedBox(height: 12),
+              SheetHead(e.course,
+                  subtitle: 'Exam',
+                  trailing: DaysCount(e.at, DateTime.now(),
+                      urgent: e.at.difference(DateTime.now()).inDays < 3)),
+              InfoRow('Date', Text(fmtDate(e.at))),
+              InfoRow('Time', Text(examWhere(e).split(' · ').first)),
+              if (e.room.isNotEmpty)
+                InfoRow('Where', Text(examWhere(e).split(' · ').last)),
+              if (e.note.isNotEmpty) InfoRow('Note', Text(e.note)),
+              const SizedBox(height: 14),
               Text(
                   'From the exam timetable your class admin published. You '
                   'get a reminder the evening before and an hour before. '
                   'The exam office\'s notice is final.',
-                  style: Theme.of(ctx).textTheme.bodySmall),
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
             ]),
       ),
     );
@@ -198,26 +210,27 @@ class ExamsCard extends StatelessWidget {
     }
 
     void tap(Exam e) => e.published ? _showPaper(context, e) : edit(e);
-    void all() => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('Exams and quizzes')),
-                  body: ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
-                      children: [
-                        Card(
-                          child: Column(children: [
-                            for (var i = 0; i < coming.length; i++) ...[
-                              if (i > 0)
-                                const Divider(indent: 16, endIndent: 16),
-                              _ExamTile(coming[i], now,
-                                  onTap: () => tap(coming[i])),
-                            ],
-                          ]),
-                        ),
-                      ]),
-                )));
+    void all() => Navigator.push(context, MaterialPageRoute(builder: (_) {
+          final months = <String, List<Exam>>{};
+          for (final e in coming) {
+            months.putIfAbsent(monthTitle(e.at), () => []).add(e);
+          }
+          return Scaffold(
+            appBar: screenBar('Exams and quizzes',
+                subtitle: '${coming.length} coming up'),
+            body: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                children: [
+                  for (final m in months.entries) ...[
+                    SectionTitle(m.key),
+                    GroupCard(children: [
+                      for (final e in m.value)
+                        _ExamTile(e, now, onTap: () => tap(e)),
+                    ]),
+                  ],
+                ]),
+          );
+        }));
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SectionTitle('Exams and quizzes',
@@ -231,33 +244,40 @@ class ExamsCard extends StatelessWidget {
                       ?.copyWith(color: t.colorScheme.primary)),
             ),
           )),
-      Card(
-        child: coming.isEmpty
-            ? ListTile(
-                leading: const Icon(Icons.edit_calendar_outlined),
-                title: const Text('Nothing added yet'),
+      coming.isEmpty
+          ? Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.fromLTRB(14, 6, 16, 6),
+                leading: const IconTile(Icons.edit_calendar_outlined),
+                title: const Text('Nothing added yet',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text(
                     'Add your exam and quiz dates to see a countdown and '
                     'get reminders'),
                 onTap: edit,
-              )
-            : Column(children: [
-                for (var i = 0; i < coming.length && i < 4; i++) ...[
-                  if (i > 0) const Divider(indent: 16, endIndent: 16),
-                  _ExamTile(coming[i], now, onTap: () => tap(coming[i])),
-                ],
-                if (coming.length > 4)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                          onPressed: all,
-                          child: Text('See all ${coming.length}')),
-                    ),
+              ),
+            )
+          : GroupCard(children: [
+              for (var i = 0; i < coming.length && i < 4; i++)
+                _ExamTile(coming[i], now, onTap: () => tap(coming[i])),
+              if (coming.length > 4)
+                InkWell(
+                  onTap: all,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text('See all ${coming.length}',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: t.colorScheme.primary)),
+                      ),
+                      Icon(Icons.chevron_right,
+                          size: 20, color: t.colorScheme.primary),
+                    ]),
                   ),
-              ]),
-      ),
+                ),
+            ]),
     ]);
   }
 }
@@ -271,26 +291,43 @@ class _ExamTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final tone = Tone.of(context);
     final days = e.at.difference(now).inDays;
-    return ListTile(
-      title: Text(e.published ? 'Exam: ${e.course}' : '${e.kind}: ${e.title}',
-          style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(e.published
-          ? '${fmtDate(e.at)} · ${examWhere(e)}'
-          : [
-              if (e.course.isNotEmpty) e.course,
-              '${fmtDate(e.at)}, '
-                  '${e.at.hour.toString().padLeft(2, '0')}:'
-                  '${e.at.minute.toString().padLeft(2, '0')}',
-            ].join(' · ')),
-      trailing: Pill(countdown(e.at, now),
-          color: days < 3
-              ? tone.bad
-              : days < 8
-                  ? tone.warn
-                  : t.colorScheme.primary),
+    final time = '${e.at.hour.toString().padLeft(2, '0')}:'
+        '${e.at.minute.toString().padLeft(2, '0')}';
+    return InkWell(
       onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+        child: Row(children: [
+          DateBlock(e.at,
+              color: days < 3 ? Tone.of(context).bad : t.colorScheme.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(e.published ? e.course : e.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15)),
+              const SizedBox(height: 2),
+              Text(
+                  e.published
+                      ? 'Exam · ${examWhere(e)}'
+                      : [e.kind, if (e.course.isNotEmpty) e.course, time]
+                          .join(' · '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13, color: t.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          DaysCount(e.at, now, urgent: days < 3),
+        ]),
+      ),
     );
   }
 }
@@ -319,16 +356,32 @@ class TermCard extends StatelessWidget {
         if (!e.to.isBefore(today)) e
     ];
     if (coming.isEmpty) return const SizedBox.shrink();
-    Widget row(TermEvent e) => ListTile(
-          dense: true,
-          title: Text(e.title,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text('${spanText(e)} · ${e.label}'),
-          trailing: Pill(
-              e.from.isAfter(today)
-                  ? countdown(e.from, now)
-                  : (e.oneDay ? 'Today' : 'Now'),
-              color: colorOf(context, e)),
+    Widget row(TermEvent e) => Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+          child: Row(children: [
+            DateBlock(e.from, color: colorOf(context, e)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.title,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.15)),
+                    const SizedBox(height: 2),
+                    Text('${spanText(e)} · ${e.label}',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: t.colorScheme.onSurfaceVariant)),
+                  ]),
+            ),
+            const SizedBox(width: 12),
+            e.from.isAfter(today)
+                ? DaysCount(e.from, now)
+                : Pill(e.oneDay ? 'Today' : 'Now', color: colorOf(context, e)),
+          ]),
         );
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SectionTitle('Academic calendar',
@@ -338,8 +391,8 @@ class TermCard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => Scaffold(
-                          appBar:
-                              AppBar(title: const Text('Academic calendar')),
+                          appBar: screenBar('Academic calendar',
+                              subtitle: '${coming.length} dates ahead'),
                           body: ListView(
                               padding: const EdgeInsets.fromLTRB(12, 0, 12, 28),
                               children: [
@@ -347,21 +400,14 @@ class TermCard extends StatelessWidget {
                                   for (final e in events) e.group
                                 }) ...[
                                   SectionTitle(g.isEmpty ? 'Dates' : g),
-                                  Card(
-                                    child: Column(children: [
-                                      for (final e in events
-                                          .where((e) => e.group == g)) ...[
-                                        if (e !=
-                                            events.firstWhere(
-                                                (x) => x.group == g))
-                                          const Divider(indent: 16),
-                                        Opacity(
-                                            opacity:
-                                                e.to.isBefore(today) ? 0.5 : 1,
-                                            child: row(e)),
-                                      ],
-                                    ]),
-                                  ),
+                                  GroupCard(children: [
+                                    for (final e
+                                        in events.where((e) => e.group == g))
+                                      Opacity(
+                                          opacity:
+                                              e.to.isBefore(today) ? 0.5 : 1,
+                                          child: row(e)),
+                                  ]),
                                 ],
                                 Padding(
                                   padding:
@@ -384,14 +430,9 @@ class TermCard extends StatelessWidget {
                       ?.copyWith(color: t.colorScheme.primary)),
             ),
           )),
-      Card(
-        child: Column(children: [
-          for (var i = 0; i < coming.length && i < 3; i++) ...[
-            if (i > 0) const Divider(indent: 16, endIndent: 16),
-            row(coming[i]),
-          ],
-        ]),
-      ),
+      GroupCard(children: [
+        for (var i = 0; i < coming.length && i < 3; i++) row(coming[i]),
+      ]),
     ]);
   }
 }
