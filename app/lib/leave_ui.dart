@@ -271,10 +271,11 @@ class PrivacyScreen extends StatelessWidget {
   static const sections = [
     (
       'In short',
-      'Crony is made by a student. It is not an official app of IIM '
-          'Mumbai. Your attendance and Moodle data stay on your phone. The '
-          'maker runs a small server for the shared class timetable and for '
-          'a diagnostic log, described below. There are no ads.'
+      'Crony is made by a student and published by Ramya Ventures Private '
+          'Limited. It is not an official app of IIM Mumbai. Your attendance '
+          'and Moodle data stay on your phone. Ramya Ventures runs a small '
+          'server for the shared class timetable and for a diagnostic log, '
+          'described below. There are no ads.'
     ),
     (
       'Signing in',
@@ -301,7 +302,7 @@ class PrivacyScreen extends StatelessWidget {
     (
       'What leaves the phone',
       'Requests to the two IIM Mumbai sites and to Microsoft for signing '
-          'in. The app also asks a small server run by the maker of the app '
+          'in. The app also asks a small server run by Ramya Ventures '
           'for the class timetable of your batch; for that it sends only the '
           'batch name (for example "bs-2026"). The same server receives the '
           'diagnostic log described below. An email or a shared picture goes out '
@@ -317,8 +318,8 @@ class PrivacyScreen extends StatelessWidget {
     ),
     (
       'Diagnostics',
-      'Unless you switch it off in Settings, the app sends the maker\'s '
-          'server a short log of what it did (refreshed, failed with an '
+      'Unless you switch it off in Settings, the app sends Ramya '
+          'Ventures\' server a short log of what it did (refreshed, failed with an '
           'error, set reminders), together with your name, roll number, '
           'batch, phone model, Android version and app version. It is used '
           'to fix problems and to count how many people use the app. It '
@@ -337,6 +338,11 @@ class PrivacyScreen extends StatelessWidget {
       'Sign out in Settings removes the sign-in, the saved data and the '
           'downloaded files. Uninstalling the app removes everything.'
     ),
+    (
+      'Questions',
+      'Write to ramyaventurespvtltd@gmail.com about your data or to have '
+          'your diagnostic log deleted sooner.'
+    ),
   ];
 
   static const _icons = [
@@ -349,6 +355,7 @@ class PrivacyScreen extends StatelessWidget {
     Icons.monitor_heart_outlined,
     Icons.verified_user_outlined,
     Icons.delete_outline,
+    Icons.mail_outline,
   ];
 
   @override

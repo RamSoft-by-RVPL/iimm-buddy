@@ -27,6 +27,7 @@ permissions:
 
 env:
   TZ: Asia/Kolkata
+  SITE: ${{ vars.SITE_URL || 'https://buddy.iimmumbai.in' }}
 
 jobs:
   bundle:
@@ -87,7 +88,8 @@ jobs:
             --build-number ${{ steps.v.outputs.build }} \
             --dart-define=APP_VERSION=${{ steps.v.outputs.version }} \
             --dart-define=APP_BUILD=${{ steps.v.outputs.build }} \
-            --dart-define=PLAY_STORE=true
+            --dart-define=PLAY_STORE=true \
+            --dart-define=API_BASE=$SITE
           cp build/app/outputs/bundle/release/app-release.aab /tmp/crony.aab
 
       - name: Check it is signed with the upload key

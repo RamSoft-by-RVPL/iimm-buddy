@@ -1,7 +1,7 @@
 // The app's diagnostic log.
 //
 // Short notes about what the app did (refreshed, failed, set reminders) are
-// kept in a queue on the phone and sent to the maker's server, with the
+// kept in a queue on the phone and sent to the app's server, with the
 // student's name and roll number, so problems can be found and fixed and
 // users can be counted. No attendance figures, no Moodle content and no
 // sign-in details are ever put in the log. It can be switched off in

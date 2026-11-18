@@ -300,7 +300,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 Icons.bug_report_outlined,
                 'Send diagnostics',
                 'A log of what the app does, with your name and roll number, '
-                    'goes to the maker of the app so problems can be fixed',
+                    'goes to Ramya Ventures, who publish the app, so problems can be fixed',
                 diagnosticsOn(store.prefs), (v) async {
               await store.prefs.setBool('diag', v);
               if (!v) await store.prefs.remove('log_q');
@@ -412,8 +412,8 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           const SizedBox(height: 12),
           Text(
-              'Crony is made by a student. It is not an official app of '
-              'IIM Mumbai.',
+              'Crony is made by a student and published by Ramya Ventures '
+              'Private Limited. It is not an official app of IIM Mumbai.',
               textAlign: TextAlign.center,
               style: t.textTheme.bodySmall
                   ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
