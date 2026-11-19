@@ -81,7 +81,7 @@
     </section>
     <section id="cn" class="card" style="margin-bottom:16px">
       <b>Cancel a class</b>
-      <p class="dim" style="margin:4px 0 10px">Pick the day, tick the classes that are off and press Cancel classes. Students' phones drop them from the timetable and reminders and say "Class cancelled". Put back undoes it.</p>
+      <p class="dim" style="margin:4px 0 10px">Pick the day, tick the classes that are off and press Cancel classes. Students' phones mark them Cancelled on the timetable, stop their reminders, leave them out of attendance and say "Class cancelled". Put back undoes it. (The app also spots classes that disappear from the portal by itself.)</p>
       <div class="bar">
         <input id="cnBatch" list="ttBatches" placeholder="Batch, for example bs-2026-2030" style="min-width:220px">
         <input id="cnDay" type="date">
@@ -281,7 +281,7 @@ $('cnShow').onclick = async () => {
     ${today.map((c, i) => { const was = gone.has(day + ' ' + c.s + ' ' + c.c); return `<label style="display:block; margin:4px 0"><input type="checkbox" data-i="${i}" ${was ? 'disabled' : ''}> ${c.s} to ${c.e} · <b>${esc(c.c)}</b>${c.f ? ' · ' + esc(c.f) : ''}${was ? ' <span class="dim">(already cancelled)</span>' : ''}</label>`; }).join('')}
     <div class="bar" style="margin-top:8px"><span class="dim">Not listed?</span><input id="cnTime" type="time" style="width:120px"><input id="cnCourse" placeholder="Course (leave empty for every class at that time)" style="flex:1; min-width:220px"></div>
     <div class="bar"><input id="cnWhy" placeholder="Reason (optional), for example: faculty unwell" style="flex:1; min-width:220px"></div>
-    <label style="display:block; margin:6px 0" class="dim"><input type="checkbox" id="cnNotice"> Also send a notification to the batch (only needed for phones on app versions older than 0.8.16, which do not hide cancelled classes)</label>
+    <label style="display:block; margin:6px 0" class="dim"><input type="checkbox" id="cnNotice"> Also send a notification to the batch (only needed for phones on app versions older than 0.8.16, which do not know about cancelled classes)</label>
     <div class="bar" style="margin-top:8px"><button id="cnGo" type="button">Cancel classes</button></div>`;
   $('cnGo').onclick = async () => {
     const picked = [...document.querySelectorAll('#cnPick input[data-i]:checked')].map((b) => today[b.dataset.i]).map((c) => ({ d: day, s: c.s, c: c.c }));
