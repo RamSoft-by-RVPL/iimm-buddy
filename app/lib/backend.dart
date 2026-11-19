@@ -185,6 +185,17 @@ Future<List<SheetClass>?> pullTimetable(SharedPreferences prefs) async {
   return classes;
 }
 
+/// Fetches the classes the admin has cancelled. True when the list changed.
+Future<bool> pullCancelled(SharedPreferences prefs) async {
+  final batch = batchKey(prefs.getString('summary'));
+  if (batch == null) return false;
+  final (status, text) =
+      await _send('GET', Uri.parse('$apiBase/api/cancelled?batch=$batch'));
+  if (status != 200 || text == prefs.getString('cancelled')) return false;
+  await prefs.setString('cancelled', text);
+  return true;
+}
+
 /// Sends this phone's timetable to the server for the whole batch.
 /// Only works with the publisher key. Returns how many classes were sent.
 Future<int> publishTimetable(SharedPreferences prefs) async {

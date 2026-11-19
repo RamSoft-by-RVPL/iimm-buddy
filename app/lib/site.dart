@@ -116,9 +116,65 @@ class Snapshot {
         sessions: all);
   }
 
+  /// The same data without the classes the admin has called off. Classes
+  /// already marked present or absent stay: the register is the record.
+  Snapshot withoutCancelled(List<Cancelled> off) {
+    if (off.isEmpty) return this;
+    bool gone(ClassSlot s) {
+      if (s.status == 'Present' || s.status == 'Absent') return false;
+      for (final x in off) {
+        if (x.start != s.start || !_sameDay(x.date, s.date)) continue;
+        if (x.course.isEmpty) return true;
+        final named = matchCourse(x.course, courses);
+        if (named != null) {
+          if (courseOf(s)?.id == named.id) return true;
+        } else if (s.course.toLowerCase().contains(x.course.toLowerCase()) ||
+            x.course.toLowerCase().contains(s.course.toLowerCase())) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    final kept = [
+      for (final s in sessions)
+        if (!gone(s)) s
+    ];
+    if (kept.length == sessions.length) return this;
+    return Snapshot(
+        studentName: studentName,
+        roll: roll,
+        courses: courses,
+        syncedAt: syncedAt,
+        sessions: kept);
+  }
+
   int get held => courses.fold(0, (a, c) => a + c.held);
   int get attended => courses.fold(0, (a, c) => a + c.attended);
   double get percent => held == 0 ? 100 : attended * 100 / held;
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// A class the admin has called off (from /api/cancelled).
+class Cancelled {
+  Cancelled(this.date, this.start, this.course);
+  final DateTime date;
+  final String start; // "14:00"
+  final String course; // as on the timetable; '' = every class then
+
+  static List<Cancelled> decode(String? raw) {
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      return [
+        for (final j in (jsonDecode(raw) as Map)['classes'] as List)
+          Cancelled(DateTime.parse('${j['d']}'), '${j['s']}', '${j['c'] ?? ''}')
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
 }
 
 /// "Name Lab", "Name Theory", "Name (Lab)", "Name (Theory)".
@@ -301,6 +357,10 @@ class Store {
     prefs.setString('leave_log', encodeLeaves(m));
   }
 
+  /// Classes the admin has cancelled, as last fetched.
+  List<Cancelled> get cancelled =>
+      Cancelled.decode(prefs.getString('cancelled'));
+
   /// Classes from the timetable sheets added so far.
   List<SheetClass> get sheetClasses => decodeSheet(prefs.getString('tt_sheet'));
 
@@ -413,8 +473,9 @@ class Store {
     if (raw == null || at == null) return null;
     try {
       calendar; // tells the planner which days are off
-      final snap =
-          parseSummary(raw, at, totals).withSheet(sheetClasses, DateTime.now());
+      final snap = parseSummary(raw, at, totals)
+          .withSheet(sheetClasses, DateTime.now())
+          .withoutCancelled(cancelled);
       setPlannerShares(snap.courses);
       return snap;
     } catch (_) {
@@ -435,7 +496,7 @@ class Store {
     await prefs.setString('summary', body);
     await prefs.setString('syncedAt', now.toIso8601String());
     calendar; // tells the planner which days are off
-    final full = snap.withSheet(sheetClasses, now);
+    final full = snap.withSheet(sheetClasses, now).withoutCancelled(cancelled);
     setPlannerShares(full.courses);
     return full;
   }

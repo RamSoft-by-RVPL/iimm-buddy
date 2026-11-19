@@ -176,6 +176,14 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
       }
     }
   } catch (_) {}
+  // Classes the admin called off: the change check says "Class cancelled".
+  var cancelledChanged = false;
+  try {
+    if (await pullCancelled(store.prefs)) {
+      cancelledChanged = true;
+      logEvent(store.prefs, 'cancelled_new', '${store.cancelled.length}');
+    }
+  } catch (_) {}
   List<SheetClass>? fresh;
   try {
     fresh = await pullTimetable(store.prefs);
@@ -184,8 +192,8 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
     logEvent(store.prefs, 'timetable_fail', errorLine(e));
   }
   if (fresh == null) {
-    // Days off changed the planner's sums: hand back a fresh reading.
-    return calendarChanged ? (store.cached ?? snap) : snap;
+    // Days off or cancelled classes changed: hand back a fresh reading.
+    return calendarChanged || cancelledChanged ? (store.cached ?? snap) : snap;
   }
   logEvent(store.prefs, 'timetable_new', '${fresh.length} classes');
   if (alert) {
