@@ -220,7 +220,7 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         "email" -> {
           val a = call.arguments as List<*>
           val uri = Uri.parse(
-            "mailto:" + Uri.encode(a[0] as String, "@") +
+            "mailto:" + Uri.encode(a[0] as String, "@,") +
               "?subject=" + Uri.encode(a[1] as String) +
               "&body=" + Uri.encode(a[2] as String)
           )

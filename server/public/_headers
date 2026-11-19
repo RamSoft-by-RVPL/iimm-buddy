@@ -15,3 +15,12 @@
 
 /version.json
   Cache-Control: public, max-age=0, must-revalidate
+
+/leave
+  X-Robots-Tag: noindex
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'
+
+/leave.html
+  X-Robots-Tag: noindex
+  Referrer-Policy: no-referrer

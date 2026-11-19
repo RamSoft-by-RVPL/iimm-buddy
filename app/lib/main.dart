@@ -10,6 +10,7 @@ import 'backend.dart';
 import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
+import 'gate_mail_ui.dart';
 import 'my_reminders.dart';
 import 'health.dart';
 import 'inbox.dart';
@@ -505,6 +506,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
                 onChanged: () {
                   if (mounted) setState(() {});
                 }),
+            GateMailCard(store: store, snap: s),
             TermCard(events: store.calendar),
           ]),
           shortNames: store.shortNames,

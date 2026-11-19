@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Crony · Leave mail</title>
+<meta name="theme-color" content="#EC6989">
+<link rel="icon" href="/icon.png">
+<style>
+  :root { --ink:#1a1113; --muted:#5e2e3c; --paper:#ffd3e0; --card:#fff5f8; --pink:#ec6989; --on-pink:#1a1113; --edge:#1a1113; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#fceaf0; --muted:#d8a9b9; --paper:#1c0e14; --card:#2a1720; --edge:#000; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; padding:0 16px; }
+  main { max-width:640px; margin:0 auto; padding:32px 0 56px; }
+  h1 { font-size:28px; line-height:1.15; letter-spacing:-0.02em; margin:0 0 6px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .go { display:block; width:100%; text-align:center; background:var(--pink); color:var(--on-pink); border:2px solid var(--edge); box-shadow:3px 4px 0 var(--edge); border-radius:18px; padding:16px; font-size:19px; font-weight:700; text-decoration:none; }
+  .go:active { transform:translate(2px,3px); box-shadow:1px 1px 0 var(--edge); }
+  section { background:var(--card); border:2px solid var(--edge); border-radius:18px; padding:16px 18px; margin-top:16px; }
+  .k { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:10px 0 2px; }
+  .k:first-child { margin-top:0 }
+  .v { word-break:break-word; }
+  pre { white-space:pre-wrap; font:inherit; margin:0; }
+  button { font:inherit; font-size:14px; background:none; color:var(--ink); border:1.5px solid var(--edge); border-radius:12px; padding:6px 12px; margin-top:8px; }
+  .help { color:var(--muted); font-size:14px; margin-top:14px; }
+  .bad { display:none }
+</style>
+</head>
+<body>
+<main>
+  <div id="ok">
+    <h1>Leave mail</h1>
+    <p class="sub" id="lead">Your ward needs this mail sent to the college before going out of campus. It is already written and addressed.</p>
+    <a class="go" id="go" href="#">Open in my email app</a>
+    <p class="help">Then check it and press <b>Send</b>. If the button does not work, copy the parts below into a new email.</p>
+    <section>
+      <div class="k">To</div><div class="v" id="to"></div><button data-c="to">Copy</button>
+      <div id="ccBox"><div class="k">Cc</div><div class="v" id="cc"></div><button data-c="cc">Copy</button></div>
+      <div class="k">Subject</div><div class="v" id="s"></div><button data-c="s">Copy</button>
+      <div class="k">Message</div><pre id="b"></pre><button data-c="b">Copy</button>
+    </section>
+  </div>
+  <div id="bad" class="bad">
+    <h1>Link is incomplete</h1>
+    <p class="sub">Ask your ward to send the link again from the Crony app.</p>
+  </div>
+</main>
+<script>
+(function () {
+  // The mail travels after "#": it stays in this browser and never reaches the server.
+  var m = null;
+  try {
+    var h = location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+    while (h.length % 4) h += '=';
+    var bin = atob(h), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    m = JSON.parse(new TextDecoder().decode(bytes));
+  } catch (e) {}
+  if (!m || !m.t || !m.s || !m.b) {
+    document.getElementById('ok').style.display = 'none';
+    document.getElementById('bad').style.display = 'block';
+    return;
+  }
+  var to = String(m.t).split(',').join(', ');
+  document.getElementById('to').textContent = to;
+  document.getElementById('s').textContent = m.s;
+  document.getElementById('b').textContent = m.b;
+  if (m.c) document.getElementById('cc').textContent = m.c;
+  else document.getElementById('ccBox').style.display = 'none';
+  var q = (m.c ? 'cc=' + encodeURIComponent(m.c) + '&' : '') +
+      'subject=' + encodeURIComponent(m.s) + '&body=' + encodeURIComponent(m.b);
+  document.getElementById('go').href = 'mailto:' + String(m.t) + '?' + q;
+  var copy = { to: to, cc: m.c || '', s: m.s, b: m.b };
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-c]'), function (btn) {
+    btn.onclick = function () {
+      var text = copy[btn.getAttribute('data-c')];
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+    };
+  });
+})();
+</script>
+</body>
+</html>
