@@ -159,11 +159,12 @@ class _TimetableTabState extends State<TimetableTab> {
                                 if (s.fromSheet && !s.cancelled)
                                   'Not on portal yet',
                                 if (s.room.isNotEmpty) 'Room ${s.room}',
+                                if (s.faculty.isNotEmpty) s.faculty,
                                 if (c != null &&
                                     codeOf(c.name, widget.shortNames) != c.name)
                                   c.name,
                               ].join(' · '),
-                              maxLines: 2,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                   fontSize: 13,

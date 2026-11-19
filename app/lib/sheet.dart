@@ -317,7 +317,8 @@ List<ClassSlot> extraSlots(
         ends.isAfter(now),
         fromSheet: true,
         cancelled: dropped,
-        why: dropped ? 'Removed from the portal' : ''));
+        why: dropped ? 'Removed from the portal' : '',
+        faculty: c.faculty));
   }
   return out;
 }

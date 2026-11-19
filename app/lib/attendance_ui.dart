@@ -210,6 +210,13 @@ class NowCard extends StatelessWidget {
                         '${slot.start} to ${slot.end}'
                         '${slot.room.isEmpty ? '' : ' · Room ${slot.room}'}',
                         style: const TextStyle(color: muted, fontSize: 14)),
+                    if (slot.faculty.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(slot.faculty,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: muted, fontSize: 14)),
+                    ],
                   ]),
             ),
             const SizedBox(width: 12),

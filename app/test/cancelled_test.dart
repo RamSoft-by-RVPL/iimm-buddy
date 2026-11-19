@@ -163,4 +163,23 @@ void main() {
     expect(state('19', '15:40'), 'sheet'); // reaches the site only later
     expect(state('23', '09:00'), 'sheet'); // not published on the site yet
   });
+
+  test('the teacher: the sheet\'s for that class, else the site\'s', () {
+    final now = DateTime(2026, 11, 19, 8);
+    final site = snapOf([
+      slot(1, '09:00', 'Programming Fundamentals', 'pf'),
+      ClassSlot(2, d, '10:40', '12:10', '404', 'Linear Algebra and Calculus',
+          'lac', 'Not Marked', true,
+          faculty: 'Prof. Vikram Aithal'),
+    ]);
+    final full = site.withSheet([
+      SheetClass(d, '09:00', '10:30', 'Programming Fundamentals', 'HPE'),
+      // Another course at 10:40 on the sheet: the site's name stays.
+      SheetClass(d, '10:40', '12:10', 'Programming Fundamentals', 'X'),
+      SheetClass(
+          d, '14:00', '15:30', 'Principles of Algorithm Design', 'Prof. Y'),
+    ], now);
+    expect([for (final s in full.sessions) s.faculty],
+        ['HPE', 'Prof. Vikram Aithal', 'Prof. Y']);
+  });
 }

@@ -16,7 +16,10 @@ import 'sheet.dart';
 class ClassSlot {
   ClassSlot(this.id, this.date, this.start, this.end, this.room, this.course,
       this.courseId, this.status, this.upcoming,
-      {this.fromSheet = false, this.cancelled = false, this.why = ''});
+      {this.fromSheet = false,
+      this.cancelled = false,
+      this.why = '',
+      this.faculty = ''});
   final int id;
   final DateTime date;
   final String start; // "14:00"
@@ -53,12 +56,19 @@ class ClassSlot {
   /// Why, when known (the admin's reason).
   final String why;
 
+  /// Who takes it, from the attendance site or the mailed timetable.
+  final String faculty;
+
   bool get unmarked =>
       !upcoming && !fromSheet && !cancelled && status == 'Not Marked';
 
   ClassSlot asCancelled(String why) =>
       ClassSlot(id, date, start, end, room, course, courseId, status, upcoming,
-          fromSheet: fromSheet, cancelled: true, why: why);
+          fromSheet: fromSheet, cancelled: true, why: why, faculty: faculty);
+
+  ClassSlot withFaculty(String f) =>
+      ClassSlot(id, date, start, end, room, course, courseId, status, upcoming,
+          fromSheet: fromSheet, cancelled: cancelled, why: why, faculty: f);
 
   String get slotKey => '${date.year}-${date.month}-${date.day} $start';
 }
@@ -100,7 +110,24 @@ class Snapshot {
   Snapshot withSheet(List<SheetClass> sheet, DateTime now) {
     if (sheet.isEmpty) return this;
     final extra = extraSlots(this, sheet, now);
-    final all = [...sessions, ...extra]..sort((a, b) {
+    // The sheet names the one teacher of each class; the site lists every
+    // teacher of the course. Use the sheet's when it has the same course
+    // at that time.
+    final teacher = <String, SheetClass>{
+      for (final c in sheet)
+        if (c.faculty.isNotEmpty)
+          '${c.date.year}-${c.date.month}-${c.date.day} ${c.start}': c
+    };
+    ClassSlot named1(ClassSlot s) {
+      final c = teacher[s.slotKey];
+      if (c == null) return s;
+      final own = courseOf(s);
+      final same = own != null && matchCourse(c.course, courses)?.id == own.id;
+      return same || s.faculty.isEmpty ? s.withFaculty(c.faculty) : s;
+    }
+
+    final named = [for (final s in sessions) named1(s)];
+    final all = [...named, ...extra]..sort((a, b) {
         final d = a.date.compareTo(b.date);
         return d != 0 ? d : a.start.compareTo(b.start);
       });
@@ -282,6 +309,7 @@ Map<String, dynamic> _slotJson(ClassSlot s) => {
       'r': s.room,
       'c': s.course,
       'i': s.courseId,
+      'f': s.faculty,
     };
 
 ClassSlot _slotOf(Map j) => ClassSlot(
@@ -295,7 +323,8 @@ ClassSlot _slotOf(Map j) => ClassSlot(
     'Not Marked',
     true,
     cancelled: true,
-    why: 'Removed from the portal');
+    why: 'Removed from the portal',
+    faculty: '${j['f'] ?? ''}');
 
 /// A class the admin has called off (from /api/cancelled).
 class Cancelled {
@@ -380,14 +409,16 @@ Snapshot parseSummary(String body, DateTime now, Map<String, int> totals) {
             '${c['course_name']}'.trim(),
             '${c['course_id']}',
             '${s['status'] ?? ''}',
-            s['is_upcoming'] == true);
+            s['is_upcoming'] == true,
+            faculty: '${c['faculty_names'] ?? ''}'.trim());
         // A class later today counts as coming up even if the site has
         // stopped calling it upcoming: it still needs its reminder.
         next.add(!slot.upcoming &&
                 slot.status == 'Not Marked' &&
                 slot.startsAt.isAfter(now)
             ? ClassSlot(slot.id, slot.date, slot.start, slot.end, slot.room,
-                slot.course, slot.courseId, slot.status, true)
+                slot.course, slot.courseId, slot.status, true,
+                faculty: slot.faculty)
             : slot);
         if (s['is_upcoming'] == true) {
           upcoming.add(d);
