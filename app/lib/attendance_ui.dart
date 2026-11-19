@@ -88,7 +88,11 @@ List<Punch> punchesOf(Course c, Snapshot snap, int minPct) {
   final ids = {c.id, for (final p in c.parts) p.id};
   final past = [
     for (final s in snap.sessions)
-      if (!s.upcoming && !s.fromSheet && ids.contains(s.courseId)) s.status
+      if (!s.upcoming &&
+          !s.fromSheet &&
+          !s.cancelled &&
+          ids.contains(s.courseId))
+        s.status
   ];
   final held = past.length == c.held
       ? [

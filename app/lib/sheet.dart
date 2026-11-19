@@ -262,6 +262,22 @@ List<ClassSlot> extraSlots(
       : (rooms.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
           .first
           .key;
+  // The site publishes classes ahead, up to [published]. A class missing on
+  // a day it has published was called off when the site lists that course
+  // ahead of time, or (once the class is over) lists the same course that
+  // day. Courses whose attendance is uploaded later never appear ahead, so
+  // they wait; if one turns up later, it is simply back.
+  DateTime? published;
+  final ahead = <String>{};
+  final onDay = <String>{};
+  String dayOf(DateTime d) => '${d.year}-${d.month}-${d.day}';
+  for (final s in snap.sessions) {
+    if (s.fromSheet || s.cancelled) continue;
+    final cid = snap.courseOf(s)?.id ?? s.courseId;
+    if (s.upcoming) ahead.add(cid);
+    onDay.add('$cid ${dayOf(s.date)}');
+    if (published == null || s.date.isAfter(published)) published = s.date;
+  }
   final out = <ClassSlot>[];
   for (final c in sheet) {
     final key = '${c.date.year}-${c.date.month}-${c.date.day} ${c.start}';
@@ -280,6 +296,14 @@ List<ClassSlot> extraSlots(
     final e = c.end.split(':');
     final ends = DateTime(c.date.year, c.date.month, c.date.day,
         int.parse(e.first), int.parse(e.last));
+    // "Same course that day" only for classes already over: a class still
+    // to come keeps its reminder unless the site lists the course ahead.
+    final dropped = course != null &&
+        published != null &&
+        !c.date.isAfter(published) &&
+        (ahead.contains(course.id) ||
+            (!ends.isAfter(now) &&
+                onDay.contains('${course.id} ${dayOf(c.date)}')));
     out.add(ClassSlot(
         -(c.date.millisecondsSinceEpoch ~/ 60000 +
             int.parse(c.start.replaceAll(':', ''))),
@@ -291,7 +315,9 @@ List<ClassSlot> extraSlots(
         id,
         'Not Marked',
         ends.isAfter(now),
-        fromSheet: true));
+        fromSheet: true,
+        cancelled: dropped,
+        why: dropped ? 'Removed from the portal' : ''));
   }
   return out;
 }

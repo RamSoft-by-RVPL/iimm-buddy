@@ -23,6 +23,7 @@ const _channels = {
   'moodle': ('Moodle updates', 'New notes, assignments and deadlines'),
   'attendance': ('Attendance alerts', 'Absences and low attendance'),
   'news': ('Messages', 'Messages from the people who run the app'),
+  'mine': ('Your reminders', 'Reminders you set yourself'),
 };
 
 Future<void> initNotifications() async {

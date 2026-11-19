@@ -10,6 +10,7 @@ import 'backend.dart';
 import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
+import 'my_reminders.dart';
 import 'health.dart';
 import 'inbox.dart';
 import 'inbox_ui.dart';
@@ -496,6 +497,11 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
             ExamsCard(
                 store: store,
                 snap: s,
+                onChanged: () {
+                  if (mounted) setState(() {});
+                }),
+            MyRemindersCard(
+                store: store,
                 onChanged: () {
                   if (mounted) setState(() {});
                 }),

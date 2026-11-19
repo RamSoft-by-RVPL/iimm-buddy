@@ -37,6 +37,7 @@ class Email {
 bool canDispute(ClassSlot s) =>
     !s.upcoming &&
     !s.fromSheet &&
+    !s.cancelled &&
     (s.status == 'Absent' || s.status == 'Not Marked');
 
 Email absenceEmail(Snapshot snap, ClassSlot s) {

@@ -16,6 +16,7 @@ import 'moodle.dart';
 import 'net.dart';
 import 'notify.dart';
 import 'planner.dart';
+import 'my_reminders.dart';
 import 'sheet.dart';
 import 'site.dart';
 import 'update.dart';
@@ -340,6 +341,9 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
     await announceClassChanges(store, snap);
   } catch (_) {}
   try {
+    await scheduleMyReminders(store); // keeps repeating ones rolling
+  } catch (_) {}
+  try {
     await scheduleDishAlerts(store);
   } catch (_) {}
   try {
@@ -386,7 +390,7 @@ List<CalEvent> calendarEvents(
         List<ClassSlot> classes, List<Deadline> deadlines, DateTime now) =>
     [
       for (final s in classes)
-        if (s.upcoming || s.startsAt.isAfter(now))
+        if (!s.cancelled && (s.upcoming || s.startsAt.isAfter(now)))
           CalEvent(
               s.course,
               s.startsAt,

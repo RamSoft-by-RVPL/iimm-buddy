@@ -68,10 +68,13 @@ class _TimetableTabState extends State<TimetableTab> {
       {bool next = false}) {
     final t = Theme.of(context);
     final tone = Tone.of(context);
-    final live = !s.startsAt.isAfter(now) && s.endsAt.isAfter(now);
-    final soon = next && s.startsAt.difference(now).inHours < 12;
+    final live =
+        !s.cancelled && !s.startsAt.isAfter(now) && s.endsAt.isAfter(now);
+    final soon =
+        !s.cancelled && next && s.startsAt.difference(now).inHours < 12;
     const pink = Brand.pink;
     final (label, color, filled) = switch (s) {
+      _ when s.cancelled => ('Cancelled', tone.bad, false),
       _ when live => ('Now', pink, true),
       _ when soon => ('In ${NowCard.countdown(s, now)}', pink, true),
       _ when s.upcoming => ('Upcoming', t.colorScheme.onSurfaceVariant, false),
@@ -85,12 +88,14 @@ class _TimetableTabState extends State<TimetableTab> {
       _ when s.status == 'Absent' => ('Absent', tone.bad, false),
       _ => ('Not marked', tone.warn, false),
     };
-    final onTap = s.upcoming
-        ? () => showSkip(context, widget.snap, s, widget.minPct,
-            shortNames: widget.shortNames)
-        : canDispute(s)
-            ? () => showDispute(context, widget.snap, s, widget.fixEmail)
-            : null;
+    final onTap = s.cancelled
+        ? null
+        : s.upcoming
+            ? () => showSkip(context, widget.snap, s, widget.minPct,
+                shortNames: widget.shortNames)
+            : canDispute(s)
+                ? () => showDispute(context, widget.snap, s, widget.fixEmail)
+                : null;
     final c = widget.snap.courseOf(s);
     final mono = TextStyle(
         fontFamily: 'GeistMono',
@@ -137,14 +142,22 @@ class _TimetableTabState extends State<TimetableTab> {
                                   : codeOf(c.name, widget.shortNames),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.3)),
+                                  letterSpacing: -0.3,
+                                  decoration: s.cancelled
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: s.cancelled
+                                      ? t.colorScheme.onSurfaceVariant
+                                      : null)),
                           const SizedBox(height: 2),
                           Text(
                               [
-                                if (s.fromSheet) 'Not on portal yet',
+                                if (s.cancelled && s.why.isNotEmpty) s.why,
+                                if (s.fromSheet && !s.cancelled)
+                                  'Not on portal yet',
                                 if (s.room.isNotEmpty) 'Room ${s.room}',
                                 if (c != null &&
                                     codeOf(c.name, widget.shortNames) != c.name)
@@ -358,7 +371,9 @@ class _TimetableTabState extends State<TimetableTab> {
     ];
     var held = 0, present = 0, absent = 0;
     Color dot(ClassSlot s) {
-      if (s.upcoming || s.fromSheet) return t.colorScheme.outline;
+      if (s.upcoming || s.fromSheet || s.cancelled) {
+        return t.colorScheme.outline;
+      }
       if (s.status == 'Present' || s.status == 'Late') return tone.good;
       if (s.status == 'Absent') return tone.bad;
       return tone.warn;
@@ -371,7 +386,7 @@ class _TimetableTabState extends State<TimetableTab> {
       final d = DateTime(first.year, first.month, n);
       final slots = slotsOn(d);
       for (final s in slots) {
-        if (s.upcoming || s.fromSheet) continue;
+        if (s.upcoming || s.fromSheet || s.cancelled) continue;
         held++;
         if (s.status == 'Present' || s.status == 'Late') present++;
         if (s.status == 'Absent') absent++;
@@ -743,8 +758,9 @@ class _TimetableTabState extends State<TimetableTab> {
       for (final x in ex) {
         children.add(examTile(context, x));
       }
-      final firstNext =
-          isToday ? slots.indexWhere((x) => x.endsAt.isAfter(now)) : -1;
+      final firstNext = isToday
+          ? slots.indexWhere((x) => !x.cancelled && x.endsAt.isAfter(now))
+          : -1;
       var lineDone = !isToday;
       for (final (n, x) in slots.indexed) {
         sheetOnly = sheetOnly || x.fromSheet;

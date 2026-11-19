@@ -402,7 +402,11 @@ class _CourseSheetState extends State<CourseSheet> {
     final ids = c.parts.isEmpty ? {c.id} : {for (final p in c.parts) p.id};
     final held = [
       for (final s in widget.snap.sessions)
-        if (ids.contains(s.courseId) && !s.upcoming && !s.fromSheet) s
+        if (ids.contains(s.courseId) &&
+            !s.upcoming &&
+            !s.fromSheet &&
+            !s.cancelled)
+          s
     ];
     final points = runningPercent(
         [for (final s in held) s.status == 'Present' || s.status == 'Late']);

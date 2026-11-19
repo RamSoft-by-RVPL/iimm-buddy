@@ -16,7 +16,7 @@ import 'sheet.dart';
 class ClassSlot {
   ClassSlot(this.id, this.date, this.start, this.end, this.room, this.course,
       this.courseId, this.status, this.upcoming,
-      {this.fromSheet = false});
+      {this.fromSheet = false, this.cancelled = false, this.why = ''});
   final int id;
   final DateTime date;
   final String start; // "14:00"
@@ -47,7 +47,20 @@ class ClassSlot {
         p.length > 1 ? int.tryParse(p[1]) ?? 0 : 0);
   }
 
-  bool get unmarked => !upcoming && !fromSheet && status == 'Not Marked';
+  /// Called off: by the admin, or gone from the attendance site.
+  final bool cancelled;
+
+  /// Why, when known (the admin's reason).
+  final String why;
+
+  bool get unmarked =>
+      !upcoming && !fromSheet && !cancelled && status == 'Not Marked';
+
+  ClassSlot asCancelled(String why) =>
+      ClassSlot(id, date, start, end, room, course, courseId, status, upcoming,
+          fromSheet: fromSheet, cancelled: true, why: why);
+
+  String get slotKey => '${date.year}-${date.month}-${date.day} $start';
 }
 
 class Snapshot {
@@ -70,7 +83,7 @@ class Snapshot {
   /// Published classes still to come, soonest first.
   List<ClassSlot> get next => [
         for (final s in sessions)
-          if (s.upcoming) s
+          if (s.upcoming && !s.cancelled) s
       ];
 
   /// The course (theory and lab combined) that a class belongs to.
@@ -97,7 +110,7 @@ class Snapshot {
         sheet.map((c) => c.date).reduce((a, b) => a.isAfter(b) ? a : b);
     List<DateTime> of(String id) => [
           for (final s in extra)
-            if (s.upcoming && s.courseId == id) s.date
+            if (s.upcoming && !s.cancelled && s.courseId == id) s.date
         ];
     final known = [
       for (final c in courses)
@@ -116,37 +129,75 @@ class Snapshot {
         sessions: all);
   }
 
-  /// The same data without the classes the admin has called off. Classes
-  /// already marked present or absent stay: the register is the record.
-  Snapshot withoutCancelled(List<Cancelled> off) {
+  /// The same data with the classes the admin has called off marked
+  /// cancelled. They stay on the timetable but no longer count: an unmarked
+  /// one is taken out of the classes held, a coming one out of the classes
+  /// still to come. Classes already marked present or absent stay as they
+  /// are: the register is the record.
+  Snapshot withCancelled(List<Cancelled> off) {
     if (off.isEmpty) return this;
-    bool gone(ClassSlot s) {
-      if (s.status == 'Present' || s.status == 'Absent') return false;
+    Cancelled? hit(ClassSlot s) {
+      if (s.cancelled || s.status == 'Present' || s.status == 'Absent') {
+        return null;
+      }
       for (final x in off) {
         if (x.start != s.start || !_sameDay(x.date, s.date)) continue;
-        if (x.course.isEmpty) return true;
+        if (x.course.isEmpty) return x;
         final named = matchCourse(x.course, courses);
         if (named != null) {
-          if (courseOf(s)?.id == named.id) return true;
+          if (courseOf(s)?.id == named.id) return x;
         } else if (s.course.toLowerCase().contains(x.course.toLowerCase()) ||
             x.course.toLowerCase().contains(s.course.toLowerCase())) {
-          return true;
+          return x;
         }
       }
-      return false;
+      return null;
     }
 
-    final kept = [
+    var list = courses;
+    var changed = false;
+    final marked = [
       for (final s in sessions)
-        if (!gone(s)) s
+        if (hit(s) case final x?)
+          () {
+            changed = true;
+            final wasHeld = !s.fromSheet && !s.upcoming;
+            list = [
+              for (final c in list) _lessOne(c, s.courseId, s.date, wasHeld)
+            ];
+            return s.asCancelled(x.why);
+          }()
+        else
+          s
     ];
-    if (kept.length == sessions.length) return this;
+    if (!changed) return this;
+    return Snapshot(
+        studentName: studentName,
+        roll: roll,
+        courses: list,
+        syncedAt: syncedAt,
+        sessions: marked);
+  }
+
+  /// The same data with classes that dropped off the attendance site shown
+  /// again, as cancelled. Call before [withSheet], so the mailed timetable
+  /// does not bring them back as "not on portal yet".
+  Snapshot withGone(List<ClassSlot> gone) {
+    final taken = {for (final s in sessions) s.slotKey};
+    final add = [
+      for (final g in gone)
+        if (!taken.contains(g.slotKey)) g.asCancelled(g.why)
+    ];
+    if (add.isEmpty) return this;
     return Snapshot(
         studentName: studentName,
         roll: roll,
         courses: courses,
         syncedAt: syncedAt,
-        sessions: kept);
+        sessions: [...sessions, ...add]..sort((a, b) {
+            final d = a.date.compareTo(b.date);
+            return d != 0 ? d : a.start.compareTo(b.start);
+          }));
   }
 
   int get held => courses.fold(0, (a, c) => a + c.held);
@@ -157,19 +208,110 @@ class Snapshot {
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
+/// [c] with one class of [partId] on [day] no longer counted: out of the
+/// classes held (an unmarked class) or out of the classes still to come.
+Course _lessOne(Course c, String partId, DateTime day, bool wasHeld) {
+  if (c.parts.isNotEmpty) {
+    if (!c.parts.any((p) => p.id == partId)) return c;
+    final parts = [for (final p in c.parts) _lessOne(p, partId, day, wasHeld)];
+    return combine(c.name, parts);
+  }
+  if (c.id != partId) return c;
+  final upcoming = [...c.upcoming];
+  if (!wasHeld) {
+    final i = upcoming.indexWhere((d) => _sameDay(d, day));
+    if (i >= 0) upcoming.removeAt(i);
+  }
+  final held = wasHeld && c.held > 0 && c.pending > 0;
+  return Course(
+    id: c.id,
+    name: c.name,
+    held: held ? c.held - 1 : c.held,
+    attended: c.attended,
+    pending: held ? c.pending - 1 : c.pending,
+    total: c.total,
+    faculty: c.faculty,
+    label: c.label,
+    weekly: c.weekly,
+    upcoming: upcoming,
+    absences: c.absences,
+    horizon: c.horizon,
+    ends: c.ends,
+  );
+}
+
+/// Classes still to come that the attendance site listed in [before] but
+/// not in [after], and that did not just move to another time: those were
+/// cancelled. Nothing when the new reading looks broken or a whole new
+/// timetable came in.
+List<ClassSlot> vanishedClasses(Snapshot before, Snapshot after, DateTime now) {
+  if (after.sessions.isEmpty) return [];
+  final nowKeys = {for (final s in after.sessions) s.slotKey};
+  final wasKeys = {for (final s in before.sessions) s.slotKey};
+  final gone = [
+    for (final s in before.sessions)
+      if (!s.fromSheet &&
+          s.startsAt.isAfter(now) &&
+          !nowKeys.contains(s.slotKey))
+        s
+  ];
+  if (gone.isEmpty || gone.length > 12) return [];
+  // New classes of the same course nearby are where a class moved to.
+  final added = [
+    for (final s in after.sessions)
+      if (s.startsAt.isAfter(now) && !wasKeys.contains(s.slotKey)) s
+  ];
+  final out = <ClassSlot>[];
+  for (final g in gone) {
+    final i = added.indexWhere((a) =>
+        a.courseId == g.courseId &&
+        a.startsAt.difference(g.startsAt).inDays.abs() <= 7);
+    if (i >= 0) {
+      added.removeAt(i);
+    } else {
+      out.add(g);
+    }
+  }
+  return out;
+}
+
+Map<String, dynamic> _slotJson(ClassSlot s) => {
+      'd': s.date.toIso8601String().substring(0, 10),
+      's': s.start,
+      'e': s.end,
+      'r': s.room,
+      'c': s.course,
+      'i': s.courseId,
+    };
+
+ClassSlot _slotOf(Map j) => ClassSlot(
+    0,
+    DateTime.parse('${j['d']}'),
+    '${j['s']}',
+    '${j['e']}',
+    '${j['r']}',
+    '${j['c']}',
+    '${j['i']}',
+    'Not Marked',
+    true,
+    cancelled: true,
+    why: 'Removed from the portal');
+
 /// A class the admin has called off (from /api/cancelled).
 class Cancelled {
-  Cancelled(this.date, this.start, this.course);
+  Cancelled(this.date, this.start, this.course, [this.why = '']);
   final DateTime date;
   final String start; // "14:00"
   final String course; // as on the timetable; '' = every class then
+  final String why;
 
   static List<Cancelled> decode(String? raw) {
     if (raw == null || raw.isEmpty) return [];
     try {
       return [
         for (final j in (jsonDecode(raw) as Map)['classes'] as List)
-          Cancelled(DateTime.parse('${j['d']}'), '${j['s']}', '${j['c'] ?? ''}')
+          Cancelled(DateTime.parse('${j['d']}'), '${j['s']}', '${j['c'] ?? ''}',
+              '${j['why'] ?? ''}')
       ];
     } catch (_) {
       return [];
@@ -357,6 +499,43 @@ class Store {
     prefs.setString('leave_log', encodeLeaves(m));
   }
 
+  /// Classes that dropped off the attendance site, kept to show as cancelled.
+  List<ClassSlot> get gone {
+    try {
+      return [
+        for (final j
+            in jsonDecode(prefs.getString('gone_classes') ?? '[]') as List)
+          _slotOf(j as Map)
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Notes the classes that dropped off between the last reading and
+  /// [fresh]; forgets those that came back and those long past.
+  Future<void> _noteGone(String? oldRaw, Snapshot fresh, DateTime now) async {
+    var list = gone;
+    if (oldRaw != null) {
+      try {
+        final old = parseSummary(oldRaw, now, totals);
+        list = [...list, ...vanishedClasses(old, fresh, now)];
+      } catch (_) {}
+    }
+    final back = {for (final s in fresh.sessions) s.slotKey};
+    final floor = now.subtract(const Duration(days: 60));
+    final seen = <String>{};
+    final keep = [
+      for (final g in list)
+        if (!back.contains(g.slotKey) &&
+            g.date.isAfter(floor) &&
+            seen.add('${g.slotKey} ${g.courseId}'))
+          g
+    ];
+    await prefs.setString(
+        'gone_classes', jsonEncode([for (final g in keep) _slotJson(g)]));
+  }
+
   /// Classes the admin has cancelled, as last fetched.
   List<Cancelled> get cancelled =>
       Cancelled.decode(prefs.getString('cancelled'));
@@ -474,8 +653,9 @@ class Store {
     try {
       calendar; // tells the planner which days are off
       final snap = parseSummary(raw, at, totals)
+          .withGone(gone)
           .withSheet(sheetClasses, DateTime.now())
-          .withoutCancelled(cancelled);
+          .withCancelled(cancelled);
       setPlannerShares(snap.courses);
       return snap;
     } catch (_) {
@@ -493,10 +673,14 @@ class Store {
     final body = await fetch('api/student-dashboard.php?action=summary');
     final now = DateTime.now();
     final snap = parseSummary(body, now, totals);
+    await _noteGone(prefs.getString('summary'), snap, now);
     await prefs.setString('summary', body);
     await prefs.setString('syncedAt', now.toIso8601String());
     calendar; // tells the planner which days are off
-    final full = snap.withSheet(sheetClasses, now).withoutCancelled(cancelled);
+    final full = snap
+        .withGone(gone)
+        .withSheet(sheetClasses, now)
+        .withCancelled(cancelled);
     setPlannerShares(full.courses);
     return full;
   }
