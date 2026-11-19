@@ -79,6 +79,18 @@
       <div id="acPreview"></div>
       <div id="acNow"></div>
     </section>
+    <section id="cn" class="card" style="margin-bottom:16px">
+      <b>Cancel a class</b>
+      <p class="dim" style="margin:4px 0 10px">Pick the day, tick the classes that are off and press Cancel classes. Students' phones drop them from the timetable and reminders and say "Class cancelled". Put back undoes it.</p>
+      <div class="bar">
+        <input id="cnBatch" list="ttBatches" placeholder="Batch, for example bs-2026-2030" style="min-width:220px">
+        <input id="cnDay" type="date">
+        <button id="cnShow" type="button" class="plain">Show classes</button>
+      </div>
+      <div id="cnPick"></div>
+      <div id="cnMsg"></div>
+      <div id="cnNow"></div>
+    </section>
     <section id="mn" class="card" style="margin-bottom:16px">
       <b>Mess menu</b>
       <p class="dim" style="margin:4px 0 10px">The week's menu shown in the app, for everyone. To publish one, give the mess's menu file to Claude: it reads the file and sends the menu here.</p>
@@ -230,6 +242,63 @@ $('ttRead').onclick = async () => {
   } catch (e) { ttSay('Could not reach the server. ' + e.message, 'bad'); }
 };
 
+// ---- cancel classes
+function cnSay(text, cls) { $('cnMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
+const cnBatch = () => $('cnBatch').value.trim().toLowerCase();
+function cnList(rows) {
+  $('cnNow').innerHTML = `<p style="margin:12px 0 6px"><b>Cancelled for ${esc(cnBatch())}</b></p>` + (rows.length
+    ? `<div class="scroll"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Reason</th><th></th></tr></thead><tbody>
+      ${rows.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}</td><td>${esc(x.c) || '<span class="dim">every class then</span>'}</td><td>${esc(x.why)}</td><td><button class="plain" type="button" data-back="${x.id}">Put back</button></td></tr>`).join('')}</tbody></table></div>`
+    : '<p class="dim" style="margin:0">None coming up.</p>');
+  document.querySelectorAll('[data-back]').forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(`/api/cancelled?batch=${cnBatch()}&id=${b.dataset.back}`, { method: 'DELETE' });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (!r.ok) { b.disabled = false; return cnSay(j.error || 'The server refused it.', 'bad'); }
+    cnSay('Put back. Phones were told to fetch the timetable again.', 'ok'); cnList(j.classes);
+  });
+}
+async function cnDraw() {
+  if (!$('cnBatch').value && $('ttBatch').value) $('cnBatch').value = $('ttBatch').value;
+  if (!$('cnDay').value) $('cnDay').value = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  if (!/^[a-z0-9-]{2,40}$/.test(cnBatch())) return;
+  try { cnList((await (await fetch(`/api/cancelled?batch=${cnBatch()}&t=${Date.now()}`)).json()).classes || []); } catch (e) {}
+}
+$('cnBatch').onchange = () => { $('cnPick').innerHTML = ''; cnDraw(); };
+$('cnShow').onclick = async () => {
+  const batch = cnBatch(), day = $('cnDay').value;
+  if (!/^[a-z0-9-]{2,40}$/.test(batch)) return cnSay('Type the batch name: small letters, numbers and dashes only.', 'bad');
+  if (!day) return cnSay('Choose the day.', 'bad');
+  cnSay('');
+  const [tt, off] = await Promise.all([
+    fetch(`/api/timetable?batch=${batch}&t=${Date.now()}`).then((r) => r.json()),
+    fetch(`/api/cancelled?batch=${batch}&t=${Date.now()}`).then((r) => r.json())]);
+  const gone = new Set((off.classes || []).map((x) => x.d + ' ' + x.s + ' ' + x.c));
+  const today = (tt.classes || []).filter((c) => c.d === day).sort((a, b) => a.s.localeCompare(b.s));
+  $('cnPick').innerHTML = `
+    <p style="margin:8px 0">${today.length ? `${cls(today.length)} on ${nice(day)} in the published timetable:` : `No classes on ${nice(day)} in the published timetable. Add one by time below.`}</p>
+    ${today.map((c, i) => { const was = gone.has(day + ' ' + c.s + ' ' + c.c); return `<label style="display:block; margin:4px 0"><input type="checkbox" data-i="${i}" ${was ? 'disabled' : ''}> ${c.s} to ${c.e} · <b>${esc(c.c)}</b>${c.f ? ' · ' + esc(c.f) : ''}${was ? ' <span class="dim">(already cancelled)</span>' : ''}</label>`; }).join('')}
+    <div class="bar" style="margin-top:8px"><span class="dim">Not listed?</span><input id="cnTime" type="time" style="width:120px"><input id="cnCourse" placeholder="Course (leave empty for every class at that time)" style="flex:1; min-width:220px"></div>
+    <div class="bar"><input id="cnWhy" placeholder="Reason (optional), for example: faculty unwell" style="flex:1; min-width:220px"></div>
+    <label style="display:block; margin:6px 0" class="dim"><input type="checkbox" id="cnNotice"> Also send a notification to the batch (only needed for phones on app versions older than 0.8.16, which do not hide cancelled classes)</label>
+    <div class="bar" style="margin-top:8px"><button id="cnGo" type="button">Cancel classes</button></div>`;
+  $('cnGo').onclick = async () => {
+    const picked = [...document.querySelectorAll('#cnPick input[data-i]:checked')].map((b) => today[b.dataset.i]).map((c) => ({ d: day, s: c.s, c: c.c }));
+    if ($('cnTime').value) picked.push({ d: day, s: $('cnTime').value, c: $('cnCourse').value.trim() });
+    if (!picked.length) return cnSay('Tick a class, or type a time.', 'bad');
+    if (!confirm(`Cancel ${cls(picked.length)} on ${nice(day)} for ${batch}? Students are told at once.`)) return;
+    $('cnGo').disabled = true;
+    const r = await fetch(`/api/cancelled?batch=${batch}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classes: picked, why: $('cnWhy').value.trim(), notice: $('cnNotice').checked }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (!r.ok) { $('cnGo').disabled = false; return cnSay(j.error || 'The server refused it.', 'bad'); }
+    $('cnPick').innerHTML = '';
+    cnSay(`Cancelled ${cls(picked.length)}. ${j.pushed && j.pushed.ok ? 'Phones were told at once.' : 'Phones pick it up at their next check.'}`, 'ok');
+    cnList(j.classes);
+  };
+};
+
 // ---- academic calendar upload
 const KIND = { exam: 'Exam', holiday: 'Holiday', break: 'Break', info: 'Term date' };
 let acPending = null;
@@ -365,7 +434,7 @@ $('ntSend').onclick = async () => {
 async function load() {
   try {
     if (current) drawUser(await get('?user=' + encodeURIComponent(current)));
-    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); }
+    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); }
     for (const id of ['tt', 'nt', 'ac', 'mn', 'ex']) $(id).hidden = !!current;
     $('back').hidden = !current; $('stamp').textContent = 'Loaded ' + when(new Date());
     $('login').hidden = true; $('app').hidden = false;

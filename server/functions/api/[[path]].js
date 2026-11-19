@@ -9,6 +9,7 @@ const handlers = {
   auth: () => require('../../api/auth.js'),
   'calendar-doc': () => require('../../api/calendar-doc.js'),
   calendar: () => require('../../api/calendar.js'),
+  cancelled: () => require('../../api/cancelled.js'),
   exams: () => require('../../api/exams.js'),
   log: () => require('../../api/log.js'),
   menu: () => require('../../api/menu.js'),

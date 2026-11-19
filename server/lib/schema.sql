@@ -80,3 +80,15 @@ CREATE TABLE IF NOT EXISTS exam_timetables (
   title   text NOT NULL DEFAULT '',
   exams   jsonb NOT NULL                -- [{d, s, e, c, r, n}]
 );
+
+-- Classes called off by the admin; phones hide them (api/cancelled.js).
+CREATE TABLE IF NOT EXISTS cancellations (
+  id      bigserial PRIMARY KEY,
+  batch   text NOT NULL,
+  d       date NOT NULL,
+  s       text NOT NULL,                -- start 'HH:MM'
+  c       text NOT NULL DEFAULT '',     -- course as on the timetable ('' = any)
+  why     text NOT NULL DEFAULT '',
+  created timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS cancellations_batch_d ON cancellations (batch, d);
