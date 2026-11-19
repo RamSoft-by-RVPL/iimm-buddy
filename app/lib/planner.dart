@@ -152,8 +152,21 @@ int classesToRecover(Course c, int minPct) {
 /// actually published on such a day are still counted.
 Set<int> plannerDaysOff = {};
 
+/// Days with at least one published class (attendance site or timetable),
+/// as numbers like 20261121. A Saturday or Sunday counts as a holiday
+/// unless it is in here.
+Set<int> plannerClassDays = {};
+
+int _dayNo(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
+
+/// A Saturday or Sunday with no class published on it.
+bool weekendOff(DateTime d) =>
+    (d.weekday == DateTime.saturday || d.weekday == DateTime.sunday) &&
+    !plannerClassDays.contains(_dayNo(d));
+
 /// A normal teaching day has four classes, 09:00 to 17:10. For days beyond
-/// the published timetable the app assumes a full day, Monday to Saturday.
+/// the published timetable the app assumes a full day, Monday to Friday:
+/// weekends are holidays until a class is published on one.
 const classesPerDay = 4;
 
 /// Each course's share of a teaching day, by course id (see
@@ -198,12 +211,12 @@ void setPlannerShares(List<Course> courses) {
   plannerStart = start;
 }
 
-/// Teaching days (Monday to Saturday) since Monday 1 Jan 2024.
+/// Teaching days (Monday to Friday) since Monday 1 Jan 2024.
 int _teachingDay(DateTime d) {
   final n = DateTime.utc(d.year, d.month, d.day)
       .difference(DateTime.utc(2024, 1, 1))
       .inDays;
-  return (n ~/ 7) * 6 + n % 7;
+  return (n ~/ 7) * 5 + n % 7;
 }
 
 /// How many of the four slots of day [d] go to the course whose share
@@ -234,9 +247,13 @@ int classesBetween(Course c, DateTime from, DateTime to) {
   final share = plannerShare[c.id];
   final start = plannerStart[c.id] ?? 0;
   while (!d.isAfter(end)) {
-    if (!plannerDaysOff.contains(d.year * 10000 + d.month * 100 + d.day)) {
+    // Past the published timetable nothing is published, so a weekend
+    // is always a holiday here.
+    final weekend =
+        d.weekday == DateTime.saturday || d.weekday == DateTime.sunday;
+    if (!weekend && !plannerDaysOff.contains(_dayNo(d))) {
       if (share != null) {
-        if (d.weekday != DateTime.sunday) n += _slotsOn(d, start, share);
+        n += _slotsOn(d, start, share);
       } else {
         n += c.weekly[d.weekday] ?? 0;
       }
@@ -409,12 +426,12 @@ class BreakIdea {
   int get days => to.difference(from).inDays + 1;
 }
 
-/// True for a Sunday or a day off from the academic calendar.
+/// True for a weekend with no class published on it, or a day off from the
+/// academic calendar.
 bool isDayOff(DateTime d) =>
-    d.weekday == DateTime.sunday ||
-    plannerDaysOff.contains(d.year * 10000 + d.month * 100 + d.day);
+    weekendOff(d) || plannerDaysOff.contains(_dayNo(d));
 
-/// Long weekends: a Sunday or a run of days off (holidays, breaks) made
+/// Long weekends: a weekend or a run of days off (holidays, breaks) made
 /// longer by taking at most [maxLeave] days of leave next to it. Only breaks
 /// that keep every course safe, miss a class and last three days or more.
 /// Picks the ones

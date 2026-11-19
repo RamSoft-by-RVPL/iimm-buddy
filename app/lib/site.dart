@@ -232,6 +232,14 @@ class Snapshot {
   double get percent => held == 0 ? 100 : attended * 100 / held;
 }
 
+/// Tells the planner which days have a class published (see [weekendOff]).
+void setClassDays(Snapshot snap) {
+  plannerClassDays = {
+    for (final s in snap.sessions)
+      if (!s.cancelled) s.date.year * 10000 + s.date.month * 100 + s.date.day
+  };
+}
+
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -688,6 +696,7 @@ class Store {
           .withSheet(sheetClasses, DateTime.now())
           .withCancelled(cancelled);
       setPlannerShares(snap.courses);
+      setClassDays(snap);
       return snap;
     } catch (_) {
       return null;
@@ -713,6 +722,7 @@ class Store {
         .withSheet(sheetClasses, now)
         .withCancelled(cancelled);
     setPlannerShares(full.courses);
+    setClassDays(full);
     return full;
   }
 }

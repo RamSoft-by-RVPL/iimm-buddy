@@ -124,7 +124,7 @@ class _PlanTabState extends State<PlanTab> {
                     fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                     color: edge
                         ? Brand.onPink
-                        : past || d.weekday == DateTime.sunday
+                        : past || weekendOff(d)
                             ? t.colorScheme.onSurfaceVariant.withOpacity(0.55)
                             : t.colorScheme.onSurface)),
             const SizedBox(height: 4),
@@ -486,7 +486,7 @@ class _PlanTabState extends State<PlanTab> {
       children.add(Padding(
         padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
         child: Text(
-            'One or two days of leave next to a Sunday or a holiday. Tap one '
+            'One or two days of leave next to a weekend or a holiday. Tap one '
             'to check it.',
             style: dim),
       ));
@@ -575,8 +575,9 @@ class _PlanTabState extends State<PlanTab> {
       child: Text(
           'Counted to the end of each course. Where the timetable is not out '
           'yet, the app assumes a full day of $classesPerDay classes (09:00 to '
-          '17:10), Monday to Saturday, and no classes on holidays, breaks and '
-          'exam days from the academic calendar.',
+          '17:10), Monday to Friday. Saturdays and Sundays count as holidays '
+          'until a class is put up for that day, and there are no classes on '
+          'holidays, breaks and exam days from the academic calendar.',
           style: dim),
     ));
 

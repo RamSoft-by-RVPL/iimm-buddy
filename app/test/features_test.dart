@@ -777,23 +777,23 @@ void v28() {
     plannerDaysOff = {};
     int both(DateTime f, DateTime t) =>
         classesBetween(a, f, t) + classesBetween(b, f, t);
-    // Every teaching day is exactly four classes in all.
+    // Every weekday is exactly four classes in all; weekends are holidays.
     for (var d = 16; d <= 28; d++) {
       final day = DateTime(2026, 12, d);
-      expect(both(day, day), day.weekday == DateTime.sunday ? 0 : 4);
+      expect(both(day, day), day.weekday >= DateTime.saturday ? 0 : 4);
     }
-    // Mon 23 to Sun 29 Nov: six teaching days, 24 classes, about 18 and 6.
+    // Mon 23 to Sun 29 Nov: five teaching days, 20 classes, about 15 and 5.
     final mon = DateTime(2026, 11, 23), sun = DateTime(2026, 11, 29);
-    expect(both(mon, sun), 24);
-    expect(classesBetween(a, mon, sun), inInclusiveRange(17, 19));
-    plannerDaysOff = {20261124}; // a holiday drops one day
     expect(both(mon, sun), 20);
     expect(classesBetween(a, mon, sun), inInclusiveRange(14, 16));
+    plannerDaysOff = {20261124}; // a holiday drops one day
+    expect(both(mon, sun), 16);
+    expect(classesBetween(a, mon, sun), inInclusiveRange(11, 14));
     plannerDaysOff = {};
     plannerShare = {};
   });
 
-  test('long weekends stretch a Sunday or a holiday with one or two days', () {
+  test('long weekends stretch a weekend or a holiday with one or two days', () {
     addTearDown(() {
       plannerDaysOff = {};
       plannerShare = {};
@@ -828,10 +828,10 @@ void v28() {
       expect(
           breaksCourse(holidayImpact(c, today, i.from, i.to, 85), 85), false);
     }
-    // Best one: Sun 22 to Wed 25 by taking Mon 23 (4 days for 1 day of leave).
+    // Best one: Sat 21 to Wed 25 by taking Mon 23 (5 days for 1 day of leave).
     expect(
         w.any((i) =>
-            i.from == DateTime(2026, 11, 22) && i.to == DateTime(2026, 11, 25)),
+            i.from == DateTime(2026, 11, 21) && i.to == DateTime(2026, 11, 25)),
         true);
     for (var x = 0; x < w.length; x++) {
       for (var y = x + 1; y < w.length; y++) {

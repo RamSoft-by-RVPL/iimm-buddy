@@ -182,4 +182,16 @@ void main() {
     expect([for (final s in full.sessions) s.faculty],
         ['HPE', 'Prof. Vikram Aithal', 'Prof. Y']);
   });
+
+  test('a weekend is a holiday until a class is put up on it', () {
+    addTearDown(() => plannerClassDays = {});
+    final sat = DateTime(2026, 11, 21), nextSat = DateTime(2026, 11, 28);
+    setClassDays(snapOf([
+      slot(1, '09:00', 'Programming Fundamentals', 'pf', on: sat),
+    ]));
+    expect(isDayOff(sat), isFalse); // a class is on the portal that day
+    expect(isDayOff(nextSat), isTrue);
+    expect(isDayOff(DateTime(2026, 11, 22)), isTrue); // Sunday
+    expect(isDayOff(DateTime(2026, 11, 23)), isFalse); // Monday
+  });
 }
