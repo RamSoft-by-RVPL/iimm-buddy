@@ -13,9 +13,10 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'faculty.dart';
 import 'log.dart';
 import 'sheet.dart';
-import 'site.dart' show Cancelled;
+import 'site.dart' show Cancelled, ExtraClass;
 
 /// The app's server. The release builds pass it in (the SITE_URL variable
 /// of the GitHub repo), so moving to another domain needs no code change.
@@ -338,7 +339,8 @@ Future<bool> pullExams(SharedPreferences prefs) async {
 
 /// This phone's role, given on the admin page. Null for most students.
 class MyRole {
-  MyRole(this.role, this.label, this.batch, this.token, this.canCancel);
+  MyRole(this.role, this.label, this.batch, this.token, this.canCancel,
+      {this.canCalendar = false, this.canPoll = false, this.canUpload = false});
   final String role;
 
   /// "CR", "Mess Secretary", "Hostel Secretary".
@@ -347,7 +349,16 @@ class MyRole {
   /// Who their posts go to ('' = everyone).
   final String batch;
   final String token;
+
+  /// A CR: cancel, move and add classes of the batch.
   final bool canCancel;
+
+  /// A CR: add and take out academic calendar dates.
+  final bool canCalendar;
+  final bool canPoll;
+
+  /// A mess secretary: send in the menu file.
+  final bool canUpload;
 
   String get audience => batch.isEmpty ? 'everyone' : batch;
 }
@@ -356,8 +367,12 @@ MyRole? decodeRole(String? raw) {
   try {
     final j = jsonDecode(raw ?? '') as Map;
     if (j['role'] == null || '${j['token'] ?? ''}'.isEmpty) return null;
+    final can = (j['can'] as Map?) ?? {};
     return MyRole('${j['role']}', '${j['label']}', '${j['batch'] ?? ''}',
-        '${j['token']}', (j['can'] as Map?)?['cancel'] == true);
+        '${j['token']}', can['cancel'] == true,
+        canCalendar: can['calendar'] == true,
+        canPoll: can['poll'] == true,
+        canUpload: can['upload'] == true);
   } catch (_) {
     return null;
   }
@@ -430,10 +445,15 @@ class MyPost {
 
 /// What the role holder posted, and what a new post would reach.
 class MyPosts {
-  MyPosts(this.posts, this.cancelled, this.cancelledIds, this.reach);
+  MyPosts(this.posts, this.cancelled, this.cancelledIds, this.reach,
+      {this.extra = const [], this.polls = const []});
   final List<MyPost> posts;
   final List<Cancelled> cancelled;
   final List<int> cancelledIds;
+
+  /// Classes the CR added or moved.
+  final List<ExtraClass> extra;
+  final List<Poll> polls;
 
   /// Phones a new post goes to (active in the last week).
   final int reach;
@@ -456,7 +476,9 @@ Future<MyPosts> myPosts(SharedPreferences prefs) async {
       posts,
       cancelled,
       [for (final c in rows) (c['id'] as num).toInt()],
-      (j['reach'] as num?)?.toInt() ?? 0);
+      (j['reach'] as num?)?.toInt() ?? 0,
+      extra: ExtraClass.decode(jsonEncode({'classes': j['extra'] ?? []})),
+      polls: decodePolls(jsonEncode({'polls': j['polls'] ?? []})));
 }
 
 Future<void> takeBackPost(SharedPreferences prefs, int id) =>
@@ -480,3 +502,161 @@ Future<void> cancelClasses(SharedPreferences prefs,
 
 Future<void> putBackClass(SharedPreferences prefs, int id) => _asRole(
     prefs, 'DELETE', '/api/cancelled?batch=${myRole(prefs)!.batch}&id=$id');
+
+/// Fetches the classes the CR or admin added or moved. True when they changed.
+Future<bool> pullExtra(SharedPreferences prefs) async {
+  final batch = batchKey(prefs.getString('summary'));
+  if (batch == null) return false;
+  final (status, text) =
+      await _send('GET', Uri.parse('$apiBase/api/extra?batch=$batch'));
+  if (status != 200) return false;
+  if (text == prefs.getString('extra_classes')) return false;
+  await prefs.setString('extra_classes', text);
+  return true;
+}
+
+String _day(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// A CR adds a class, or with [from] (date, start, course) moves one.
+Future<void> addClass(SharedPreferences prefs, DateTime day, String start,
+    String end, String course,
+    {String room = '',
+    String why = '',
+    (DateTime, String, String)? from,
+    int? addedId}) {
+  final r = myRole(prefs)!;
+  return _asRole(prefs, 'POST', '/api/extra?batch=${r.batch}', {
+    if (addedId != null) 'id': addedId,
+    'd': _day(day),
+    's': start,
+    'e': end,
+    'c': course,
+    'room': room,
+    'why': why,
+    if (from != null && addedId == null)
+      'move': {'d': _day(from.$1), 's': from.$2, 'c': from.$3},
+  });
+}
+
+Future<void> removeAddedClass(SharedPreferences prefs, int id) =>
+    _asRole(prefs, 'DELETE', '/api/extra?batch=${myRole(prefs)!.batch}&id=$id');
+
+/// A CR sends the batch's academic calendar again with dates added or
+/// taken out.
+Future<void> saveCalendar(SharedPreferences prefs, String title,
+    List<Map<String, String>> events) async {
+  final r = myRole(prefs)!;
+  await _asRole(prefs, 'POST', '/api/calendar?batch=${r.batch}',
+      {'title': title, 'events': events});
+  // Fetch it back as every phone does, so this phone shows it at once.
+  await prefs.remove('acal_remote');
+  await pullCalendar(prefs);
+}
+
+// ---- Polls.
+
+class Poll {
+  Poll(this.id, this.question, this.options, this.votes, this.open, this.closes,
+      {this.mine, this.from = ''});
+  final int id;
+  final String question;
+  final List<String> options;
+  final List<int> votes;
+  final bool open;
+  final DateTime closes;
+
+  /// The answer this phone picked, if any.
+  final int? mine;
+
+  /// "CR", "Mess Secretary", or '' from the admin.
+  final String from;
+
+  int get total => votes.fold(0, (a, b) => a + b);
+}
+
+List<Poll> decodePolls(String? raw) {
+  try {
+    return [
+      for (final p in (jsonDecode(raw ?? '') as Map)['polls'] as List)
+        Poll(
+          (p['id'] as num).toInt(),
+          '${p['question']}',
+          [for (final o in p['options'] as List) '$o'],
+          [for (final v in (p['votes'] as List? ?? [])) (v as num).toInt()],
+          p['open'] == true,
+          DateTime.tryParse('${p['closes']}')?.toLocal() ?? DateTime.now(),
+          mine: (p['mine'] as num?)?.toInt(),
+          from: '${p['from'] ?? ''}',
+        )
+    ];
+  } catch (_) {
+    return [];
+  }
+}
+
+/// This phone's polls (open ones and the last two weeks'), also kept for
+/// showing without a connection.
+Future<List<Poll>> pullPolls(SharedPreferences prefs) async {
+  final batch = batchKey(prefs.getString('summary')) ?? '';
+  final (status, text) = await _send('GET',
+      Uri.parse('$apiBase/api/polls?batch=$batch&user=${installId(prefs)}'));
+  if (status != 200) return decodePolls(prefs.getString('polls'));
+  await prefs.setString('polls', text);
+  return decodePolls(text);
+}
+
+Future<List<Poll>> vote(SharedPreferences prefs, int poll, int choice) async {
+  final (status, text) = await _send('POST', Uri.parse('$apiBase/api/polls'),
+      body: jsonEncode({
+        'action': 'vote',
+        'poll': poll,
+        'user': installId(prefs),
+        'choice': choice
+      }));
+  Map j;
+  try {
+    j = jsonDecode(text) as Map;
+  } catch (_) {
+    j = {};
+  }
+  if (status != 200) {
+    throw Exception('${j['error'] ?? 'Could not vote ($status)'}');
+  }
+  final raw = jsonEncode({'polls': j['polls'] ?? []});
+  await prefs.setString('polls', raw);
+  return decodePolls(raw);
+}
+
+/// A role holder asks the people their role covers.
+Future<void> createPoll(SharedPreferences prefs, String question,
+        List<String> options, int hours) =>
+    _asRole(prefs, 'POST', '/api/polls', {
+      'action': 'create',
+      'question': question,
+      'options': options,
+      'hours': hours,
+    });
+
+Future<void> closePoll(SharedPreferences prefs, int id) =>
+    _asRole(prefs, 'POST', '/api/polls', {'action': 'close', 'poll': id});
+
+/// A mess secretary sends in the menu file for the admin to publish.
+Future<void> uploadMenu(SharedPreferences prefs, String name, String mime,
+        List<int> bytes, String note) =>
+    _asRole(prefs, 'POST', '/api/uploads', {
+      'name': name,
+      'mime': mime,
+      'data': base64Encode(bytes),
+      'note': note,
+    });
+
+/// Fetches the teachers' email directory. True when it changed.
+Future<bool> pullFaculty(SharedPreferences prefs) async {
+  final (status, text) = await _send('GET', Uri.parse('$apiBase/api/faculty'));
+  if (status != 200) return false;
+  teacherDirectory = decodeTeachers(text);
+  if (text == prefs.getString('faculty')) return false;
+  await prefs.setString('faculty', text);
+  return true;
+}

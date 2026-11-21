@@ -58,14 +58,34 @@ module.exports = async (req, res) => {
     const [{ reach }] = await sql`
       SELECT count(*)::int AS reach FROM users
       WHERE (${me.batch} = '' OR batch = ${me.batch}) AND last_seen > now() - interval '7 days'`;
+    // Cancelled classes of the batch, except the old times of moved classes
+    // (those come with the move, below).
     const cancelled = me.can.cancel ? await sql`
-      SELECT id, to_char(d, 'YYYY-MM-DD') AS d, s, c, why FROM cancellations
+      SELECT id, to_char(d, 'YYYY-MM-DD') AS d, s, c, why FROM cancellations k
+      WHERE batch = ${me.batch} AND d >= (now() AT TIME ZONE 'Asia/Kolkata')::date - 1
+        AND NOT EXISTS (SELECT 1 FROM extra_classes x WHERE x.cancel_id = k.id)
+      ORDER BY d, s, id` : [];
+    const extra = me.can.cancel ? await sql`
+      SELECT id, to_char(d, 'YYYY-MM-DD') AS d, s, e, c, room, why, cancel_id IS NOT NULL AS moved
+      FROM extra_classes
       WHERE batch = ${me.batch} AND d >= (now() AT TIME ZONE 'Asia/Kolkata')::date - 1
       ORDER BY d, s, id` : [];
+    const polls = await sql`
+      SELECT p.id, p.question, p.options, p.created, p.closes, (p.closed OR p.closes <= now()) AS ended,
+        COALESCE((SELECT json_agg(json_build_object('c', v.choice, 'n', v.n)) FROM
+          (SELECT choice, count(*)::int AS n FROM poll_votes WHERE poll_id = p.id GROUP BY choice) v), '[]') AS counts
+      FROM polls p WHERE p.by_user = ${me.user_id} AND p.created > now() - interval '14 days'
+      ORDER BY p.created DESC LIMIT 20`;
     return res.status(200).json({
       reach,
       notices: notices.map((n) => ({ ...n, id: Number(n.id) })),
       cancelled: cancelled.map((c) => ({ ...c, id: Number(c.id) })),
+      extra: extra.map((x) => ({ ...x, id: Number(x.id) })),
+      polls: polls.map((p) => {
+        const votes = p.options.map(() => 0);
+        for (const x of p.counts || []) if (x.c >= 0 && x.c < votes.length) votes[x.c] = x.n;
+        return { id: Number(p.id), question: p.question, options: p.options, votes, closes: p.closes, open: !p.ended };
+      }),
     });
   }
 

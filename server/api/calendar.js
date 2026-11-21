@@ -3,9 +3,13 @@
 //   GET    /api/calendar?batch=bs-2026-2030   anyone
 //   POST   /api/calendar?batch=bs-2026-2030   admin: {title, events:[{title, from, to, kind, group}]}
 //   DELETE /api/calendar?batch=bs-2026-2030   admin: remove it
+//
+// A CR (header X-Role) may also send the whole list again for their own
+// batch, to add or take out dates.
 
 const { sql, isAdmin, text } = require('../lib/db');
 const { push, topicFor, sendDue } = require('../lib/push');
+const { roleOf } = require('../lib/roles');
 
 const BATCH = /^[a-z0-9-]{2,40}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,7 +42,10 @@ module.exports = async (req, res) => {
       events: rows[0].events,
     });
   }
-  if (!isAdmin(req)) return res.status(401).json({ error: 'not allowed' });
+  const admin = isAdmin(req);
+  const role = admin ? null : await roleOf(req);
+  const cr = role && role.can.calendar && role.batch === batch;
+  if (!admin && !(cr && req.method === 'POST')) return res.status(401).json({ error: 'not allowed' });
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'POST') {

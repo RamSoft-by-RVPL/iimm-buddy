@@ -5,9 +5,9 @@ const ROLES = { cr: 'CR', mess: 'Mess Secretary', hostel: 'Hostel Secretary' };
 
 /** What each role may do. */
 const CAN = {
-  cr: { notice: true, cancel: true },
-  mess: { notice: true, cancel: false },
-  hostel: { notice: true, cancel: false },
+  cr: { notice: true, cancel: true, calendar: true, poll: true },
+  mess: { notice: true, cancel: false, calendar: false, poll: true, upload: true },
+  hostel: { notice: true, cancel: false, calendar: false, poll: true },
 };
 
 /** The role row of the phone that sent [req] (header X-Role), or null. */

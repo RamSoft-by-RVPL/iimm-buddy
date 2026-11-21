@@ -60,3 +60,12 @@ Future<String> deviceName() async =>
 
 /// Asks Android to let the app run in the background without limits.
 Future<void> askBatteryUnrestricted() => _channel.invokeMethod('batteryAsk');
+
+/// Lets the user pick a file of one of [types] ("image/*",
+/// "application/pdf"): (name, mime type, bytes), or null when they backed
+/// out. Throws when the file is over 12 MB or cannot be read.
+Future<(String, String, List<int>)?> pickFile(List<String> types) async {
+  final m = await _channel.invokeMethod<Map<Object?, Object?>>('pickFile', types);
+  if (m == null) return null;
+  return ('${m['name']}', '${m['mime']}', (m['bytes'] as List).cast<int>());
+}

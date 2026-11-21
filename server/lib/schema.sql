@@ -109,3 +109,64 @@ CREATE TABLE IF NOT EXISTS roles (
 -- The install id of the student who posted a message ('' = the admin).
 ALTER TABLE notices ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';
 ALTER TABLE cancellations ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';
+
+-- Classes a CR (or the admin) added or moved to a new time. A moved class
+-- also has a row in cancellations for its old time (cancel_id).
+CREATE TABLE IF NOT EXISTS extra_classes (
+  id        bigserial PRIMARY KEY,
+  batch     text NOT NULL,
+  d         date NOT NULL,
+  s         text NOT NULL,              -- start 'HH:MM'
+  e         text NOT NULL,              -- end 'HH:MM'
+  c         text NOT NULL,              -- course as on the timetable
+  room      text NOT NULL DEFAULT '',
+  why       text NOT NULL DEFAULT '',
+  cancel_id bigint,
+  by_user   text NOT NULL DEFAULT '',
+  created   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS extra_classes_batch_d ON extra_classes (batch, d);
+
+-- Quick polls from the admin, a CR or a secretary. One vote per phone
+-- (install id); a vote can be changed while the poll is open.
+CREATE TABLE IF NOT EXISTS polls (
+  id       bigserial PRIMARY KEY,
+  batch    text NOT NULL DEFAULT '',    -- '' = everyone
+  question text NOT NULL,
+  options  jsonb NOT NULL,              -- ["Yes", "No"]
+  by_user  text NOT NULL DEFAULT '',    -- install id of a role holder, '' = admin
+  sent_by  text NOT NULL DEFAULT '',
+  created  timestamptz NOT NULL DEFAULT now(),
+  closes   timestamptz NOT NULL,
+  closed   boolean NOT NULL DEFAULT false
+);
+CREATE TABLE IF NOT EXISTS poll_votes (
+  poll_id bigint NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  user_id text NOT NULL,
+  choice  int NOT NULL,
+  at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (poll_id, user_id)
+);
+
+-- Files a mess secretary sends in (the week's menu as a photo or PDF), for
+-- the admin to publish.
+CREATE TABLE IF NOT EXISTS uploads (
+  id      bigserial PRIMARY KEY,
+  kind    text NOT NULL DEFAULT 'menu',
+  by_user text NOT NULL,
+  sent_by text NOT NULL DEFAULT '',
+  name    text NOT NULL DEFAULT '',
+  mime    text NOT NULL DEFAULT '',
+  size    int NOT NULL DEFAULT 0,
+  note    text NOT NULL DEFAULT '',
+  data    bytea NOT NULL,
+  created timestamptz NOT NULL DEFAULT now(),
+  done    boolean NOT NULL DEFAULT false
+);
+
+-- Teachers' institute email addresses, for the Email button in the app.
+CREATE TABLE IF NOT EXISTS faculty (
+  name    text PRIMARY KEY,
+  email   text NOT NULL,
+  updated timestamptz NOT NULL DEFAULT now()
+);

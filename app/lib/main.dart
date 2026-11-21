@@ -10,7 +10,9 @@ import 'backend.dart';
 import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
+import 'faculty.dart';
 import 'gate_mail_ui.dart';
+import 'polls_ui.dart';
 import 'role_ui.dart';
 import 'my_reminders.dart';
 import 'health.dart';
@@ -37,6 +39,7 @@ import 'update.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = Store(await SharedPreferences.getInstance());
+  teacherDirectory = decodeTeachers(store.prefs.getString('faculty'));
   final session = Session();
   try {
     await initNotifications();
@@ -492,6 +495,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
           exams:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             RoleCard(store: store, snap: s),
+            PollsCard(store: store),
             MenuCard(
                 store: store,
                 onChanged: () {

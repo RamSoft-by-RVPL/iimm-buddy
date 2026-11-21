@@ -206,6 +206,54 @@ class Snapshot {
         sessions: marked);
   }
 
+  /// The same data with the classes the CR or admin added or moved here.
+  /// They show like classes from the mailed timetable ("not on portal yet")
+  /// until the attendance site lists the class at that time itself.
+  Snapshot withExtra(List<ExtraClass> extra, DateTime now) {
+    if (extra.isEmpty) return this;
+    final add = <ClassSlot>[];
+    for (final x in extra) {
+      final named = matchCourse(x.course, courses);
+      final there = [...sessions, ...add].any((s) =>
+          !s.cancelled &&
+          s.start == x.start &&
+          _sameDay(s.date, x.date) &&
+          (named == null
+              ? s.course.toLowerCase() == x.course.toLowerCase()
+              : courseOf(s)?.id == named.id));
+      if (there) continue;
+      final p = x.end.split(':');
+      final ends = DateTime(
+          x.date.year,
+          x.date.month,
+          x.date.day,
+          int.tryParse(p.first) ?? 0,
+          p.length > 1 ? int.tryParse(p[1]) ?? 0 : 0);
+      add.add(ClassSlot(
+          -(1 << 40) - x.id,
+          x.date,
+          x.start,
+          x.end,
+          x.room,
+          named?.name ?? x.course,
+          named?.id ?? '',
+          'Not Marked',
+          ends.isAfter(now),
+          fromSheet: true,
+          why: x.why.isEmpty ? 'Added by your CR' : x.why));
+    }
+    if (add.isEmpty) return this;
+    return Snapshot(
+        studentName: studentName,
+        roll: roll,
+        courses: courses,
+        syncedAt: syncedAt,
+        sessions: [...sessions, ...add]..sort((a, b) {
+            final d = a.date.compareTo(b.date);
+            return d != 0 ? d : a.start.compareTo(b.start);
+          }));
+  }
+
   /// The same data with classes that dropped off the attendance site shown
   /// again, as cancelled. Call before [withSheet], so the mailed timetable
   /// does not bring them back as "not on portal yet".
@@ -335,6 +383,38 @@ ClassSlot _slotOf(Map j) => ClassSlot(
     faculty: '${j['f'] ?? ''}');
 
 /// A class the admin has called off (from /api/cancelled).
+/// A class the CR or admin added, or moved to this time.
+class ExtraClass {
+  ExtraClass(this.id, this.date, this.start, this.end, this.course,
+      {this.room = '', this.why = '', this.moved = false});
+  final int id;
+  final DateTime date;
+  final String start;
+  final String end;
+  final String course;
+  final String room;
+  final String why;
+
+  /// Moved here from another time (that one shows as cancelled).
+  final bool moved;
+
+  static List<ExtraClass> decode(String? raw) {
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      return [
+        for (final j in (jsonDecode(raw) as Map)['classes'] as List)
+          ExtraClass((j['id'] as num).toInt(), DateTime.parse('${j['d']}'),
+              '${j['s']}', '${j['e']}', '${j['c']}',
+              room: '${j['room'] ?? ''}',
+              why: '${j['why'] ?? ''}',
+              moved: j['moved'] == true)
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
+}
+
 class Cancelled {
   Cancelled(this.date, this.start, this.course, [this.why = '']);
   final DateTime date;
@@ -579,6 +659,10 @@ class Store {
   List<Cancelled> get cancelled =>
       Cancelled.decode(prefs.getString('cancelled'));
 
+  /// Classes the CR or admin added or moved.
+  List<ExtraClass> get extraClasses =>
+      ExtraClass.decode(prefs.getString('extra_classes'));
+
   /// Classes from the timetable sheets added so far.
   List<SheetClass> get sheetClasses => decodeSheet(prefs.getString('tt_sheet'));
 
@@ -694,6 +778,7 @@ class Store {
       final snap = parseSummary(raw, at, totals)
           .withGone(gone)
           .withSheet(sheetClasses, DateTime.now())
+          .withExtra(extraClasses, DateTime.now())
           .withCancelled(cancelled);
       setPlannerShares(snap.courses);
       setClassDays(snap);
@@ -720,6 +805,7 @@ class Store {
     final full = snap
         .withGone(gone)
         .withSheet(sheetClasses, now)
+        .withExtra(extraClasses, now)
         .withCancelled(cancelled);
     setPlannerShares(full.courses);
     setClassDays(full);

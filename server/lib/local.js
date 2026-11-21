@@ -21,6 +21,7 @@ http.createServer(async (req, res) => {
   const raw = Buffer.concat(chunks);
   res.status = (c) => { res.statusCode = c; return res; };
   res.json = (o) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); };
+  res.send = (x) => res.end(x);
   try {
     if (url.pathname === '/api/auth' && req.method === 'GET') {
       return res.json({ signedIn: true, user: 'local test', hasAdmin: true });
@@ -29,6 +30,9 @@ http.createServer(async (req, res) => {
       const file = path.join(root, 'api', url.pathname.slice(5) + '.js');
       if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such endpoint' });
       req.query = Object.fromEntries(url.searchParams);
+      // LOCAL_AS_BATCH=zz-test: every batch asked for is answered from that
+      // batch, so a phone of a real batch can try things on a test batch.
+      if (process.env.LOCAL_AS_BATCH && req.query.batch) req.query.batch = process.env.LOCAL_AS_BATCH;
       // A request acting as a student (X-Role) or as nobody (X-Guest) is not the admin.
       if (!req.headers['x-role'] && !req.headers['x-guest']) req.headers.authorization = 'Bearer local-only';
       const type = req.headers['content-type'] || '';

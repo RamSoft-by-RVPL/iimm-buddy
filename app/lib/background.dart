@@ -17,6 +17,7 @@ import 'net.dart';
 import 'notify.dart';
 import 'planner.dart';
 import 'my_reminders.dart';
+import 'week_summary.dart';
 import 'sheet.dart';
 import 'site.dart';
 import 'update.dart';
@@ -189,6 +190,21 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
       logEvent(store.prefs, 'cancelled_new', '${store.cancelled.length}');
     }
   } catch (_) {}
+  // Classes the CR added or moved: shown and announced like any change.
+  try {
+    if (await pullExtra(store.prefs)) {
+      cancelledChanged = true;
+      logEvent(store.prefs, 'extra_new', '${store.extraClasses.length}');
+    }
+  } catch (_) {}
+  // Teachers' email addresses.
+  try {
+    await pullFaculty(store.prefs);
+  } catch (_) {}
+  // Polls, so the home screen can show them without waiting.
+  try {
+    await pullPolls(store.prefs);
+  } catch (_) {}
   List<SheetClass>? fresh;
   try {
     fresh = await pullTimetable(store.prefs);
@@ -346,6 +362,10 @@ Future<void> afterSync(Store store, Snapshot? old, Snapshot snap,
   } catch (_) {}
   try {
     await scheduleMyReminders(store); // keeps repeating ones rolling
+  } catch (_) {}
+  try {
+    await scheduleWeekSummary(store, snap,
+        deadlines: Moodle(prefs).cachedDeadlines ?? const []);
   } catch (_) {}
   try {
     await scheduleDishAlerts(store);

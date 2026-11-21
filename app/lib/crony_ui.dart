@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'mascot.dart';
 import 'planner.dart';
 import 'site.dart';
+import 'faculty.dart';
 import 'theme.dart';
 import 'ui_common.dart';
 
@@ -667,6 +668,10 @@ class _CourseSheetState extends State<CourseSheet> {
                         ],
                     ]),
               ),
+              TeacherRows(
+                  faculty:
+                      s?.faculty.isNotEmpty == true ? s!.faculty : c.faculty,
+                  course: c.name),
               ...widget.extra,
             ]),
       ),
