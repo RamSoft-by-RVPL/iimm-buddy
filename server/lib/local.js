@@ -1,6 +1,7 @@
 // Runs the admin page and the real API handlers on this machine for testing:
 //   node lib/local.js [port]
-// Sign-in is skipped (every request counts as the admin), so never expose
+// Sign-in is skipped (every request counts as the admin unless it carries
+// X-Role or X-Guest), so never expose
 // this beyond localhost. It talks to the real database: use a test batch.
 const fs = require('fs');
 const http = require('http');
@@ -28,7 +29,8 @@ http.createServer(async (req, res) => {
       const file = path.join(root, 'api', url.pathname.slice(5) + '.js');
       if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such endpoint' });
       req.query = Object.fromEntries(url.searchParams);
-      req.headers.authorization = 'Bearer local-only';
+      // A request acting as a student (X-Role) or as nobody (X-Guest) is not the admin.
+      if (!req.headers['x-role'] && !req.headers['x-guest']) req.headers.authorization = 'Bearer local-only';
       const type = req.headers['content-type'] || '';
       req.body = type.includes('json') ? JSON.parse(raw.toString() || '{}') : raw;
       return await require(file)(req, res);

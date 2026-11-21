@@ -136,6 +136,10 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
   } catch (_) {
     // No connection: they come with the next check.
   }
+  // Whether the admin made this phone a CR or a secretary.
+  try {
+    await pullRole(store.prefs);
+  } catch (_) {}
   // The academic calendar (exams, holidays, breaks).
   var calendarChanged = false;
   try {

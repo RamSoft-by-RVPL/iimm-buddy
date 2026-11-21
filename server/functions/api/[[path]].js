@@ -16,6 +16,7 @@ const handlers = {
   notices: () => require('../../api/notices.js'),
   poke: () => require('../../api/poke.js'),
   sheet: () => require('../../api/sheet.js'),
+  roles: () => require('../../api/roles.js'),
   timetable: () => require('../../api/timetable.js'),
 };
 

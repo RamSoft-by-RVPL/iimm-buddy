@@ -51,6 +51,8 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
         final merged = await withSharedTimetable(store, old, alert: true);
         await afterSync(store, old, merged, alert: false);
       }
+    } else if (type == 'role') {
+      await pullRole(prefs);
     } else if (type == 'update') {
       final u = await checkUpdate(prefs);
       if (u != null && prefs.getInt('upd_told') != u.build) {

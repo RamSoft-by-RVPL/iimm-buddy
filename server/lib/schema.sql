@@ -92,3 +92,20 @@ CREATE TABLE IF NOT EXISTS cancellations (
   created timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS cancellations_batch_d ON cancellations (batch, d);
+
+-- Students who may post from the app: class reps, mess and hostel
+-- secretaries. Keyed by the app's install id; the token is what the phone
+-- sends with each post.
+CREATE TABLE IF NOT EXISTS roles (
+  user_id text PRIMARY KEY,
+  role    text NOT NULL,                -- cr | mess | hostel
+  batch   text NOT NULL DEFAULT '',     -- who they post to ('' = everyone)
+  name    text NOT NULL DEFAULT '',
+  roll    text NOT NULL DEFAULT '',
+  token   text NOT NULL UNIQUE,
+  set_by  text NOT NULL DEFAULT '',
+  created timestamptz NOT NULL DEFAULT now()
+);
+-- The install id of the student who posted a message ('' = the admin).
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';
+ALTER TABLE cancellations ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';

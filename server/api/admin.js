@@ -51,7 +51,7 @@ module.exports = async (req, res) => {
   // Each message with how many phones said they got it, out of the phones
   // it was meant for that were active in the last week.
   const notices = (await sql`
-    SELECT n.id, n.batch, n.title, n.body, n.sent_by, n.created, n.send_at, n.pushed, n.users,
+    SELECT n.id, n.batch, n.title, n.body, n.sent_by, n.by_user, n.created, n.send_at, n.pushed, n.users,
       (SELECT count(DISTINCT e.user_id)::int FROM events e
         WHERE e.kind IN ('notice_got', 'notice_shown') AND e.detail = '#' || n.id) AS received,
       CASE WHEN cardinality(n.users) > 0 THEN cardinality(n.users) ELSE

@@ -8,9 +8,12 @@
 //   d  date 'YYYY-MM-DD'    s  start 'HH:MM'
 //   c  course as on the timetable ('' = every class starting then)
 //   notice  true also sends a notification (for phones on older app versions)
+//
+// A CR (header X-Role, see api/roles.js) may do the same for their own batch.
 
 const { sql, isAdmin, text } = require('../lib/db');
 const { push, topicFor, pushNotice } = require('../lib/push');
+const { roleOf } = require('../lib/roles');
 
 const BATCH = /^[a-z0-9-]{2,40}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -46,7 +49,12 @@ module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');
     return res.status(200).json({ classes: await list(batch) });
   }
-  if (!isAdmin(req)) return res.status(401).json({ error: 'not allowed' });
+  const admin = isAdmin(req);
+  const role = admin ? null : await roleOf(req);
+  if (!admin && !(role && role.can.cancel && role.batch === batch)) {
+    return res.status(401).json({ error: 'not allowed' });
+  }
+  const byUser = role ? role.user_id : '';
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'POST') {
@@ -55,8 +63,8 @@ module.exports = async (req, res) => {
     const why = text(req.body.why, 200);
     for (const x of classes) {
       await sql`
-        INSERT INTO cancellations (batch, d, s, c, why)
-        SELECT ${batch}, ${x.d}, ${x.s}, ${x.c}, ${why}
+        INSERT INTO cancellations (batch, d, s, c, why, by_user)
+        SELECT ${batch}, ${x.d}, ${x.s}, ${x.c}, ${why}, ${byUser}
         WHERE NOT EXISTS (SELECT 1 FROM cancellations
           WHERE batch = ${batch} AND d = ${x.d} AND s = ${x.s} AND c = ${x.c})`;
     }
@@ -64,14 +72,14 @@ module.exports = async (req, res) => {
     const pushed = await push(topicFor(batch), { data: { type: 'timetable' } });
     let noticed = null;
     if (req.body.notice === true) {
-      const title = classes.length === 1
+      const title = (role ? `${role.label}: ` : '') + (classes.length === 1
         ? `Class cancelled: ${classes[0].c || 'class at ' + classes[0].s}`
-        : `${classes.length} classes cancelled`;
+        : `${classes.length} classes cancelled`);
       const body = [classes.map((x) => (classes.length > 1 && x.c ? x.c + ' · ' : '') + when(x.d, x.s)).join('; '), why]
         .filter(Boolean).join('. ').slice(0, 500);
       const rows = await sql`
-        INSERT INTO notices (batch, title, body, pushed)
-        VALUES (${batch}, ${title}, ${body}, true)
+        INSERT INTO notices (batch, title, body, pushed, sent_by, by_user)
+        VALUES (${batch}, ${title}, ${body}, true, ${role ? `${role.name} (${role.label})` : ''}, ${byUser})
         RETURNING id, batch, title, body, users`;
       noticed = await pushNotice(rows[0]);
     }

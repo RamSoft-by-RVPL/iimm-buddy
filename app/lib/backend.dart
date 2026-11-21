@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'log.dart';
 import 'sheet.dart';
+import 'site.dart' show Cancelled;
 
 /// The app's server. The release builds pass it in (the SITE_URL variable
 /// of the GitHub repo), so moving to another domain needs no code change.
@@ -84,7 +85,7 @@ List<(String?, Uri)> _routes(Uri url) {
 /// One request to the app's server: (status, body). Tries the normal way
 /// first, then each known address, then the server's old name.
 Future<(int, String)> apiSend(String method, Uri url,
-    {String? body, String? key}) async {
+    {String? body, String? key, Map<String, String> headers = const {}}) async {
   Object? failure;
   for (final (address, link) in _routes(url)) {
     final client = address == null
@@ -93,6 +94,7 @@ Future<(int, String)> apiSend(String method, Uri url,
     try {
       final req = await client.openUrl(method, link);
       if (key != null) req.headers.set('Authorization', 'Bearer $key');
+      headers.forEach(req.headers.set);
       if (body != null) {
         req.headers.contentType = ContentType.json;
         req.add(utf8.encode(body));
@@ -161,8 +163,8 @@ Future<void> apiDownload(Uri url, File target,
 }
 
 Future<(int, String)> _send(String method, Uri url,
-        {String? body, String? key}) =>
-    apiSend(method, url, body: body, key: key);
+        {String? body, String? key, Map<String, String> headers = const {}}) =>
+    apiSend(method, url, body: body, key: key, headers: headers);
 
 /// Fetches the batch timetable. Returns the classes when the server has a
 /// newer one than this phone (and stores them), otherwise null.
@@ -331,3 +333,128 @@ Future<bool> pullExams(SharedPreferences prefs) async {
   await prefs.setString('exams_remote', updated);
   return true;
 }
+
+// ---- Students the admin lets post: CR, mess and hostel secretaries.
+
+/// This phone's role, given on the admin page. Null for most students.
+class MyRole {
+  MyRole(this.role, this.label, this.batch, this.token, this.canCancel);
+  final String role;
+
+  /// "CR", "Mess Secretary", "Hostel Secretary".
+  final String label;
+
+  /// Who their posts go to ('' = everyone).
+  final String batch;
+  final String token;
+  final bool canCancel;
+
+  String get audience => batch.isEmpty ? 'everyone' : batch;
+}
+
+MyRole? decodeRole(String? raw) {
+  try {
+    final j = jsonDecode(raw ?? '') as Map;
+    if (j['role'] == null || '${j['token'] ?? ''}'.isEmpty) return null;
+    return MyRole('${j['role']}', '${j['label']}', '${j['batch'] ?? ''}',
+        '${j['token']}', (j['can'] as Map?)?['cancel'] == true);
+  } catch (_) {
+    return null;
+  }
+}
+
+MyRole? myRole(SharedPreferences prefs) =>
+    decodeRole(prefs.getString('my_role'));
+
+/// Asks the server whether this phone has a role. True when it changed.
+Future<bool> pullRole(SharedPreferences prefs) async {
+  final (status, text) = await _send('POST', Uri.parse('$apiBase/api/roles'),
+      body: jsonEncode({'action': 'me', 'user': installId(prefs)}));
+  if (status != 200) return false;
+  final before = prefs.getString('my_role');
+  final now = decodeRole(text) == null ? '' : text;
+  if ((before ?? '') == now) return false;
+  await prefs.setString('my_role', now);
+  return true;
+}
+
+Future<Map> _asRole(SharedPreferences prefs, String method, String path,
+    [Object? body]) async {
+  final r = myRole(prefs);
+  if (r == null) throw Exception('You no longer have a role');
+  final (status, text) = await _send(method, Uri.parse('$apiBase$path'),
+      headers: {'X-Role': r.token},
+      body: body == null ? null : jsonEncode(body));
+  Map j;
+  try {
+    j = jsonDecode(text) as Map;
+  } catch (_) {
+    j = {};
+  }
+  if (status == 401) {
+    await pullRole(prefs);
+    throw Exception('Not allowed. Your role may have been taken away');
+  }
+  if (status != 200) {
+    throw Exception('${j['error'] ?? 'The server refused it ($status)'}');
+  }
+  return j;
+}
+
+/// Sends a notification as the role holder, now or at [at].
+/// Returns true when it was scheduled rather than sent.
+Future<bool> postUpdate(SharedPreferences prefs, String title, String body,
+    {DateTime? at}) async {
+  final j = await _asRole(prefs, 'POST', '/api/notices', {
+    'title': title,
+    'body': body,
+    if (at != null) 'send_at': at.toUtc().toIso8601String(),
+  });
+  return j['scheduled'] != null;
+}
+
+/// One message a role holder posted.
+class MyPost {
+  MyPost(this.id, this.title, this.body, this.at);
+  final int id;
+  final String title;
+  final String body;
+  final DateTime at;
+}
+
+/// What the role holder posted in the last two weeks, and (for a CR) the
+/// classes of their batch called off.
+Future<(List<MyPost>, List<Cancelled>, List<int>)> myPosts(
+    SharedPreferences prefs) async {
+  final j = await _asRole(prefs, 'POST', '/api/roles', {'action': 'mine'});
+  final posts = [
+    for (final n in (j['notices'] as List? ?? []))
+      MyPost(n['id'] as int, '${n['title']}', '${n['body'] ?? ''}',
+          DateTime.tryParse('${n['send_at']}')?.toLocal() ?? DateTime.now())
+  ];
+  final rows = (j['cancelled'] as List? ?? []);
+  final cancelled = Cancelled.decode(jsonEncode({'classes': rows}));
+  return (posts, cancelled, [for (final c in rows) (c['id'] as num).toInt()]);
+}
+
+Future<void> takeBackPost(SharedPreferences prefs, int id) =>
+    _asRole(prefs, 'DELETE', '/api/notices?id=$id');
+
+/// A CR calls off classes of their batch: each is (date, start, course).
+Future<void> cancelClasses(SharedPreferences prefs,
+    List<(DateTime, String, String)> classes, String why,
+    {bool notice = false}) {
+  final r = myRole(prefs)!;
+  String day(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  return _asRole(prefs, 'POST', '/api/cancelled?batch=${r.batch}', {
+    'classes': [
+      for (final (d, s, c) in classes) {'d': day(d), 's': s, 'c': c}
+    ],
+    'why': why,
+    'notice': notice,
+  });
+}
+
+Future<void> putBackClass(SharedPreferences prefs, int id) => _asRole(
+    prefs, 'DELETE', '/api/cancelled?batch=${myRole(prefs)!.batch}&id=$id');

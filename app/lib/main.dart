@@ -11,6 +11,7 @@ import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
 import 'gate_mail_ui.dart';
+import 'role_ui.dart';
 import 'my_reminders.dart';
 import 'health.dart';
 import 'inbox.dart';
@@ -490,6 +491,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
           onOpenRegister: () => setState(() => tab = 1),
           exams:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            RoleCard(store: store, snap: s),
             MenuCard(
                 store: store,
                 onChanged: () {

@@ -10,7 +10,7 @@
   @media (prefers-color-scheme: dark) { :root { --bg:#161313; --card:#211c1c; --ink:#efe8e6; --dim:#a39896; --line:#3a3231; --accent:#ef8a8a; --bad:#ff8a80; --ok:#81c784; } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  #tt div, #nt div, #ac div, #mn div, #ex div, #cn div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar, #cn div.bar { display:flex; }
+  #tt div, #nt div, #ac div, #mn div, #ex div, #cn div, #rl div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar, #cn div.bar, #rl div.bar { display:flex; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
   main { max-width:1100px; margin:0 auto; padding:16px; }
   h1 { font-size:20px; margin:8px 0 16px; } h2 { font-size:15px; margin:24px 0 8px; color:var(--dim); font-weight:600; }
@@ -108,8 +108,7 @@
         <input id="ntTitle" maxlength="80" placeholder="Title, for example: Class moved to Room 302" style="flex:2; min-width:220px">
         <input id="ntBatch" list="ttBatches" placeholder="Batch (leave empty for everyone)" style="flex:1; min-width:200px">
       </div>
-      <!-- Per-person sending is hidden for now; remove "hidden" to bring it back. -->
-      <div class="bar" hidden>
+      <div class="bar">
         <select id="ntUsers" multiple size="4" style="flex:1; min-width:220px; font:inherit; padding:6px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></select>
         <span class="dim" style="font-size:13px; flex:1; min-width:200px">Only these people (optional): pick one or more, holding Ctrl or Cmd for several. Leave none picked to send to the batch or everyone. Needs app version 0.8.8 or newer on their phone.</span>
       </div>
@@ -120,6 +119,21 @@
         <button id="ntSend" type="button">Send</button><span id="ntMsg"></span>
       </div>
       <div id="ntList"></div>
+    </section>
+    <section id="rl" class="card" style="margin-bottom:16px">
+      <b>People who can post</b>
+      <p class="dim" style="margin:4px 0 10px">Class reps (CR), mess secretaries and hostel secretaries. They get a "Post an update" screen in the app (version 0.8.20 or newer) and can send notifications to the batch you set here, or to everyone if you leave it empty. A CR can also cancel and put back classes of their batch. Their posts start with their role ("CR: ...") and show up below with their name. At most 10 posts a day each.</p>
+      <div class="bar">
+        <input id="rlWho" list="rlPeople" placeholder="Person: type a name or roll number" style="flex:2; min-width:240px">
+        <datalist id="rlPeople"></datalist>
+        <select id="rlRole" style="font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)">
+          <option value="cr">CR</option><option value="mess">Mess Secretary</option><option value="hostel">Hostel Secretary</option>
+        </select>
+        <input id="rlBatch" list="ttBatches" placeholder="Posts to batch (empty = everyone)" style="flex:1; min-width:200px">
+        <button id="rlSet" type="button">Give role</button>
+      </div>
+      <span id="rlMsg"></span>
+      <div id="rlList"></div>
     </section>
     <div id="view"></div>
   </div>
@@ -399,7 +413,7 @@ function ntDraw() {
   const picked = new Set([...$('ntUsers').selectedOptions].map((o) => o.value));
   $('ntUsers').innerHTML = data.users.filter((u) => u.name).map((u) => `<option value="${esc(u.id)}" ${picked.has(u.id) ? 'selected' : ''}>${esc(u.name)}${u.roll ? ' · ' + esc(u.roll) : ''} · ${esc(u.app_version)} · ${esc(u.id.slice(0, 6))}</option>`).join('');
   $('ntList').innerHTML = data.notices.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>When</th><th>To</th><th>Message</th><th>Received</th><th></th></tr></thead><tbody>
-    ${data.notices.map((n) => { const later = new Date(n.send_at) > new Date(); return `<tr><td>${when(n.send_at)}<br><span class="${later ? 'bad' : 'dim'}">${later ? 'Scheduled' : 'Sent'}</span></td><td>${n.users && n.users.length ? n.users.map((id) => esc(nameOf(id))).join('<br>') : esc(n.batch || 'everyone')}</td><td><b>${esc(n.title)}</b>${n.body ? '<br>' + esc(n.body) : ''}</td><td>${later ? '' : `${n.received} of ${n.audience} phones`}</td><td><button class="plain" data-del="${n.id}" type="button">${later ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join('')}
+    ${data.notices.map((n) => { const later = new Date(n.send_at) > new Date(); return `<tr><td>${when(n.send_at)}<br><span class="${later ? 'bad' : 'dim'}">${later ? 'Scheduled' : 'Sent'}</span></td><td>${n.users && n.users.length ? n.users.map((id) => esc(nameOf(id))).join('<br>') : esc(n.batch || 'everyone')}</td><td><b>${esc(n.title)}</b>${n.body ? '<br>' + esc(n.body) : ''}${n.by_user ? '<br><span class="dim">from ' + esc(n.sent_by) + '</span>' : ''}</td><td>${later ? '' : `${n.received} of ${n.audience} phones`}</td><td><button class="plain" data-del="${n.id}" type="button">${later ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join('')}
     </tbody></table></div>
     <p class="dim" style="margin:6px 0 0; font-size:13px">"Received" counts phones that reported showing the message; a phone reports a few minutes after it shows it. Phones with diagnostics switched off are not counted.</p>` : '';
   document.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
@@ -431,11 +445,58 @@ $('ntSend').onclick = async () => {
   finally { $('ntSend').disabled = false; }
 };
 
+function rlSay(text, cls) { $('rlMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
+const rlLabel = (u) => `${u.name}${u.roll ? ' · ' + u.roll : ''} · ${u.batch || 'no batch'} · ${u.id.slice(0, 6)}`;
+async function rlDraw() {
+  if (!data) return;
+  const people = data.users.filter((u) => u.name);
+  $('rlPeople').innerHTML = people.map((u) => `<option value="${esc(rlLabel(u))}"></option>`).join('');
+  let j;
+  try { const r = await fetch('/api/roles'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
+  const rows = j.roles || [];
+  $('rlList').innerHTML = rows.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>Person</th><th>Role</th><th>Posts to</th><th>App</th><th>Posts</th><th></th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? '<br><span class="dim">' + esc(r.roll) + '</span>' : ''}</td><td>${esc(j.kinds[r.role] || r.role)}</td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${r.last_seen ? '<br><span class="dim">seen ' + ago(r.last_seen) + '</span>' : ''}</td><td>${r.posts}</td><td><button class="plain" type="button" data-unrole="${esc(r.user_id)}">Remove</button></td></tr>`).join('')}
+    </tbody></table></div>` : '<p class="dim" style="margin:8px 0 0">Nobody yet.</p>';
+  document.querySelectorAll('[data-unrole]').forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch('/api/roles?user=' + b.dataset.unrole, { method: 'DELETE' });
+    if (r.status === 401) return lock('');
+    rlSay('Removed. Their phone loses the post screen at once.', 'ok'); rlDraw();
+  });
+}
+$('rlWho').oninput = () => {
+  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
+  if (u && $('rlRole').value === 'cr') $('rlBatch').value = u.batch;
+};
+$('rlRole').onchange = () => {
+  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
+  $('rlBatch').value = $('rlRole').value === 'cr' && u ? u.batch : '';
+};
+$('rlSet').onclick = async () => {
+  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
+  if (!u) return rlSay('Pick the person from the list that appears as you type.', 'bad');
+  const role = $('rlRole').value, batch = $('rlBatch').value.trim().toLowerCase();
+  if (role === 'cr' && !batch) return rlSay('A CR posts to one batch: fill in the batch.', 'bad');
+  const label = $('rlRole').selectedOptions[0].textContent;
+  if (!confirm(`Make ${u.name} ${label}? They will be able to send notifications to ${batch || 'everyone'}.`)) return;
+  $('rlSet').disabled = true;
+  try {
+    const r = await fetch('/api/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'set', user: u.id, role, batch }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (!r.ok) return rlSay(j.error || 'The server refused it.', 'bad');
+    $('rlWho').value = ''; $('rlBatch').value = '';
+    rlSay(`${u.name} is now ${label}. ` + (j.pushed && j.pushed.ok ? 'Their phone was told at once.' : 'Their phone finds out at its next check.'), 'ok');
+    rlDraw();
+  } catch (e) { rlSay('Could not reach the server.', 'bad'); }
+  finally { $('rlSet').disabled = false; }
+};
+
 async function load() {
   try {
     if (current) drawUser(await get('?user=' + encodeURIComponent(current)));
-    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); }
-    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex']) $(id).hidden = !!current;
+    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); rlDraw(); }
+    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex', 'cn', 'rl']) $(id).hidden = !!current;
     $('back').hidden = !current; $('stamp').textContent = 'Loaded ' + when(new Date());
     $('login').hidden = true; $('app').hidden = false;
   } catch (e) { if (e.message !== 'locked') $('stamp').textContent = e.message; }
