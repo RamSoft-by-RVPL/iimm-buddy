@@ -12,6 +12,12 @@ the [main README](../README.md) for the overall design and setup.
 | `GET/POST /api/notices` | anyone / admin | Messages to students, sent by push, can be scheduled |
 | `GET/POST/DELETE /api/menu` | anyone / admin | Mess menu, one week at a time, the same for everyone |
 | `GET/POST/DELETE /api/exams?batch=<key>` | anyone / admin | The batch's exam timetable |
+| `GET/POST/DELETE /api/cancelled?batch=<key>` | anyone / admin, CR | Classes called off |
+| `GET/POST/DELETE /api/extra?batch=<key>` | anyone / admin, CR | Classes added, or moved to a new time |
+| `GET/POST/DELETE /api/roles` | admin; the phone | CRs, mess and hostel secretaries; a phone asks for its own role |
+| `GET/POST/DELETE /api/polls` | anyone / admin, role holders | Polls and votes (one per phone) |
+| `GET/POST /api/uploads` | admin / mess secretary | Menu files sent in from the app |
+| `GET/POST /api/faculty` | anyone / admin | Teachers' institute email addresses |
 | `POST /api/log` | the app | Diagnostic log lines |
 | `GET /api/admin` | admin | Totals, users, one user's log |
 | `POST /api/auth` | admin | Login, logout, first-time setup |
@@ -20,11 +26,16 @@ the [main README](../README.md) for the overall design and setup.
 | `/` | anyone | Download page |
 
 "Admin" means a signed login cookie, or `Authorization: Bearer <ADMIN_KEY>`.
+A role holder (CR, mess or hostel secretary) sends `X-Role: <token>`; the
+phone gets the token from `/api/roles` with its install id, and may only act
+for the batch its role covers (see `lib/roles.js` for what each role may do).
 
 Environment variables: `DATABASE_URL`, `ADMIN_KEY`, `FCM_SERVICE_ACCOUNT`
 (base64 of the Firebase service-account JSON). Tables are in
 `lib/schema.sql`; `node lib/setup.js` creates them. `node lib/local.js` runs
-the handlers locally for testing.
+the handlers locally for testing (every request counts as the admin unless it
+sends `X-Role` or `X-Guest`; `LOCAL_AS_BATCH=zz-test` answers every batch
+from the test batch, so a real phone can try role features safely).
 
 Deploys come from GitHub: Vercel builds the `server/` folder of
 `RamSoft-by-RVPL/iimm-buddy` on every push to `main`, and again when the app workflow

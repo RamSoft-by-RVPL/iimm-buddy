@@ -26,7 +26,8 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
 class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
-  PluginRegistry.RequestPermissionsResultListener, PluginRegistry.NewIntentListener {
+  PluginRegistry.RequestPermissionsResultListener, PluginRegistry.NewIntentListener,
+  PluginRegistry.ActivityResultListener {
   private var sharedFile: Map<String, Any>? = null
 
   /** Keeps a file another app opened or shared with this one (up to 5 MB). */
@@ -39,6 +40,12 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
       else -> null
     } ?: return
     intent.putExtra("cb_seen", true)
+    sharedFile = readUri(uri, 5 * 1024 * 1024) ?: return
+  }
+
+  /** {name, mime, bytes} of a file another app gives us, or null when it
+   *  cannot be read or is larger than [limit] bytes. */
+  private fun readUri(uri: Uri, limit: Int): Map<String, Any>? {
     try {
       var name = ""
       context.contentResolver.query(uri, null, null, null, null)?.use {
@@ -52,14 +59,32 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
           val n = input.read(buf)
           if (n < 0) break
           out.write(buf, 0, n)
-          if (out.size() > 5 * 1024 * 1024) return
+          if (out.size() > limit) return null
         }
         out.toByteArray()
-      } ?: return
-      sharedFile = mapOf("name" to name, "bytes" to bytes)
+      } ?: return null
+      val mime = context.contentResolver.getType(uri) ?: ""
+      return mapOf("name" to name, "mime" to mime, "bytes" to bytes)
     } catch (e: Exception) {
-      // Unreadable file: ignore it.
+      return null // unreadable
     }
+  }
+
+  private var picking: Result? = null
+
+  override fun onActivityResult(code: Int, resultCode: Int, data: Intent?): Boolean {
+    if (code != 7422) return false
+    val r = picking ?: return true
+    picking = null
+    val uri = if (resultCode == Activity.RESULT_OK) data?.data else null
+    if (uri == null) {
+      r.success(null)
+    } else {
+      val file = readUri(uri, 12 * 1024 * 1024)
+      if (file == null) r.error("too_big", "The file is too big or cannot be read", null)
+      else r.success(file)
+    }
+    return true
   }
 
   override fun onNewIntent(intent: Intent): Boolean {
@@ -148,6 +173,7 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     activity = binding.activity
     binding.addRequestPermissionsResultListener(this)
     binding.addOnNewIntentListener(this)
+    binding.addActivityResultListener(this)
     takeIntent(binding.activity.intent)
   }
 
@@ -294,6 +320,23 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
           )
           result.success(null)
+        }
+        "pickFile" -> {
+          val a = activity
+          if (a == null || picking != null) {
+            result.success(null)
+          } else {
+            picking = result
+            val types = (call.arguments as? List<*>)?.map { "$it" }?.toTypedArray()
+              ?: arrayOf("*/*")
+            a.startActivityForResult(
+              Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType(if (types.size == 1) types[0] else "*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, types),
+              7422
+            )
+          }
         }
         "takeFile" -> {
           result.success(sharedFile)

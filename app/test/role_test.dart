@@ -1,5 +1,6 @@
 import 'package:attendance_planner/backend.dart';
 import 'package:attendance_planner/role_ui.dart';
+import 'package:attendance_planner/site.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -35,5 +36,25 @@ void main() {
     for (final r in ['cr', 'mess', 'hostel']) {
       expect(roleTemplates[r], isNotEmpty);
     }
+  });
+
+  test('a class the CR added is known by its server id', () {
+    final now = DateTime(2026, 11, 22, 12);
+    final added = Snapshot(
+            studentName: 'A',
+            roll: '1',
+            courses: const [],
+            syncedAt: now,
+            sessions: const [])
+        .withExtra(
+            [ExtraClass(42, DateTime(2026, 11, 23), '09:00', '10:30', 'PF')],
+            now)
+        .sessions
+        .single;
+    expect(addedIdOf(added), 42);
+    expect(
+        addedIdOf(ClassSlot(
+            5, now, '09:00', '10:30', '', 'PF', 'pf', 'Not Marked', true)),
+        isNull);
   });
 }

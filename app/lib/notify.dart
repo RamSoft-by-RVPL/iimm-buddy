@@ -24,6 +24,7 @@ const _channels = {
   'attendance': ('Attendance alerts', 'Absences and low attendance'),
   'news': ('Messages', 'Messages from the people who run the app'),
   'mine': ('Your reminders', 'Reminders you set yourself'),
+  'summary': ('Weekly summary', 'Sunday evening: the week ahead'),
 };
 
 Future<void> initNotifications() async {

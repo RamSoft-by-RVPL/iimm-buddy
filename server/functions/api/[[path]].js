@@ -12,11 +12,15 @@ const handlers = {
   cancelled: () => require('../../api/cancelled.js'),
   exams: () => require('../../api/exams.js'),
   log: () => require('../../api/log.js'),
+  extra: () => require('../../api/extra.js'),
+  faculty: () => require('../../api/faculty.js'),
   menu: () => require('../../api/menu.js'),
   notices: () => require('../../api/notices.js'),
   poke: () => require('../../api/poke.js'),
+  polls: () => require('../../api/polls.js'),
   sheet: () => require('../../api/sheet.js'),
   roles: () => require('../../api/roles.js'),
+  uploads: () => require('../../api/uploads.js'),
   timetable: () => require('../../api/timetable.js'),
 };
 

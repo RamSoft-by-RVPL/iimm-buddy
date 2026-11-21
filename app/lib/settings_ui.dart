@@ -13,6 +13,7 @@ import 'notify.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'week_summary.dart';
 import 'update.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -280,6 +281,17 @@ class _SettingsScreenState extends State<SettingsScreen>
                 dueSummary(store.dueHours), () async {
               if (await askDueTimes(context, store)) changed(() {});
             }, enabled: store.notifyMoodle),
+            toggle(
+                Icons.calendar_view_week_outlined,
+                'Sunday evening summary',
+                'At 7 PM: next week\'s classes, holidays, exams, deadlines and '
+                    'any course close to the minimum',
+                store.prefs.getBool('week_summary') ?? true, (v) async {
+              await store.prefs.setBool('week_summary', v);
+              final s = store.cached;
+              if (s != null) await scheduleWeekSummary(store, s);
+              if (mounted) setState(() {});
+            }),
             toggle(
                 Icons.download_for_offline_outlined,
                 'Download new notes on Wi-Fi',

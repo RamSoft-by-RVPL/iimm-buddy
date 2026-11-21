@@ -10,7 +10,7 @@
   @media (prefers-color-scheme: dark) { :root { --bg:#161313; --card:#211c1c; --ink:#efe8e6; --dim:#a39896; --line:#3a3231; --accent:#ef8a8a; --bad:#ff8a80; --ok:#81c784; } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  #tt div, #nt div, #ac div, #mn div, #ex div, #cn div, #rl div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar, #cn div.bar, #rl div.bar { display:flex; }
+  #tt div, #nt div, #ac div, #mn div, #ex div, #cn div, #rl div, #pl div, #up div, #fc div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar, #cn div.bar, #rl div.bar, #pl div.bar, #fc div.bar { display:flex; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
   main { max-width:1100px; margin:0 auto; padding:16px; }
   h1 { font-size:20px; margin:8px 0 16px; } h2 { font-size:15px; margin:24px 0 8px; color:var(--dim); font-weight:600; }
@@ -119,6 +119,37 @@
         <button id="ntSend" type="button">Send</button><span id="ntMsg"></span>
       </div>
       <div id="ntList"></div>
+    </section>
+    <section id="pl" class="card" style="margin-bottom:16px">
+      <b>Polls</b>
+      <p class="dim" style="margin:4px 0 10px">A question with 2 to 6 answers. Phones get a notification and vote in the app (version 0.8.21 or newer); one vote per phone, which can be changed while the poll is open. CRs and secretaries can make polls from the app too.</p>
+      <div class="bar">
+        <input id="plQ" maxlength="140" placeholder="Question, for example: Shift Friday's class to Saturday?" style="flex:2; min-width:240px">
+        <input id="plBatch" list="ttBatches" placeholder="Batch (empty = everyone)" style="flex:1; min-width:180px">
+      </div>
+      <div class="bar">
+        <textarea id="plOpts" rows="3" placeholder="Answers, one per line" style="flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></textarea>
+      </div>
+      <div class="bar">
+        <label class="dim" for="plHours" style="font-size:14px">Open for</label>
+        <select id="plHours" style="font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)">
+          <option value="3">3 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">1 week</option>
+        </select>
+        <button id="plGo" type="button">Send poll</button>
+      </div>
+      <span id="plMsg"></span>
+      <div id="plList"></div>
+    </section>
+    <section id="up" class="card" style="margin-bottom:16px">
+      <b>Files from secretaries</b>
+      <p class="dim" style="margin:4px 0 10px">Menus a mess secretary sent from the app, newest first. Open one and give it to Claude to publish, then mark it done.</p>
+      <div id="upList"></div>
+    </section>
+    <section id="fc" class="card" style="margin-bottom:16px">
+      <b>Teacher emails</b>
+      <p class="dim" style="margin:4px 0 10px">Students see an Email button next to a teacher's name in the app (version 0.8.21 or newer). One teacher per line: name, then the address. Only @iimmumbai.ac.in addresses.</p>
+      <div class="bar"><textarea id="fcList" rows="6" placeholder="Prof. Rofin T M, rofintm@iimmumbai.ac.in" style="flex:1; font:13px/1.5 ui-monospace, monospace; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></textarea></div>
+      <div class="bar"><button id="fcSave" type="button">Save list</button><span id="fcMsg" class="dim"></span></div>
     </section>
     <section id="rl" class="card" style="margin-bottom:16px">
       <b>People who can post</b>
@@ -445,6 +476,62 @@ $('ntSend').onclick = async () => {
   finally { $('ntSend').disabled = false; }
 };
 
+function plSay(text, cls) { $('plMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
+async function plDraw() {
+  let j; try { const r = await fetch('/api/polls?all=1'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
+  const rows = j.polls || [];
+  $('plList').innerHTML = rows.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>When</th><th>To</th><th>Question and votes</th><th></th></tr></thead><tbody>
+    ${rows.map((p) => `<tr><td>${when(p.created)}<br><span class="${p.open ? 'ok' : 'dim'}">${p.open ? 'Open until ' + when(p.closes) : 'Closed'}</span></td><td>${esc(p.batch || 'everyone')}${p.from ? '<br><span class="dim">by ' + esc(p.from) + '</span>' : ''}</td><td><b>${esc(p.question)}</b>${p.options.map((o, i) => `<br>${esc(o)}: <b>${p.votes[i]}</b>${p.total ? ' (' + Math.round(p.votes[i] * 100 / p.total) + '%)' : ''}`).join('')}<br><span class="dim">${p.total} ${p.total === 1 ? 'vote' : 'votes'}</span></td><td>${p.open ? `<button class="plain" type="button" data-plclose="${p.id}">Close</button> ` : ''}<button class="plain" type="button" data-pldel="${p.id}">Delete</button></td></tr>`).join('')}
+    </tbody></table></div>` : '<p class="dim" style="margin:8px 0 0">No polls in the last two weeks.</p>';
+  document.querySelectorAll('[data-plclose]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', poll: Number(b.dataset.plclose) }) }); plDraw();
+  });
+  document.querySelectorAll('[data-pldel]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this poll and its votes?')) return;
+    b.disabled = true; await fetch('/api/polls?id=' + b.dataset.pldel, { method: 'DELETE' }); plDraw();
+  });
+}
+$('plGo').onclick = async () => {
+  const question = $('plQ').value.trim(), batch = $('plBatch').value.trim().toLowerCase();
+  const options = $('plOpts').value.split('\n').map((x) => x.trim()).filter(Boolean);
+  if (!question) return plSay('Write the question.', 'bad');
+  if (options.length < 2 || options.length > 6) return plSay('Give 2 to 6 answers, one per line.', 'bad');
+  if (!confirm(`Send this poll to ${batch || 'everyone'}? Phones get a notification.`)) return;
+  $('plGo').disabled = true;
+  try {
+    const r = await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', question, options, batch, hours: Number($('plHours').value) }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (!r.ok) return plSay(j.error || 'The server refused it.', 'bad');
+    $('plQ').value = ''; $('plOpts').value = '';
+    plSay('Poll sent.' + (j.pushed && j.pushed.ok ? '' : ' Push did not go out; phones see it at their next check.'), 'ok'); plDraw(); load();
+  } catch (e) { plSay('Could not reach the server.', 'bad'); }
+  finally { $('plGo').disabled = false; }
+};
+async function upDraw() {
+  let j; try { const r = await fetch('/api/uploads'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
+  const rows = j.uploads || [];
+  $('upList').innerHTML = rows.length ? `<div class="scroll"><table><thead><tr><th>When</th><th>From</th><th>File</th><th></th></tr></thead><tbody>
+    ${rows.map((u) => `<tr><td>${when(u.created)}</td><td>${esc(u.sent_by)}</td><td><a href="/api/uploads?id=${u.id}" target="_blank" rel="noopener">${esc(u.name || 'file')}</a> <span class="dim">${Math.round(u.size / 1024)} KB</span>${u.note ? '<br>' + esc(u.note) : ''}</td><td><button class="plain" type="button" data-updone="${u.id}" data-to="${!u.done}">${u.done ? 'Done ✓' : 'Mark done'}</button></td></tr>`).join('')}
+    </tbody></table></div>` : '<p class="dim" style="margin:0">Nothing sent yet.</p>';
+  document.querySelectorAll('[data-updone]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; await fetch('/api/uploads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'done', id: Number(b.dataset.updone), done: b.dataset.to === 'true' }) }); upDraw();
+  });
+}
+async function fcDraw() {
+  try { const j = await (await fetch('/api/faculty')).json(); $('fcList').value = j.teachers.map((t) => `${t.name}, ${t.email}`).join('\n'); $('fcMsg').textContent = j.teachers.length + ' teachers'; } catch (e) {}
+}
+$('fcSave').onclick = async () => {
+  const teachers = $('fcList').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const i = l.lastIndexOf(','); return { name: l.slice(0, i).trim(), email: l.slice(i + 1).trim() }; });
+  $('fcSave').disabled = true;
+  try {
+    const r = await fetch('/api/faculty', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teachers }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    $('fcMsg').textContent = r.ok ? `Saved ${j.count} teachers.` : (j.error || 'The server refused it.');
+  } catch (e) { $('fcMsg').textContent = 'Could not reach the server.'; }
+  finally { $('fcSave').disabled = false; }
+};
 function rlSay(text, cls) { $('rlMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
 // True for app versions before 0.8.20, which have no post screen.
 const rlOld = (v) => { const p = String(v || '').split('.').map(Number); if (p.length < 3 || p.some(isNaN)) return false; return p[0] * 1e6 + p[1] * 1e3 + p[2] < 8020; };
@@ -497,8 +584,8 @@ $('rlSet').onclick = async () => {
 async function load() {
   try {
     if (current) drawUser(await get('?user=' + encodeURIComponent(current)));
-    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); rlDraw(); }
-    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex', 'cn', 'rl']) $(id).hidden = !!current;
+    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); rlDraw(); plDraw(); upDraw(); fcDraw(); }
+    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex', 'cn', 'rl', 'pl', 'up', 'fc']) $(id).hidden = !!current;
     $('back').hidden = !current; $('stamp').textContent = 'Loaded ' + when(new Date());
     $('login').hidden = true; $('app').hidden = false;
   } catch (e) { if (e.message !== 'locked') $('stamp').textContent = e.message; }

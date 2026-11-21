@@ -877,7 +877,6 @@ class AttendanceTab extends StatelessWidget {
         shortNames: shortNames,
         extra: (ctx) => [
               const SizedBox(height: 6),
-              if (c.faculty.isNotEmpty) InfoRow('Faculty', Text(c.faculty)),
               if (onShortName != null)
                 InfoRow(
                   'Short name',
