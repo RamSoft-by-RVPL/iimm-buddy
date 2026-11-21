@@ -9,6 +9,7 @@ import 'package:workmanager/workmanager.dart';
 import 'acal.dart';
 import 'backend.dart';
 import 'changes.dart';
+import 'demo.dart';
 import 'exams.dart';
 import 'log.dart';
 import 'menu.dart';
@@ -89,6 +90,7 @@ Future<void> runBackgroundNow({Duration delay = Duration.zero}) =>
 /// One background pass: attendance, then Moodle. Each part fails quietly.
 Future<void> runChecks(SharedPreferences prefs, {bool onWifi = false}) async {
   final store = Store(prefs);
+  demoMode = isDemo(prefs);
   await prefs.setString('bg_last', DateTime.now().toIso8601String());
   logEvent(prefs, 'bg_check', onWifi ? 'on wifi' : '');
   try {

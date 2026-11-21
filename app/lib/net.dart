@@ -12,6 +12,8 @@ import 'dart:io';
 
 import 'package:cookie_bridge/cookie_bridge.dart';
 
+import 'demo.dart';
+
 const siteHost = 'iimmumbai.ac.in';
 const siteBase = 'https://iimmumbai.ac.in/attendancestudent/';
 const moodleHost = 'moodle.iimmumbai.ac.in';
@@ -44,6 +46,9 @@ final _client = HttpClient()
 /// One request with the WebView's cookies, following redirects by hand so the
 /// right cookies go to each host.
 Future<HttpReply> httpSend(Uri url, {String? jsonBody}) async {
+  if (demoMode && (url.host == siteHost || url.host == moodleHost)) {
+    throw Exception(demoNote);
+  }
   var method = jsonBody == null ? 'GET' : 'POST';
   for (var hop = 0; hop < 8; hop++) {
     final req = await _client.openUrl(method, url);
@@ -136,6 +141,7 @@ Future<bool> httpSsoMoodle() async {
 /// Fetches an attendance-site API path, signing in again if needed.
 /// [onScreen] is the last resort: a sign-in the user completes on screen.
 Future<String> siteApi(String path, {Future<bool> Function()? onScreen}) async {
+  if (demoMode) return demoSummary(DateTime.now());
   Future<String?> once() async {
     final r = await httpSend(Uri.parse(siteBase).resolve(path));
     final body = await r.text();

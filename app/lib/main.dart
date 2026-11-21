@@ -9,6 +9,7 @@ import 'attendance_ui.dart';
 import 'backend.dart';
 import 'crony_ui.dart';
 import 'background.dart';
+import 'demo.dart';
 import 'exams_ui.dart';
 import 'gate_mail_ui.dart';
 import 'role_ui.dart';
@@ -37,6 +38,7 @@ import 'update.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = Store(await SharedPreferences.getInstance());
+  demoMode = isDemo(store.prefs);
   final session = Session();
   try {
     await initNotifications();
@@ -364,7 +366,14 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     unawaited(checkMoodle(store, moodle, alert: true).catchError((_) {}));
   }
 
+  Future<void> _startDemo() async {
+    await startDemo(store.prefs);
+    logEvent(store.prefs, 'demo');
+    session.enterDemo();
+  }
+
   Future<void> signOut() async {
+    await stopDemo(store.prefs);
     await store.clear();
     await moodle.clear();
     await removeCalendar().catchError((_) {});
@@ -385,7 +394,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       });
     }
     if (session.state == SessionState.needsLogin) {
-      return LoginScreen(session: session);
+      return LoginScreen(session: session, onDemo: _startDemo);
     }
     final s = snap;
     final notice = currentNotice(store.prefs, DateTime.now());
@@ -404,6 +413,12 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
                 : const LoadingNote('Getting your attendance...'),
           )
         : Column(children: [
+            if (demoMode)
+              const Strip(
+                icon: Icons.visibility_outlined,
+                text: 'Demo with a sample student. Sign out in Settings to '
+                    'use your own account.',
+              ),
             if (update != null)
               Strip(
                 icon: Icons.system_update_outlined,
@@ -660,8 +675,9 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
 }
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key, required this.session});
+  const LoginScreen({super.key, required this.session, required this.onDemo});
   final Session session;
+  final VoidCallback onDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -688,6 +704,17 @@ class LoginScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Expanded(child: WebViewWidget(controller: session.controller)),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: TextButton.icon(
+              onPressed: onDemo,
+              icon: const Icon(Icons.visibility_outlined),
+              label: const Text('No IIM Mumbai account? Try the demo'),
+            ),
+          ),
+        ),
       ]),
     );
   }

@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'demo.dart';
 import 'net.dart';
 import 'notes_index.dart';
 
@@ -206,6 +207,7 @@ class Moodle {
 
   /// GET a Moodle page, signing in again if the session has expired.
   Future<HttpReply> _get(Uri url) async {
+    if (demoMode) throw Exception(demoNote);
     var r = await httpSend(url);
     if (r.url.host != moodleHost || r.url.path.startsWith('/login')) {
       await r.response.drain<void>();
@@ -232,6 +234,7 @@ class Moodle {
 
   Future<dynamic> _ajax(String method, Map<String, dynamic> args,
       {bool retry = true}) async {
+    if (demoMode) return demoAjax(method, args, DateTime.now());
     final key = await _key();
     final r = await httpSend(
         Uri.parse('$moodleBase/lib/ajax/service.php?sesskey=$key&info=$method'),

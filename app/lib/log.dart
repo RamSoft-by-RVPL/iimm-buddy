@@ -14,6 +14,7 @@ import 'package:cookie_bridge/cookie_bridge.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend.dart';
+import 'demo.dart';
 
 /// Keep in step with `version:` in pubspec.yaml (a test checks it).
 // Filled in by the GitHub build (--dart-define), which numbers every
@@ -82,7 +83,7 @@ Map<String, dynamic> logBody(SharedPreferences prefs, List<String> queue) {
 /// ten minutes unless something failed. Never throws.
 Future<void> flushLogs(SharedPreferences prefs, {bool force = false}) async {
   try {
-    if (!diagnosticsOn(prefs)) {
+    if (!diagnosticsOn(prefs) || isDemo(prefs)) {
       await prefs.remove('log_q');
       return;
     }

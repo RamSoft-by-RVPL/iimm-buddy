@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'demo.dart';
 import 'net.dart';
 
 export 'net.dart';
@@ -89,10 +90,11 @@ class Session extends ChangeNotifier {
 
   /// Makes sure the attendance site has a live session. Returns false when the
   /// user has to sign in on screen. Throws on network failure.
-  Future<bool> ensure() =>
-      _ensuringSite ??= _oneAtATime(_ensureSite).whenComplete(() {
-        _ensuringSite = null;
-      });
+  Future<bool> ensure() => demoMode
+      ? Future.value(true)
+      : (_ensuringSite ??= _oneAtATime(_ensureSite).whenComplete(() {
+          _ensuringSite = null;
+        }));
 
   Future<bool> _ensureSite() async {
     final url = await _load(ssoStart);
@@ -111,10 +113,11 @@ class Session extends ChangeNotifier {
   }
 
   /// Same for Moodle.
-  Future<bool> ensureMoodle() =>
-      _ensuringMoodle ??= _oneAtATime(_ensureMoodle).whenComplete(() {
-        _ensuringMoodle = null;
-      });
+  Future<bool> ensureMoodle() => demoMode
+      ? Future.value(true)
+      : (_ensuringMoodle ??= _oneAtATime(_ensureMoodle).whenComplete(() {
+          _ensuringMoodle = null;
+        }));
 
   Future<bool> _ensureMoodle() async {
     var url = await _load(moodleLogin);
@@ -134,6 +137,9 @@ class Session extends ChangeNotifier {
     _set(SessionState.needsLogin);
     return false;
   }
+
+  /// The demo is on: nothing to sign in to.
+  void enterDemo() => _set(SessionState.signedIn);
 
   /// Restart the on-screen sign-in from the beginning.
   Future<void> restartLogin() => controller.loadRequest(Uri.parse(ssoStart));
