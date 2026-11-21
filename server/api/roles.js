@@ -8,7 +8,9 @@
 //   DELETE /api/roles?user=<install id>       admin: take the role away
 //   POST   /api/roles {action:'me', user}     the phone: its role and token, if any
 //   POST   /api/roles {action:'mine'}         a role holder (header X-Role): what
-//                                             they posted in the last two weeks
+//                                             they posted in the last two weeks, with
+//                                             how many phones showed each, and how
+//                                             many phones a new post would reach
 //
 // The phone learns its role by asking with its install id, a random name only
 // that phone and the admin know. Posts then carry the token in X-Role.
@@ -41,15 +43,27 @@ module.exports = async (req, res) => {
   if (req.method === 'POST' && b.action === 'mine') {
     const me = await roleOf(req);
     if (!me) return res.status(401).json({ error: 'not allowed' });
+    // "Received": phones that reported showing it. "Audience": phones in
+    // that batch (or all) active in the last week, as on the admin page.
     const notices = await sql`
-      SELECT id, batch, title, body, send_at, pushed FROM notices
-      WHERE by_user = ${me.user_id} AND send_at > now() - interval '14 days'
-      ORDER BY send_at DESC LIMIT 30`;
+      SELECT n.id, n.batch, n.title, n.body, n.send_at, n.pushed,
+        (SELECT count(DISTINCT e.user_id)::int FROM events e
+          WHERE e.kind IN ('notice_got', 'notice_shown') AND e.detail = '#' || n.id) AS received,
+        (SELECT count(*)::int FROM users u
+          WHERE (n.batch = '' OR u.batch = n.batch)
+            AND u.last_seen > now() - interval '7 days') AS audience
+      FROM notices n
+      WHERE n.by_user = ${me.user_id} AND n.send_at > now() - interval '14 days'
+      ORDER BY n.send_at DESC LIMIT 30`;
+    const [{ reach }] = await sql`
+      SELECT count(*)::int AS reach FROM users
+      WHERE (${me.batch} = '' OR batch = ${me.batch}) AND last_seen > now() - interval '7 days'`;
     const cancelled = me.can.cancel ? await sql`
       SELECT id, to_char(d, 'YYYY-MM-DD') AS d, s, c, why FROM cancellations
       WHERE batch = ${me.batch} AND d >= (now() AT TIME ZONE 'Asia/Kolkata')::date - 1
       ORDER BY d, s, id` : [];
     return res.status(200).json({
+      reach,
       notices: notices.map((n) => ({ ...n, id: Number(n.id) })),
       cancelled: cancelled.map((c) => ({ ...c, id: Number(c.id) })),
     });

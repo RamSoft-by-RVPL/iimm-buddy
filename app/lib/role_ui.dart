@@ -6,10 +6,41 @@ import 'package:flutter/material.dart';
 
 import 'backend.dart';
 import 'crony_ui.dart';
+import 'mascot.dart';
 import 'planner.dart' show Course;
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+
+/// Ready-made starts for the usual posts, by role: (title, message).
+const roleTemplates = <String, List<(String, String)>>{
+  'cr': [
+    ('Class moved to Room ', ''),
+    ('Class starts 15 minutes late', ''),
+    ('Bring your laptops to class', ''),
+    ('Assignment deadline extended', 'New deadline: '),
+    ('Extra class', 'Day, time and room: '),
+  ],
+  'mess': [
+    ('Menu change today', ''),
+    ('Special dinner tonight', ''),
+    ('Mess timings changed', 'New timings: '),
+    ('Mess feedback', 'Tell us how the food was: '),
+  ],
+  'hostel': [
+    ('Water supply off', 'From '),
+    ('Power cut', 'From '),
+    ('Room inspection', 'On '),
+    ('Hostel meeting', 'Time and place: '),
+  ],
+};
+
+/// "seen on 5 of 8 phones", or nothing when nobody could be counted.
+String seenLine(MyPost p, DateTime now) {
+  if (p.at.isAfter(now) || p.audience == 0) return '';
+  return 'seen on ${p.received} of ${p.audience} '
+      '${p.audience == 1 ? 'phone' : 'phones'}';
+}
 
 String _hm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -59,6 +90,9 @@ class _RoleScreenState extends State<RoleScreen> {
   DateTime? later;
   var busy = false;
   List<MyPost>? posts;
+  int reach = 0;
+  final titleFocus = FocusNode();
+  final bodyFocus = FocusNode();
   List<Cancelled> cancelled = [];
   List<int> cancelledIds = [];
   String? loadError;
@@ -91,12 +125,13 @@ class _RoleScreenState extends State<RoleScreen> {
 
   Future<void> load() async {
     try {
-      final (p, c, ids) = await myPosts(store.prefs);
+      final m = await myPosts(store.prefs);
       if (!mounted) return;
       setState(() {
-        posts = p;
-        cancelled = c;
-        cancelledIds = ids;
+        posts = m.posts;
+        cancelled = m.cancelled;
+        cancelledIds = m.cancelledIds;
+        reach = m.reach;
         loadError = null;
       });
     } catch (e) {
@@ -269,13 +304,42 @@ class _RoleScreenState extends State<RoleScreen> {
           children: [
             Text(
                 'You are ${r.label}. What you send goes to '
-                '${r.batch.isEmpty ? 'everyone using Crony' : 'everyone in ${r.batch}'} '
+                '${r.batch.isEmpty ? 'everyone using Crony' : 'everyone in ${r.batch}'}'
+                '${reach > 0 ? ' ($reach ${reach == 1 ? 'phone' : 'phones'} active this week)' : ''} '
                 'as a notification, starting with "${r.label}:". At most 10 a day.',
                 style: t.textTheme.bodyMedium?.copyWith(color: muted)),
             const SizedBox(height: 16),
             const FieldLabel('Send a notification'),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                for (final (head, start)
+                    in roleTemplates[r.role] ?? const <(String, String)>[])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8, bottom: 10),
+                    child: ActionChip(
+                      label: Text(head.trim()),
+                      onPressed: () => setState(() {
+                        title.text = head;
+                        title.selection =
+                            TextSelection.collapsed(offset: head.length);
+                        if (body.text.trim().isEmpty) body.text = start;
+                        // Straight on to what is left to fill in.
+                        if (head.endsWith(' ')) {
+                          titleFocus.requestFocus();
+                        } else if (start.isNotEmpty) {
+                          bodyFocus.requestFocus();
+                          body.selection =
+                              TextSelection.collapsed(offset: body.text.length);
+                        }
+                      }),
+                    ),
+                  ),
+              ]),
+            ),
             TextField(
               controller: title,
+              focusNode: titleFocus,
               maxLength: 80,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
@@ -283,12 +347,23 @@ class _RoleScreenState extends State<RoleScreen> {
             ),
             TextField(
               controller: body,
+              focusNode: bodyFocus,
               maxLength: 500,
               minLines: 2,
               maxLines: 5,
               textCapitalization: TextCapitalization.sentences,
               decoration:
                   const InputDecoration(labelText: 'Message (optional)'),
+            ),
+            ValueListenableBuilder(
+              valueListenable: title,
+              builder: (context, _, __) => ValueListenableBuilder(
+                valueListenable: body,
+                builder: (context, _, __) => title.text.trim().isEmpty
+                    ? const SizedBox.shrink()
+                    : _Preview(
+                        '${r.label}: ${title.text.trim()}', body.text.trim()),
+              ),
             ),
             Row(children: [
               Expanded(
@@ -434,8 +509,10 @@ class _RoleScreenState extends State<RoleScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                        '${p.at.isAfter(now) ? 'Goes out' : 'Sent'} ${fmtDate(p.at)}, ${_hm(p.at)}'),
+                    subtitle: Text([
+                      '${p.at.isAfter(now) ? 'Goes out' : 'Sent'} ${fmtDate(p.at)}, ${_hm(p.at)}',
+                      if (seenLine(p, now).isNotEmpty) seenLine(p, now),
+                    ].join(' · ')),
                     trailing: TextButton(
                       onPressed: busy
                           ? null
@@ -488,6 +565,47 @@ class _RoleScreenState extends State<RoleScreen> {
               ]),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// How the notification will look on phones.
+class _Preview extends StatelessWidget {
+  const _Preview(this.title, this.body);
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          color: t.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Crony(size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Crony · now · preview',
+                  style: t.textTheme.labelSmall
+                      ?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 2),
+              Text(title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (body.isNotEmpty)
+                Text(body, maxLines: 3, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ]),
       ),
     );
   }

@@ -446,6 +446,8 @@ $('ntSend').onclick = async () => {
 };
 
 function rlSay(text, cls) { $('rlMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
+// True for app versions before 0.8.20, which have no post screen.
+const rlOld = (v) => { const p = String(v || '').split('.').map(Number); if (p.length < 3 || p.some(isNaN)) return false; return p[0] * 1e6 + p[1] * 1e3 + p[2] < 8020; };
 const rlLabel = (u) => `${u.name}${u.roll ? ' · ' + u.roll : ''} · ${u.batch || 'no batch'} · ${u.id.slice(0, 6)}`;
 async function rlDraw() {
   if (!data) return;
@@ -455,7 +457,7 @@ async function rlDraw() {
   try { const r = await fetch('/api/roles'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
   const rows = j.roles || [];
   $('rlList').innerHTML = rows.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>Person</th><th>Role</th><th>Posts to</th><th>App</th><th>Posts</th><th></th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? '<br><span class="dim">' + esc(r.roll) + '</span>' : ''}</td><td>${esc(j.kinds[r.role] || r.role)}</td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${r.last_seen ? '<br><span class="dim">seen ' + ago(r.last_seen) + '</span>' : ''}</td><td>${r.posts}</td><td><button class="plain" type="button" data-unrole="${esc(r.user_id)}">Remove</button></td></tr>`).join('')}
+    ${rows.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? '<br><span class="dim">' + esc(r.roll) + '</span>' : ''}</td><td>${esc(j.kinds[r.role] || r.role)}</td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${rlOld(r.app_version) ? '<br><span class="bad">needs 0.8.20 to post</span>' : ''}${r.last_seen ? `<br><span class="${Date.now() - new Date(r.last_seen) > 7 * 864e5 ? 'bad' : 'dim'}">seen ${ago(r.last_seen)}</span>` : ''}</td><td>${r.posts}</td><td><button class="plain" type="button" data-unrole="${esc(r.user_id)}">Remove</button></td></tr>`).join('')}
     </tbody></table></div>` : '<p class="dim" style="margin:8px 0 0">Nobody yet.</p>';
   document.querySelectorAll('[data-unrole]').forEach((b) => b.onclick = async () => {
     b.disabled = true;

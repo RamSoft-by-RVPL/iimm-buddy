@@ -415,26 +415,48 @@ Future<bool> postUpdate(SharedPreferences prefs, String title, String body,
 
 /// One message a role holder posted.
 class MyPost {
-  MyPost(this.id, this.title, this.body, this.at);
+  MyPost(this.id, this.title, this.body, this.at,
+      {this.received = 0, this.audience = 0});
   final int id;
   final String title;
   final String body;
   final DateTime at;
+
+  /// Phones that reported showing it, out of the phones it was for that
+  /// were active in the last week.
+  final int received;
+  final int audience;
+}
+
+/// What the role holder posted, and what a new post would reach.
+class MyPosts {
+  MyPosts(this.posts, this.cancelled, this.cancelledIds, this.reach);
+  final List<MyPost> posts;
+  final List<Cancelled> cancelled;
+  final List<int> cancelledIds;
+
+  /// Phones a new post goes to (active in the last week).
+  final int reach;
 }
 
 /// What the role holder posted in the last two weeks, and (for a CR) the
 /// classes of their batch called off.
-Future<(List<MyPost>, List<Cancelled>, List<int>)> myPosts(
-    SharedPreferences prefs) async {
+Future<MyPosts> myPosts(SharedPreferences prefs) async {
   final j = await _asRole(prefs, 'POST', '/api/roles', {'action': 'mine'});
   final posts = [
     for (final n in (j['notices'] as List? ?? []))
       MyPost(n['id'] as int, '${n['title']}', '${n['body'] ?? ''}',
-          DateTime.tryParse('${n['send_at']}')?.toLocal() ?? DateTime.now())
+          DateTime.tryParse('${n['send_at']}')?.toLocal() ?? DateTime.now(),
+          received: (n['received'] as num?)?.toInt() ?? 0,
+          audience: (n['audience'] as num?)?.toInt() ?? 0)
   ];
   final rows = (j['cancelled'] as List? ?? []);
   final cancelled = Cancelled.decode(jsonEncode({'classes': rows}));
-  return (posts, cancelled, [for (final c in rows) (c['id'] as num).toInt()]);
+  return MyPosts(
+      posts,
+      cancelled,
+      [for (final c in rows) (c['id'] as num).toInt()],
+      (j['reach'] as num?)?.toInt() ?? 0);
 }
 
 Future<void> takeBackPost(SharedPreferences prefs, int id) =>
