@@ -11,7 +11,8 @@
 # Secrets:
 #   UPLOAD_KEYSTORE_B64    base64 of the Play upload key (crony-upload.jks)
 #   UPLOAD_STORE_PASSWORD  its password
-#   GOOGLE_SERVICES_B64    the same Firebase config the APK build uses
+#   PLAY_GOOGLE_SERVICES_B64  Firebase config with the in.ramyaventures.crony
+#                             client (falls back to GOOGLE_SERVICES_B64)
 
 name: Play bundle
 
@@ -72,7 +73,7 @@ jobs:
       - name: Put the upload key and Firebase config in place
         env:
           UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
-          GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_B64 }}
+          GOOGLE_SERVICES_B64: ${{ secrets.PLAY_GOOGLE_SERVICES_B64 || secrets.GOOGLE_SERVICES_B64 }}
         run: |
           [ -n "$UPLOAD_KEYSTORE_B64" ] && [ -n "$GOOGLE_SERVICES_B64" ] || { echo "Upload key or Firebase config secret missing"; exit 1; }
           echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
@@ -102,6 +103,7 @@ jobs:
         run: |
           m=build/app/intermediates/merged_manifests/release/AndroidManifest.xml
           grep -q 'targetSdkVersion="36"' "$m" || { echo "Play needs targetSdk 36"; exit 1; }
+          grep -q 'package="in.ramyaventures.crony"' "$m" || { echo "Play bundle must be in.ramyaventures.crony"; exit 1; }
           for p in REQUEST_INSTALL_PACKAGES USE_EXACT_ALARM REQUEST_IGNORE_BATTERY_OPTIMIZATIONS READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_EXTERNAL_STORAGE; do
             if grep -q "permission.$p\"" "$m"; then echo "$p is still in the manifest"; exit 1; fi
           done
