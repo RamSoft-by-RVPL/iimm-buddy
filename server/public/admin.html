@@ -433,7 +433,7 @@ function drawOverview() {
     ...scheduled.map((n) => `<div class="item"><b>${esc(n.title)}</b><span><span class="tag">Scheduled</span>to ${esc(n.batch || 'everyone')}, ${when(n.send_at)}</span><button class="sm" type="button" data-del="${n.id}" data-later="1">Cancel</button></div>`),
     t.reminders_blocked ? `<div class="item"><b>${t.reminders_blocked} ${t.reminders_blocked === 1 ? 'phone blocks' : 'phones block'} reminders</b><span>${esc(common(blocked.map((u) => u.health)) || 'Battery or notification settings')}</span><button class="sm" type="button" data-go="people/attention">See who and remind</button></div>` : '',
     t.with_errors ? `<div class="item"><b>${t.with_errors} ${t.with_errors === 1 ? 'phone' : 'phones'} with an error</b><span>${erred[0] ? `<span class="tag r">${esc(erred[0].last_error.split(':')[0])}</span>${esc(erred[0].last_error.split(':').slice(1).join(':').trim())}` : ''}</span><button class="sm" type="button" data-go="people/attention">See who</button></div>` : '',
-    old.length ? `<div class="item"><b>${old.length} on an older version</b><span>Not on ${esc(newest())} yet</span><button class="sm" type="button" data-go="people/old">See who</button></div>` : '',
+    old.length ? `<div class="item"><b>${old.length} on an older version</b><span>Not on ${esc(newest())} yet</span><button class="sm" type="button" data-go="people/old">See who and remind</button></div>` : '',
   ].filter(Boolean);
   $('ovNeed').innerHTML = items.join('') || '<p class="calm">Nothing needs you right now.</p>';
 
@@ -461,7 +461,7 @@ function drawPeople() {
     <td>${isOld(u) ? `<span class="tag w">${esc(u.app_version)}</span>` : esc(u.app_version)}</td><td>${esc(u.device)}</td><td>${ago(u.last_seen)}</td>
     <td>${u.health ? `<span class="tag r">Reminders blocked</span><span class="s">${esc(u.health)}</span>` : ''}${u.last_error ? `<span class="tag r">Error</span><span class="s">${esc(u.last_error)}</span>` : ''}${troubled(u) ? '' : '<span class="dim">Fine</span>'}</td></tr>`).join(''),
     pf === 'all' && !q ? 'No students yet' : 'Nobody matches');
-  remindDraw('pRemind', data.users);
+  (pf === 'old' ? updateDraw : remindDraw)('pRemind', data.users);
   document.querySelectorAll('tr.pick').forEach((tr) => {
     tr.onclick = () => { location.hash = 'user/' + tr.dataset.id; };
     tr.onkeydown = (e) => { if (e.key === 'Enter') tr.onclick(); };
@@ -469,48 +469,50 @@ function drawPeople() {
 }
 $('search').oninput = drawPeople;
 
-// ---- reminding students whose phone blocks reminders
-// Sends each of them a notification, to their phone alone, saying what to
-// switch on. Phones listen to their own topic from 0.8.10. A phone with
-// notifications switched off cannot show one, so those are only listed.
+// ---- reminding students: to fix phone settings, or to update
+// Each gets a notification on their phone alone. Phones listen to their own
+// topic from 0.8.10. A phone with notifications switched off cannot show
+// one, so those students are only listed, to message directly.
 const REMIND_TITLE = 'Your class reminders may not arrive';
+const UPDATE_TITLE = 'Please update Crony';
 const FIXES = { 'notifications off': 'allow notifications', 'exact alarms off': 'allow "Alarms and reminders"', 'battery restricted': 'let Crony run in the background' };
-function remindable(list) {
-  const blocked = list.filter((u) => u.name && u.health);
-  const reach = (u) => !u.health.includes('notifications off') && vcmp(u.app_version, '0.8.10') >= 0;
-  return { can: blocked.filter(reach), cannot: blocked.filter((u) => !reach(u)) };
-}
+const reachable = (u) => !(u.health || '').includes('notifications off') && vcmp(u.app_version, '0.8.10') >= 0;
+const whyNot = (u) => (u.health || '').includes('notifications off') ? 'notifications off' : `app ${u.app_version}, too old for this`;
 function remindBody(health) {
   const fixes = health.split(', ').map((h) => FIXES[h]).filter(Boolean);
   const what = fixes.length > 1 ? fixes.slice(0, -1).join(', ') + ' and ' + fixes[fixes.length - 1] : fixes[0] || 'fix the settings it shows';
   return 'Your phone is stopping Crony from reminding you on time. Open Crony, tap Settings (top right) and use the buttons in the red "Reminders may not arrive" card to ' + what + '.';
 }
-const lastReminded = (id) => { const n = data.notices.find((x) => x.title === REMIND_TITLE && x.users && x.users.includes(id)); return n ? ago(n.send_at) : ''; };
-// Draws the remind strip into [box] for the students in [list].
-function remindDraw(box, list) {
-  const { can, cannot } = remindable(list), one = list.length === 1;
-  if (!can.length && !cannot.length) { $(box).innerHTML = ''; return; }
-  const sent = can.map((u) => lastReminded(u.id)).filter(Boolean);
+const updateBody = () => `Version ${newest()} is out and your phone has an older one. Open Crony and press Update, at the top of the home screen or in Settings.`;
+const lastSent = (title, id) => { const n = data.notices.find((x) => x.title === title && x.users && x.users.includes(id)); return n ? ago(n.send_at) : ''; };
+
+// Draws a remind card into [box]: a button for the students in [list] that
+// [wants], each sent [title] with [body](student) (students with the same
+// text share one notification), and the names a notification cannot reach.
+function nudgeDraw(box, { list, wants, title, body, button, what }) {
+  const all = list.filter((u) => u.name && wants(u)), can = all.filter(reachable), cannot = all.filter((u) => !reachable(u));
+  const one = list.length === 1;
+  if (!all.length) { $(box).innerHTML = ''; return; }
+  const sent = can.map((u) => lastSent(title, u.id)).filter(Boolean);
   $(box).innerHTML = `<div class="card" style="margin-bottom:14px">
-    ${can.length ? `<div class="row" style="align-items:center"><button id="${box}Go" type="button" class="go">${one ? 'Remind to fix reminders' : `Remind the ${can.length} ${can.length === 1 ? 'student' : 'students'} whose reminders are blocked`}</button>
+    ${can.length ? `<div class="row" style="align-items:center"><button id="${box}Go" type="button" class="go">${button(can.length, one)}</button>
       <span class="dim">${sent.length ? 'Last reminded ' + (one ? sent[0] : `${sent.length} of them, latest ${sent[0]}`) : 'Not reminded yet'}</span></div>
-      <p class="note" style="margin-top:8px">${one ? 'They get' : 'Each gets'} a notification on their phone alone saying what to switch on.</p>` : ''}
-    ${cannot.length ? `<p class="note">A notification cannot reach ${cannot.map((u) => esc(u.name) + (u.health.includes('notifications off') ? ' (notifications off)' : ` (app ${esc(u.app_version)}, too old)`)).join(', ')}. Message ${cannot.length === 1 ? 'them' : 'these students'} directly.</p>` : ''}
+      <p class="note" style="margin-top:8px">${one ? 'They get' : 'Each gets'} a notification on their phone alone ${what}.</p>` : ''}
+    ${cannot.length ? `<p class="note">A notification cannot reach ${cannot.map((u) => `${esc(u.name)} (${esc(whyNot(u))})`).join(', ')}. Message ${cannot.length === 1 ? 'them' : 'these students'} directly.</p>` : ''}
     <div id="${box}Msg"></div></div>`;
   const b = $(box + 'Go');
   if (!b) return;
   b.onclick = async () => {
-    if (!confirm('Send a notification to ' + can.map((u) => u.name).join(', ') + ' asking them to fix their phone settings?')) return;
+    if (!confirm(`Send "${title}" to ${can.map((u) => u.name).join(', ')}?`)) return;
     b.disabled = true; say(box + 'Msg', 'Sending...', 'dim');
-    // One notification for each set of problems, so each reads only what applies to them.
     const groups = new Map();
-    for (const u of can) groups.set(u.health, [...(groups.get(u.health) || []), u.id]);
+    for (const u of can) { const t = body(u); groups.set(t, [...(groups.get(t) || []), u.id]); }
     let ok = 0, failed = '';
-    for (const [health, ids] of groups) {
+    for (const [text, ids] of groups) {
       for (let i = 0; i < ids.length; i += 50) {
         const users = ids.slice(i, i + 50);
         try {
-          const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: REMIND_TITLE, body: remindBody(health), batch: '', users, send_at: null }) });
+          const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: text, batch: '', users, send_at: null }) });
           if (r.status === 401) return lock('');
           const j = await r.json();
           if (r.ok) ok += users.length; else failed = j.error || 'The server refused it.';
@@ -518,11 +520,20 @@ function remindDraw(box, list) {
       }
     }
     if (failed) { say(box + 'Msg', `Sent to ${ok} of ${can.length}. ${failed}`, 'bad'); b.disabled = false; return; }
-    say(box + 'Msg', `Reminder sent to ${ok} ${ok === 1 ? 'student' : 'students'}.`, 'ok');
+    say(box + 'Msg', `Sent to ${ok} ${ok === 1 ? 'student' : 'students'}.`, 'ok');
     setTimeout(load, 1500);
   };
 }
-$('pFilter').onclick = (e) => { const b = e.target.closest('button'); if (b) { pf = b.dataset.f; drawPeople(); } };
+const remindDraw = (box, list) => nudgeDraw(box, {
+  list, wants: (u) => !!u.health, title: REMIND_TITLE, body: (u) => remindBody(u.health),
+  button: (n, one) => one ? 'Remind to fix reminders' : `Remind the ${n} ${n === 1 ? 'student' : 'students'} whose reminders are blocked`,
+  what: 'saying what to switch on',
+});
+const updateDraw = (box, list) => nudgeDraw(box, {
+  list, wants: isOld, title: UPDATE_TITLE, body: updateBody,
+  button: (n, one) => one ? 'Remind to update' : `Remind the ${n} ${n === 1 ? 'student' : 'students'} on an older version to update`,
+  what: `asking them to update to ${esc(newest())}`,
+});
 
 async function openUser(id) {
   $('uName').textContent = 'Loading...'; $('uRoll').textContent = ''; $('uCard').innerHTML = ''; $('uLog').innerHTML = '';
@@ -532,7 +543,8 @@ async function openUser(id) {
   $('uName').textContent = u.name || 'Unknown student'; $('uRoll').textContent = u.roll || '';
   $('uCard').innerHTML = `<dl>${[['Support ID', u.id], ['Batch', u.batch], ['App version', u.app_version], ['Phone', u.device], ['First seen', when(u.first_seen)], ['Last seen', when(u.last_seen) + ' (' + ago(u.last_seen) + ')'], ['Reminders', u.health ? 'Blocked: ' + u.health : 'Can reach the student'], ['Last error', u.last_error || 'None']]
     .map(([l, v]) => `<dt>${l}</dt><dd${(l === 'Reminders' && u.health) || (l === 'Last error' && u.last_error) ? ' class="bad"' : ''}>${esc(v)}</dd>`).join('')}</dl>`;
-  remindDraw('uRemind', data ? [{ ...u, name: u.name || '' }] : []);
+  const me = [{ ...u, name: u.name || '' }];
+  remindDraw('uRemind', me); if (!$('uRemind').innerHTML) updateDraw('uRemind', me);
   $('uLogTitle').textContent = `Log, newest first (last ${d.events.length})`;
   $('uLog').innerHTML = table(['Time on phone', 'Event', 'Detail'], d.events.map((e) => `<tr><td class="mono" style="white-space:nowrap">${when(e.at)}</td><td class="${e.kind.endsWith('_fail') ? 'bad' : ''}">${esc(e.kind)}</td><td>${esc(e.detail)}</td></tr>`).join(''), 'No events');
 }
