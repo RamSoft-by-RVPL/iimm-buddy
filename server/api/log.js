@@ -61,6 +61,24 @@ module.exports = async (req, res) => {
       last_error = CASE WHEN ${lastError !== null} THEN EXCLUDED.last_error ELSE users.last_error END,
       last_seen = now()`;
 
+  // The same student on the same phone under a new id: the app was
+  // reinstalled or its data cleared. Keep only this copy (its role moves
+  // with it), so the admin page lists each student's phone once.
+  const roll = text(b.roll, 30), device = text(b.device, 80);
+  if (roll && device) {
+    const old = (await sql`
+      SELECT id FROM users
+      WHERE roll = ${roll} AND device = ${device} AND id <> ${b.id}`).map((r) => r.id);
+    if (old.length) {
+      await sql`
+        UPDATE roles SET user_id = ${b.id}
+        WHERE user_id = ${old[0]} AND NOT EXISTS (SELECT 1 FROM roles WHERE user_id = ${b.id})`;
+      await sql`DELETE FROM roles WHERE user_id = ANY(${old})`;
+      await sql`DELETE FROM events WHERE user_id = ANY(${old})`;
+      await sql`DELETE FROM users WHERE id = ANY(${old})`;
+    }
+  }
+
   if (kinds.length) {
     await sql`
       INSERT INTO events (user_id, at, kind, detail)
