@@ -4,146 +4,354 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>IIMM Buddy admin</title>
+<title>Crony admin</title>
 <style>
-  :root { --bg:#faf7f6; --card:#fff; --ink:#1f1a19; --dim:#6b6160; --line:#e6dedc; --accent:#9b1c1c; --bad:#c62828; --ok:#2e7d32; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#161313; --card:#211c1c; --ink:#efe8e6; --dim:#a39896; --line:#3a3231; --accent:#ef8a8a; --bad:#ff8a80; --ok:#81c784; } }
+  @font-face { font-family: Geist; src: url(/fonts/Geist-Regular.woff2) format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: Geist; src: url(/fonts/Geist-Medium.woff2) format('woff2'); font-weight: 500; font-display: swap; }
+  @font-face { font-family: Geist; src: url(/fonts/Geist-SemiBold.woff2) format('woff2'); font-weight: 600; font-display: swap; }
+  @font-face { font-family: Schoolbell; src: url(/fonts/Schoolbell-Regular.woff2) format('woff2'); font-display: swap; }
+  :root {
+    --page:#FFD3E0; --card:#FFF5F8; --field:#FFFFFF; --pink:#EC6989; --lemon:#FAE474; --ink:#1E1B10; --dim:#6E4A57;
+    --line:rgb(30 27 16 / .14); --tint:rgb(250 228 116 / .45); --bad:#B3261E; --badbg:#FFDAD6; --ok:#1F6B3A;
+    --onbrand:#1E1B10; --onpinkdim:#4A1F2E; --shade:#1E1B10; --edge:2px solid var(--ink); --hard:3px 4px 0 var(--shade);
+    --hand:Schoolbell, "Comic Sans MS", cursive; --text:Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --page:#1C0E14; --card:#2A1820; --field:#22131A; --ink:#FBEFF3; --dim:#CDA9B6;
+    --line:rgb(251 239 243 / .14); --tint:rgb(250 228 116 / .16); --bad:#FFB4AB; --badbg:#5C1A16; --ok:#8FD6A5; --shade:#000; color-scheme: dark;
+  } }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  #tt div, #nt div, #ac div, #mn div, #ex div, #cn div, #rl div { display:block; padding:0; } #tt div.bar, #nt div.bar, #ac div.bar, #cn div.bar, #rl div.bar { display:flex; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, sans-serif; }
-  main { max-width:1100px; margin:0 auto; padding:16px; }
-  h1 { font-size:20px; margin:8px 0 16px; } h2 { font-size:15px; margin:24px 0 8px; color:var(--dim); font-weight:600; }
-  .tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
-  .tile, .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
-  .tile b { display:block; font-size:26px; font-variant-numeric:tabular-nums; } .tile span { color:var(--dim); font-size:13px; }
-  .cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
-  .card div { display:flex; justify-content:space-between; gap:12px; padding:2px 0; } .card div span:last-child { font-variant-numeric:tabular-nums; }
-  .scroll { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; }
-  table { border-collapse:collapse; width:100%; min-width:720px; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { font-size:12px; color:var(--dim); font-weight:600; } tr:last-child td { border-bottom:0; }
-  tbody tr.pick { cursor:pointer; } tbody tr.pick:hover { background:color-mix(in srgb, var(--accent) 8%, transparent); }
-  .bad { color:var(--bad); } .ok { color:var(--ok); } .dim { color:var(--dim); } .mono { font-family:ui-monospace, monospace; font-size:13px; }
-  input, button { font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); }
-  button { cursor:pointer; background:var(--accent); color:#fff; border-color:var(--accent); } button.plain { background:var(--card); color:var(--ink); border-color:var(--line); }
-  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
-  #search { flex:1; min-width:180px; }
+  html { background: var(--page); }
+  body { margin: 0; color: var(--ink); font: 15px/1.45 var(--text); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--lemon); color: var(--onbrand); }
+  :focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
+  * { scrollbar-color: var(--dim) transparent; }
+  .hand { font-family: var(--hand); font-weight: 400; font-size-adjust: .53; }
+  .num, td, .meter-n { font-variant-numeric: tabular-nums; }
+  .dim { color: var(--dim); } .bad { color: var(--bad); } .ok { color: var(--ok); }
+  .mono { font-variant-numeric: tabular-nums; font-size: 13px; }
+  a { color: inherit; }
+
+  /* buttons and fields */
+  button, a.btn { display: inline-block; text-decoration: none; font: 500 14px var(--text); padding: 9px 14px; border-radius: 12px; border: var(--edge); background: var(--card); color: var(--ink); cursor: pointer; transition: transform .12s ease-out, box-shadow .12s ease-out, background .12s; }
+  button:hover:not(:disabled), a.btn:hover { background: var(--tint); }
+  button.go, a.go { background: var(--lemon); color: var(--onbrand); box-shadow: var(--hard); }
+  button.go:hover:not(:disabled), a.go:hover { background: var(--lemon); transform: translate(-1px, -1px); box-shadow: 4px 5px 0 var(--shade); }
+  button.go:active:not(:disabled), a.go:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 var(--shade); }
+  button.sm { padding: 5px 11px; font-size: 13px; border-radius: 10px; }
+  button:disabled { opacity: .5; cursor: default; }
+  input, select, textarea { font: 15px var(--text); padding: 9px 12px; border-radius: 12px; border: var(--edge); background: var(--field); color: var(--ink); min-width: 0; }
+  input::placeholder, textarea::placeholder { color: var(--dim); opacity: 1; }
+  input[type=file] { padding: 7px 10px; }
+  input[type=file]::file-selector-button { font: 500 13px var(--text); border: 1.5px solid var(--ink); border-radius: 9px; background: var(--lemon); color: var(--onbrand); padding: 4px 10px; margin-right: 10px; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--pink); width: 17px; height: 17px; vertical-align: -3px; }
+  label.f { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .row > .grow { flex: 1; min-width: 200px; }
+
+  /* sign in */
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  #login .box { width: min(400px, 100%); display: grid; gap: 16px; }
+  #login .brand { justify-content: center; }
+  form.card { display: grid; gap: 12px; }
+
+  /* shell */
+  #app { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; background: linear-gradient(90deg, var(--card) 254px, var(--ink) 254px 256px, transparent 256px); }
+  aside { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 22px 16px 18px; border-right: var(--edge); background: var(--card); display: flex; flex-direction: column; gap: 18px; }
+  .brand { display: flex; gap: 11px; align-items: center; }
+  .logo { width: 42px; height: 42px; border-radius: 12px; border: var(--edge); overflow: hidden; flex: none; }
+  .logo svg { display: block; width: 100%; height: 100%; }
+  .brand b { font: 28px/1 var(--hand); font-size-adjust: .53; display: block; } .brand span { font-size: 12px; color: var(--dim); }
+  .batch { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  .batch input { font-weight: 600; color: var(--ink); }
+  nav { display: grid; gap: 2px; }
+  nav a { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; text-decoration: none; font-weight: 500; border: 2px solid transparent; }
+  nav a:hover { background: var(--tint); }
+  nav a.on { background: var(--lemon); color: var(--onbrand); border: var(--edge); }
+  nav a small { font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; } nav a.on small { color: var(--onpinkdim); }
+  nav a small.hot { background: var(--pink); color: var(--onbrand); border-radius: 99px; padding: 0 7px; font-weight: 600; }
+  nav .sep { height: 12px; }
+  .foot { margin-top: auto; display: grid; gap: 8px; font-size: 13px; color: var(--dim); }
+  .foot .row { align-items: center; }
+  main { padding: 28px clamp(16px, 3vw, 38px) 60px; min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; margin-bottom: 20px; }
+  h1 { font: 46px/1 var(--hand); font-size-adjust: .53; margin: 0; text-wrap: balance; }
+  .head p { margin: 0 0 4px; color: var(--dim); max-width: 70ch; }
+  .head .sp { flex: 1; }
+  h2 { font: 27px/1.1 var(--hand); font-size-adjust: .53; margin: 0 0 12px; }
+  .card { background: var(--card); border: var(--edge); border-radius: 20px; padding: 20px 22px; min-width: 0; }
+  .stack { display: grid; gap: 22px; align-content: start; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; }
+  .grid2.wide2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px; }
+  .say { margin: 10px 0 0; } .say:empty { display: none; }
+  .note { font-size: 13px; color: var(--dim); margin: 10px 0 0; max-width: 75ch; }
+
+  /* overview */
+  .hero { background: var(--pink); color: var(--onbrand); box-shadow: var(--hard); display: grid; grid-template-columns: auto 1fr; gap: 6px 24px; border-color: var(--shade); }
+  .hero .big { font: 92px/.9 var(--hand); font-size-adjust: .53; }
+  .hero .lede { font-size: 17px; font-weight: 500; max-width: 20ch; align-self: end; }
+  .bars { grid-column: 1 / -1; display: flex; gap: 8px; align-items: end; height: 128px; margin-top: 16px; }
+  .bars i { flex: 1; min-width: 4px; background: var(--onbrand); border-radius: 6px 6px 2px 2px; opacity: .85; }
+  .bars i.today { background: var(--lemon); border: 2px solid var(--onbrand); opacity: 1; }
+  .axis { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--onpinkdim); }
+  .trio { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px 30px; border-top: 2px solid rgb(30 27 16 / .25); padding-top: 12px; margin-top: 6px; font-size: 13px; }
+  .trio b { font: 32px/1 var(--hand); font-size-adjust: .53; display: block; }
+  .need { display: grid; gap: 10px; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; align-items: center; padding: 12px 14px; border: var(--edge); border-radius: 14px; background: var(--field); }
+  .item b { font-weight: 600; } .item > span { grid-column: 1; color: var(--dim); font-size: 13px; }
+  .item > button { grid-row: 1 / 3; grid-column: 2; }
+  .calm { padding: 18px 4px; color: var(--dim); }
+  .tag { display: inline-block; font: 500 12px var(--text); padding: 1px 8px; border-radius: 99px; border: 1.5px solid var(--ink); background: var(--lemon); color: var(--onbrand); margin-right: 6px; white-space: nowrap; }
+  .tag.r { background: var(--badbg); color: var(--bad); border-color: var(--bad); }
+  .tag.w { background: var(--field); color: var(--ink); }
+  .post { display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; padding: 11px 0; border-bottom: 1.5px dashed var(--line); }
+  .post:last-child { border-bottom: 0; } .post time { color: var(--dim); font-size: 13px; padding-top: 1px; }
+  .post span { color: var(--dim); font-size: 13px; display: block; } .post .got { font-size: 13px; text-align: right; white-space: nowrap; }
+  .meter { width: 92px; height: 9px; border: 1.5px solid var(--ink); border-radius: 99px; margin: 6px 0 0 auto; overflow: hidden; background: var(--field); }
+  .meter i { display: block; height: 100%; background: var(--pink); }
+  .hbar { display: grid; grid-template-columns: minmax(70px, auto) 1fr 44px; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+  .hbar i { height: 14px; border: 1.5px solid var(--ink); border-radius: 99px; background: var(--lemon); min-width: 14px; }
+  .hbar i.w { background: var(--field); } .hbar span:last-child { text-align: right; }
+  .hbar b { font-weight: 600; overflow-wrap: anywhere; }
+
+  /* tables */
+  .tbl { border: var(--edge); border-radius: 16px; background: var(--field); overflow: auto; }
+  .tbl.cap { max-height: 380px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th { position: sticky; top: 0; background: var(--field); text-align: left; font-size: 12.5px; font-weight: 600; color: var(--dim); padding: 10px 12px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .s { display: block; color: var(--dim); font-size: 13px; }
+  tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--tint); }
+  td.act { text-align: right; white-space: nowrap; }
+
+  /* segmented and tabs */
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: var(--edge); border-radius: 14px; background: var(--field); }
+  .seg button { border: 2px solid transparent; background: transparent; padding: 6px 12px; border-radius: 10px; }
+  .seg button.on { background: var(--lemon); color: var(--onbrand); border: var(--edge); }
+  .picker { border: var(--edge); border-radius: 14px; background: var(--field); padding: 10px; display: grid; gap: 8px; }
+  .picker .list { max-height: 210px; overflow-y: auto; display: grid; gap: 2px; }
+  .picker label { display: flex; gap: 10px; align-items: center; padding: 5px 6px; border-radius: 8px; cursor: pointer; }
+  .picker label:hover { background: var(--tint); }
+  .picks label { display: flex; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
+  details { border: var(--edge); border-radius: 16px; background: var(--field); margin-top: 10px; }
+  details > summary { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 12px 14px; cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(-45deg); transition: transform .15s; margin-right: 2px; }
+  details[open] > summary::before { transform: rotate(45deg); }
+  details > summary .sp { flex: 1; }
+  details .tbl { border-width: 2px 0 0; border-radius: 0 0 14px 14px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 22px; margin: 0; }
+  dt { color: var(--dim); } dd { margin: 0; overflow-wrap: anywhere; }
+
+  @media (max-width: 1100px) { .grid2, .grid2.wide2 { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) {
+    #app { display: block; background: none; }
+    aside { position: static; height: auto; border-right: 0; border-bottom: var(--edge); padding: 14px 16px; gap: 12px; }
+    nav { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; margin: 0 -16px; padding-inline: 16px; }
+    nav a { white-space: nowrap; flex: none; border: 2px solid var(--line); }
+    nav .sep { display: none; }
+    .foot { margin: 0; } .foot > .stamp { display: none; }
+    h1 { font-size: 40px; }
+    .hero { grid-template-columns: 1fr; } .hero .big { font-size: 76px; } .bars { gap: 4px; height: 100px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>IIMM Buddy admin</h1>
-  <div id="login" hidden style="max-width:380px">
-    <form id="loginForm" class="card" style="display:grid; gap:10px">
-      <b>Sign in</b>
+<template id="mark"><svg viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" fill="#EC6989"/><g transform="translate(-6 0)"><g fill="none" stroke="#1E1B10" stroke-linecap="round" stroke-linejoin="round"><path d="M748.6 450.8 A248 298 0 1 0 764.6 510.0" stroke-width="26"/><path d="M544.8 305.5 A218 268 0 0 1 698.4 414.5" stroke-width="14"/><path d="M188 506 L482 514 C478 610 442 698 376 700 C296 702 226 628 188 506 Z" fill="#FAE474" stroke-width="23"/><path d="M542 514 L848 506 C818 610 748 678 676 678 C606 678 552 622 542 514 Z" fill="#FAE474" stroke-width="23"/><path d="M188 506 L482 514 Q512 490 542 514 L848 506" stroke-width="30"/><circle cx="786" cy="560" r="15" fill="#FFFFFF"/><path d="M522 626 C518 664 506 698 512 712 Q524 726 572 714" stroke-width="23"/></g></g></svg></template>
+
+<div id="login" hidden>
+  <div class="box">
+    <div class="brand"><div class="logo" data-mark></div><div><b>Crony</b><span>Admin</span></div></div>
+    <form id="loginForm" class="card">
+      <h2>Sign in</h2>
       <input id="user" placeholder="Username" autocomplete="username" autocapitalize="none" required>
       <input id="pass" type="password" placeholder="Password" autocomplete="current-password" required>
-      <button>Sign in</button>
+      <button class="go">Sign in</button>
       <span id="loginMsg" class="bad"></span>
     </form>
-    <p><button id="showSetup" class="plain" type="button">First time, or forgot the password?</button></p>
-    <form id="setupForm" class="card" hidden style="display:grid; gap:10px">
-      <b>Set your login</b>
+    <button id="showSetup" type="button">First time, or forgot the password?</button>
+    <form id="setupForm" class="card" hidden>
+      <h2>Set your login</h2>
       <span class="dim">Needs the publisher key once. After this you sign in with the username and password you choose here.</span>
       <input id="setKey" type="password" placeholder="Publisher key" autocomplete="off" required>
       <input id="setUser" placeholder="Choose a username" autocomplete="username" autocapitalize="none" required>
       <input id="setPass" type="password" placeholder="Choose a password (8 or more characters)" autocomplete="new-password" minlength="8" required>
       <input id="setPass2" type="password" placeholder="Type the password again" autocomplete="new-password" required>
-      <button>Save and sign in</button>
+      <button class="go">Save and sign in</button>
       <span id="setupMsg" class="bad"></span>
     </form>
   </div>
-  <div id="app" hidden>
-    <div class="bar"><button class="plain" id="reload">Refresh</button><button class="plain" id="back" hidden>Back to all users</button><span id="stamp" class="dim"></span><span style="flex:1"></span><span id="who" class="dim"></span><button class="plain" id="out">Sign out</button></div>
-    <section id="tt" class="card" style="margin-bottom:16px">
-      <b>Publish the week's timetable</b>
-      <p class="dim" style="margin:4px 0 10px">Choose the Excel sheet from the programme office's mail. You see the classes first; nothing reaches the students until you press Publish.</p>
-      <div class="bar">
-        <input id="ttBatch" list="ttBatches" placeholder="Batch, for example bs-2026-2030" style="min-width:220px">
-        <datalist id="ttBatches"></datalist>
-        <input id="ttFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-        <button id="ttRead" type="button">Read sheet</button>
+</div>
+
+<div id="app" hidden>
+  <aside>
+    <div class="brand"><div class="logo" data-mark></div><div><b>Crony</b><span>Admin</span></div></div>
+    <label class="batch" for="batch">Batch
+      <input id="batch" list="batches" placeholder="for example bs-2026-2030" autocapitalize="none" spellcheck="false">
+      <datalist id="batches"></datalist>
+    </label>
+    <nav id="nav">
+      <a href="#overview" data-v="overview">Overview</a>
+      <a href="#people" data-v="people">Students <small id="nPeople"></small></a>
+      <div class="sep"></div>
+      <a href="#notify" data-v="notify">Notifications <small id="nNotify"></small></a>
+      <a href="#cancel" data-v="cancel">Cancel a class</a>
+      <a href="#roles" data-v="roles">People who can post <small id="nRoles"></small></a>
+      <div class="sep"></div>
+      <a href="#timetable" data-v="timetable">Timetable</a>
+      <a href="#calendar" data-v="calendar">Academic calendar</a>
+      <a href="#exams" data-v="exams">Exam timetable</a>
+      <a href="#menu" data-v="menu">Mess menu</a>
+    </nav>
+    <div class="foot">
+      <span class="stamp" id="stamp"></span>
+      <div class="row"><button id="reload" class="sm" type="button">Refresh</button><span style="flex:1"></span><span id="who"></span><button id="out" class="sm" type="button">Sign out</button></div>
+    </div>
+  </aside>
+
+  <main>
+    <section data-view="overview">
+      <div class="head"><h1>Overview</h1><p id="ovSub"></p><span class="sp"></span><a class="btn go" href="#notify">Send a notification</a></div>
+      <div class="grid2">
+        <div class="card hero" id="ovHero"></div>
+        <div class="card"><h2>Needs you</h2><div class="need" id="ovNeed"></div></div>
+        <div class="card"><h2>Latest posts</h2><div id="ovPosts"></div></div>
+        <div class="card"><h2>App versions</h2><div id="ovVersions"></div></div>
       </div>
-      <div id="ttMsg"></div>
-      <div id="ttPreview"></div>
+      <div class="grid3" style="margin-top:22px" id="ovMore"></div>
     </section>
-    <section id="ac" class="card" style="margin-bottom:16px">
-      <b>Academic calendar</b>
-      <p class="dim" style="margin:4px 0 10px">Upload the calendar document (Word, .docx). Its exams, holidays, breaks and term dates go into every student's timetable and month view, and the holiday planner stops counting classes on those days. You see the dates first; nothing changes until you press Publish.</p>
-      <div class="bar">
-        <input id="acBatch" list="ttBatches" placeholder="Batch, for example bs-2026-2030" style="min-width:220px">
-        <input id="acFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-        <button id="acRead" type="button">Read document</button>
+
+    <section data-view="people" hidden>
+      <div class="head"><h1>Students</h1><p>Everyone who has opened the app. Click a row for that phone's log.</p></div>
+      <div class="row" style="margin-bottom:14px">
+        <input id="search" class="grow" placeholder="Search name, roll number, phone or ID" type="search">
+        <div class="seg" id="pFilter"><button type="button" data-f="all" class="on">Everyone</button><button type="button" data-f="attention">Needs attention</button><button type="button" data-f="old">Old version</button></div>
       </div>
-      <div id="acMsg"></div>
-      <div id="acPreview"></div>
-      <div id="acNow"></div>
+      <div id="pTable"></div>
     </section>
-    <section id="cn" class="card" style="margin-bottom:16px">
-      <b>Cancel a class</b>
-      <p class="dim" style="margin:4px 0 10px">Pick the day, tick the classes that are off and press Cancel classes. Students' phones mark them Cancelled on the timetable, stop their reminders, leave them out of attendance and say "Class cancelled". Put back undoes it. (The app also spots classes that disappear from the portal by itself.)</p>
-      <div class="bar">
-        <input id="cnBatch" list="ttBatches" placeholder="Batch, for example bs-2026-2030" style="min-width:220px">
-        <input id="cnDay" type="date">
-        <button id="cnShow" type="button" class="plain">Show classes</button>
+
+    <section data-view="user" hidden>
+      <div class="head"><h1 id="uName"></h1><p id="uRoll"></p><span class="sp"></span><a class="btn" href="#people">Back to students</a></div>
+      <div class="stack"><div class="card" id="uCard"></div><div><h2 id="uLogTitle">Log</h2><div id="uLog"></div></div></div>
+    </section>
+
+    <section data-view="notify" hidden>
+      <div class="head"><h1>Notifications</h1><p>Pushed to phones at once (app version 1.5 or newer); older versions get it at their next check.</p></div>
+      <div class="grid2 wide2">
+        <form class="card stack" id="ntForm" style="gap:16px; align-content:start">
+          <label class="f">Send to<div class="seg" id="ntTo"><button type="button" data-to="all" class="on">Everyone</button><button type="button" data-to="batch" id="ntToBatch">This batch</button><button type="button" data-to="people">Chosen people</button></div></label>
+          <div class="picker" id="ntPeople" hidden>
+            <input id="ntFind" type="search" placeholder="Find a name or roll number">
+            <div class="list" id="ntUsers"></div>
+            <span class="dim" style="font-size:13px" id="ntPicked">Nobody picked. Needs app version 0.8.8 or newer on their phone.</span>
+          </div>
+          <label class="f">Title<input id="ntTitle" maxlength="80" placeholder="For example: Class moved to Room 302"></label>
+          <label class="f"><span>Message <span class="dim" style="font-weight:400">(optional)</span></span><textarea id="ntBody" maxlength="500" rows="3" placeholder="More detail, if it needs it"></textarea></label>
+          <label class="f">When<div class="seg" id="ntWhenSeg"><button type="button" data-w="now" class="on">Now</button><button type="button" data-w="later">Later</button></div></label>
+          <div id="ntLater" hidden>
+            <input id="ntWhen" type="datetime-local">
+            <p class="note" style="margin-top:6px">Goes out when the first phone checks in after that time, usually within a few minutes.</p>
+          </div>
+          <div class="row" style="align-items:center"><button id="ntSend" type="button" class="go">Send to everyone</button><span id="ntMsg"></span></div>
+        </form>
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:12px"><h2 style="margin:0">Sent</h2><div class="seg" id="ntTabs"><button type="button" data-t="all" class="on">All</button><button type="button" data-t="later">Scheduled</button><button type="button" data-t="posts">From CRs and secretaries</button></div></div>
+          <div id="ntList"></div>
+        </div>
       </div>
-      <div id="cnPick"></div>
-      <div id="cnMsg"></div>
-      <div id="cnNow"></div>
     </section>
-    <section id="mn" class="card" style="margin-bottom:16px">
-      <b>Mess menu</b>
-      <p class="dim" style="margin:4px 0 10px">The week's menu shown in the app, for everyone. To publish one, give the mess's menu file to Claude: it reads the file and sends the menu here.</p>
-      <div id="mnNow"></div>
+
+    <section data-view="cancel" hidden>
+      <div class="head"><h1>Cancel a class</h1><p>Phones mark it Cancelled, stop its reminders, leave it out of attendance and say "Class cancelled". Put back undoes it. The app also spots classes that disappear from the portal by itself.</p></div>
+      <div class="stack">
+        <div class="card">
+          <h2>Pick the day</h2>
+          <div class="row"><input id="cnDay" type="date"><button id="cnShow" type="button">Show classes</button></div>
+          <div id="cnPick"></div>
+          <div id="cnMsg"></div>
+        </div>
+        <div class="card"><h2 id="cnTitle">Cancelled</h2><div id="cnNow"></div></div>
+      </div>
     </section>
-    <section id="ex" class="card" style="margin-bottom:16px">
-      <b>Exam timetable</b>
-      <p class="dim" style="margin:4px 0 10px">Each student sees the papers of their own courses, with a countdown and reminders the evening before and an hour before. To publish one, give the exam schedule to Claude.</p>
+
+    <section data-view="roles" hidden>
+      <div class="head"><h1>People who can post</h1><p>Class reps (CR), mess secretaries and hostel secretaries get a "Post an update" screen in the app (0.8.20 or newer). Their posts start with their role ("CR: ...") and show under Notifications with their name. At most 10 posts a day each. A CR can also cancel and put back classes of their batch.</p></div>
+      <div class="stack">
+        <div class="card">
+          <h2>Give a role</h2>
+          <div class="row">
+            <label class="f grow" style="flex:2">Person<input id="rlWho" list="rlPeople" placeholder="Type a name or roll number"><datalist id="rlPeople"></datalist></label>
+            <label class="f">Role<select id="rlRole"><option value="cr">CR</option><option value="mess">Mess Secretary</option><option value="hostel">Hostel Secretary</option></select></label>
+            <label class="f grow">Posts to<input id="rlBatch" list="batches" placeholder="Empty means everyone"></label>
+            <button id="rlSet" type="button" class="go">Give role</button>
+          </div>
+          <div id="rlMsg"></div>
+        </div>
+        <div id="rlList"></div>
+      </div>
+    </section>
+
+    <section data-view="timetable" hidden>
+      <div class="head"><h1>Timetable</h1><p>Choose the Excel sheet from the programme office's mail. You see the classes first; nothing reaches the students until you press Publish.</p></div>
+      <div class="stack">
+        <div class="card">
+          <h2 id="ttTitle">Publish the week</h2>
+          <div class="row"><input id="ttFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="grow"><button id="ttRead" type="button" class="go">Read sheet</button></div>
+          <div id="ttMsg"></div>
+          <div id="ttPreview"></div>
+        </div>
+        <div><h2>On the server</h2><div id="ttNow"></div></div>
+      </div>
+    </section>
+
+    <section data-view="calendar" hidden>
+      <div class="head"><h1>Academic calendar</h1><p>Upload the calendar document (Word, .docx). Its exams, holidays, breaks and term dates go into every student's timetable and month view, and the holiday planner stops counting classes on those days. You see the dates first; nothing changes until you press Publish.</p></div>
+      <div class="stack">
+        <div class="card">
+          <h2 id="acTitle">Read a document</h2>
+          <div class="row"><input id="acFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="grow"><button id="acRead" type="button" class="go">Read document</button></div>
+          <div id="acMsg"></div>
+          <div id="acPreview"></div>
+        </div>
+        <div><h2>On the server</h2><div id="acNow"></div></div>
+      </div>
+    </section>
+
+    <section data-view="exams" hidden>
+      <div class="head"><h1>Exam timetable</h1><p>Each student sees the papers of their own courses, with a countdown and reminders the evening before and an hour before. To publish one, give the exam schedule to Claude.</p></div>
       <div id="exNow"></div>
     </section>
-    <section id="nt" class="card" style="margin-bottom:16px">
-      <b>Send a notification</b>
-      <p class="dim" style="margin:4px 0 10px">Pushed to phones at once (app version 1.5 or newer); older versions get it at their next check. A message set for later goes out when the first phone checks in after that time, usually within a few minutes.</p>
-      <div class="bar">
-        <input id="ntTitle" maxlength="80" placeholder="Title, for example: Class moved to Room 302" style="flex:2; min-width:220px">
-        <input id="ntBatch" list="ttBatches" placeholder="Batch (leave empty for everyone)" style="flex:1; min-width:200px">
-      </div>
-      <div class="bar">
-        <select id="ntUsers" multiple size="4" style="flex:1; min-width:220px; font:inherit; padding:6px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></select>
-        <span class="dim" style="font-size:13px; flex:1; min-width:200px">Only these people (optional): pick one or more, holding Ctrl or Cmd for several. Leave none picked to send to the batch or everyone. Needs app version 0.8.8 or newer on their phone.</span>
-      </div>
-      <div class="bar"><textarea id="ntBody" maxlength="500" rows="2" placeholder="Message (optional)" style="flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)"></textarea></div>
-      <div class="bar">
-        <label class="dim" for="ntWhen" style="font-size:14px">Send later (optional)</label>
-        <input id="ntWhen" type="datetime-local">
-        <button id="ntSend" type="button">Send</button><span id="ntMsg"></span>
-      </div>
-      <div id="ntList"></div>
+
+    <section data-view="menu" hidden>
+      <div class="head"><h1>Mess menu</h1><p>The week's menu shown in the app, for everyone. To publish one, give the mess's menu file to Claude: it reads the file and sends the menu here.</p></div>
+      <div id="mnNow"></div>
     </section>
-    <section id="rl" class="card" style="margin-bottom:16px">
-      <b>People who can post</b>
-      <p class="dim" style="margin:4px 0 10px">Class reps (CR), mess secretaries and hostel secretaries. They get a "Post an update" screen in the app (version 0.8.20 or newer) and can send notifications to the batch you set here, or to everyone if you leave it empty. A CR can also cancel and put back classes of their batch. Their posts start with their role ("CR: ...") and show up below with their name. At most 10 posts a day each.</p>
-      <div class="bar">
-        <input id="rlWho" list="rlPeople" placeholder="Person: type a name or roll number" style="flex:2; min-width:240px">
-        <datalist id="rlPeople"></datalist>
-        <select id="rlRole" style="font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink)">
-          <option value="cr">CR</option><option value="mess">Mess Secretary</option><option value="hostel">Hostel Secretary</option>
-        </select>
-        <input id="rlBatch" list="ttBatches" placeholder="Posts to batch (empty = everyone)" style="flex:1; min-width:200px">
-        <button id="rlSet" type="button">Give role</button>
-      </div>
-      <span id="rlMsg"></span>
-      <div id="rlList"></div>
-    </section>
-    <div id="view"></div>
-  </div>
-</main>
+  </main>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const when = (t) => t ? new Date(t).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false }) : '';
-const ago = (t) => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
-let current = null, data = null;
+const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - new Date(t)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const cls = (n) => n + (n === 1 ? ' class' : ' classes');
+const nice = (d) => { const x = new Date(d + 'T00:00:00'); return DAYS[x.getDay()] + ' ' + x.toLocaleDateString('en-IN', { day:'numeric', month:'short' }); };
+const short = (t) => { const d = new Date(t), now = new Date(); const days = Math.floor((new Date(now.toDateString()) - new Date(d.toDateString())) / 86400e3);
+  return days === 0 ? d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false }) : days < 7 ? DAYS[d.getDay()] : d.toLocaleDateString('en-IN', { day:'numeric', month:'short' }); };
+const say = (id, text, c) => { $(id).innerHTML = text ? `<p class="say ${c || ''}">${esc(text)}</p>` : ''; };
+const table = (head, rows, empty, cap) => `<div class="tbl${cap ? ' cap' : ''}"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows || `<tr><td colspan="${head.length}" class="dim">${empty}</td></tr>`}</tbody></table></div>`;
+const OKB = /^[a-z0-9-]{2,40}$/;
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+document.querySelectorAll('[data-mark]').forEach((el) => el.append($('mark').content.cloneNode(true)));
+
+let data = null, roles = null, view = 'overview';
+const batch = () => $('batch').value.trim().toLowerCase();
+const needBatch = (msgId) => { if (OKB.test(batch())) return true; say(msgId, 'Set the batch at the top left: small letters, numbers and dashes only.', 'bad'); $('batch').focus(); return false; };
 
 async function get(q) {
   const r = await fetch('/api/admin' + q);
@@ -162,153 +370,175 @@ async function auth(body, msgId) {
     return true;
   } catch (e) { $(msgId).textContent = 'Could not reach the server.'; return false; }
 }
-const group = (title, rows) => `<div class="card"><b>${title}</b>${rows.map((r) => `<div><span>${esc(r.label || 'unknown')}</span><span>${r.n}</span></div>`).join('') || '<div class="dim">none yet</div>'}</div>`;
 
-function drawAll() {
-  const t = data.totals, q = ($('search') ? $('search').value : '').toLowerCase();
-  const users = data.users.filter((u) => !q || [u.name, u.roll, u.id, u.device, u.app_version].join(' ').toLowerCase().includes(q));
-  $('view').innerHTML = `
-    <div class="tiles">
-      ${[['Users', t.users], ['Active today', t.active_1d], ['Active in 7 days', t.active_7d], ['Active in 30 days', t.active_30d], ['New in 7 days', t.new_7d], ['Reminders blocked', t.reminders_blocked], ['With an error', t.with_errors]]
-        .map(([l, n]) => `<div class="tile"><b>${n}</b><span>${l}</span></div>`).join('')}
-    </div>
-    <h2>Breakdown</h2>
-    <div class="cols">${group('App version', data.versions)}${group('Batch', data.batches)}${group('Phone make', data.makers)}${group('Events in 7 days', data.kinds)}</div>
-    <h2>Daily activity (last 14 days)</h2>
-    <div class="scroll"><table><thead><tr><th>Day</th><th>Users seen</th><th>Events</th></tr></thead><tbody>
-      ${data.daily.map((d) => `<tr><td>${d.day}</td><td>${d.users}</td><td>${d.events}</td></tr>`).join('') || '<tr><td colspan="3" class="dim">No activity yet</td></tr>'}</tbody></table></div>
-    <h2>Timetables on the server</h2>
-    <div class="scroll"><table><thead><tr><th>Batch</th><th>Classes</th><th>Updated</th></tr></thead><tbody>
-      ${data.timetables.map((d) => `<tr><td>${esc(d.batch)}</td><td>${d.classes}</td><td>${when(d.updated)}</td></tr>`).join('') || '<tr><td colspan="3" class="dim">None</td></tr>'}</tbody></table></div>
-    <h2>Users (${users.length})</h2>
-    <div class="bar"><input id="search" placeholder="Search name, roll number, phone or ID" value="${esc(q)}"></div>
-    <div class="scroll"><table><thead><tr><th>Name</th><th>Roll</th><th>Version</th><th>Phone</th><th>Last seen</th><th>State</th></tr></thead><tbody>
-      ${users.map((u) => `<tr class="pick" data-id="${esc(u.id)}"><td>${esc(u.name) || '<span class="dim">not signed in yet</span>'}</td><td>${esc(u.roll)}</td><td>${esc(u.app_version)}</td><td>${esc(u.device)}</td><td>${ago(u.last_seen)}</td>
-        <td>${u.health ? `<span class="bad">Reminders blocked: ${esc(u.health)}</span>` : ''}${u.health && u.last_error ? '<br>' : ''}${u.last_error ? `<span class="bad">${esc(u.last_error)}</span>` : ''}${!u.health && !u.last_error ? '<span class="ok">fine</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="dim">No users yet</td></tr>'}
-    </tbody></table></div>`;
-  $('search').oninput = () => { const pos = $('search').selectionStart; drawAll(); $('search').focus(); $('search').setSelectionRange(pos, pos); };
-  document.querySelectorAll('tr.pick').forEach((tr) => tr.onclick = () => openUser(tr.dataset.id));
+// ---- versions and people needing attention
+const vnum = (v) => String(v || '').split(/[.+-]/).map((x) => +x || 0);
+const vcmp = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+const newest = () => (data.versions || []).map((v) => v.label).filter(Boolean).sort(vcmp).pop();
+const isOld = (u) => u.app_version && vcmp(u.app_version, newest()) < 0;
+const troubled = (u) => !!(u.health || u.last_error);
+
+// ---- overview
+function drawOverview() {
+  const t = data.totals, days = data.daily || [];
+  const scheduled = data.notices.filter((n) => new Date(n.send_at) > new Date());
+  $('ovSub').textContent = `${(data.batches || []).filter((b) => b.label).length} batches · ${t.users} students`;
+  const max = Math.max(1, ...days.map((d) => d.users)), today = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  $('ovHero').innerHTML = `
+    <div class="big num">${t.active_1d}</div><div class="lede">of ${t.users} students opened Crony today</div>
+    ${days.length ? `<div class="bars" role="img" aria-label="Students seen each day for the last 14 days">${days.map((d) => `<i class="${d.day === today ? 'today' : ''}" style="height:${Math.max(3, d.users / max * 100)}%" title="${nice(d.day)}: ${d.users} students, ${d.events} events"></i>`).join('')}</div>
+    <div class="axis"><span>${nice(days[0].day)}</span><span>Students seen each day</span><span>${days[days.length - 1].day === today ? 'Today' : nice(days[days.length - 1].day)}</span></div>` : '<div class="axis" style="margin-top:12px">No activity yet</div>'}
+    <div class="trio"><div><b class="num">${t.active_7d}</b>in 7 days</div><div><b class="num">${t.active_30d}</b>in 30 days</div><div><b class="num">${t.new_7d}</b>new in 7 days</div></div>`;
+
+  const old = data.users.filter(isOld), blocked = data.users.filter((u) => u.health), erred = data.users.filter((u) => u.last_error);
+  const items = [
+    ...scheduled.map((n) => `<div class="item"><b>${esc(n.title)}</b><span><span class="tag">Scheduled</span>to ${esc(n.batch || 'everyone')}, ${when(n.send_at)}</span><button class="sm" type="button" data-del="${n.id}" data-later="1">Cancel</button></div>`),
+    t.reminders_blocked ? `<div class="item"><b>${t.reminders_blocked} ${t.reminders_blocked === 1 ? 'phone blocks' : 'phones block'} reminders</b><span>${esc(common(blocked.map((u) => u.health)) || 'Battery or notification settings')}</span><button class="sm" type="button" data-go="people/attention">See who</button></div>` : '',
+    t.with_errors ? `<div class="item"><b>${t.with_errors} ${t.with_errors === 1 ? 'phone' : 'phones'} with an error</b><span>${erred[0] ? `<span class="tag r">${esc(erred[0].last_error.split(':')[0])}</span>${esc(erred[0].last_error.split(':').slice(1).join(':').trim())}` : ''}</span><button class="sm" type="button" data-go="people/attention">See who</button></div>` : '',
+    old.length ? `<div class="item"><b>${old.length} on an older version</b><span>Not on ${esc(newest())} yet</span><button class="sm" type="button" data-go="people/old">See who</button></div>` : '',
+  ].filter(Boolean);
+  $('ovNeed').innerHTML = items.join('') || '<p class="calm">Nothing needs you right now.</p>';
+
+  const sent = data.notices.filter((n) => new Date(n.send_at) <= new Date()).slice(0, 4);
+  $('ovPosts').innerHTML = sent.length ? sent.map((n) => `<div class="post"><time>${short(n.send_at)}</time><div><b>${esc(n.title)}</b><span>${n.by_user ? esc(n.sent_by) : 'Admin'} · ${n.users && n.users.length ? n.users.length + ' chosen' : esc(n.batch || 'everyone')}</span></div><div class="got num">${n.received} of ${n.audience}<div class="meter"><i style="width:${n.audience ? Math.min(100, n.received / n.audience * 100) : 0}%"></i></div></div></div>`).join('')
+    + '<p class="note"><a href="#notify">All notifications</a></p>' : '<p class="calm">Nothing sent yet.</p>';
+
+  const top = newest(), vmax = Math.max(1, ...data.versions.map((v) => v.n));
+  $('ovVersions').innerHTML = data.versions.map((v) => `<div class="hbar"><b>${esc(v.label || 'unknown')}</b><i class="${v.label === top ? '' : 'w'}" style="width:${v.n / vmax * 100}%"></i><span class="num">${v.n}</span></div>`).join('') || '<p class="calm">None yet.</p>';
+
+  const list = (title, rows) => { const m = Math.max(1, ...rows.map((r) => r.n)); return `<div class="card"><h2>${title}</h2>${rows.map((r) => `<div class="hbar"><b>${esc(r.label || 'unknown')}</b><i class="w" style="width:${r.n / m * 100}%"></i><span class="num">${r.n}</span></div>`).join('') || '<p class="calm">None yet.</p>'}</div>`; };
+  $('ovMore').innerHTML = list('Batches', data.batches) + list('Phone makes', data.makers) + list('Events in 7 days', data.kinds);
 }
-function drawUser(d) {
+const common = (xs) => { const c = {}; xs.filter(Boolean).forEach((x) => { c[x] = (c[x] || 0) + 1; }); const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; return top ? (xs.length > 1 && top[1] > 1 ? 'Mostly ' : '') + top[0] : ''; };
+
+// ---- students
+let pf = 'all';
+function drawPeople() {
+  const q = $('search').value.toLowerCase();
+  const users = data.users.filter((u) => (pf === 'all' || (pf === 'attention' ? troubled(u) : isOld(u)))
+    && (!q || [u.name, u.roll, u.id, u.device, u.app_version].join(' ').toLowerCase().includes(q)));
+  document.querySelectorAll('#pFilter button').forEach((b) => b.classList.toggle('on', b.dataset.f === pf));
+  $('pTable').innerHTML = table(['Name', 'Roll', 'Version', 'Phone', 'Last seen', 'State'], users.map((u) => `<tr class="pick" data-id="${esc(u.id)}" tabindex="0">
+    <td>${esc(u.name) || '<span class="dim">Not signed in yet</span>'}</td><td>${esc(u.roll)}</td>
+    <td>${isOld(u) ? `<span class="tag w">${esc(u.app_version)}</span>` : esc(u.app_version)}</td><td>${esc(u.device)}</td><td>${ago(u.last_seen)}</td>
+    <td>${u.health ? `<span class="tag r">Reminders blocked</span><span class="s">${esc(u.health)}</span>` : ''}${u.last_error ? `<span class="tag r">Error</span><span class="s">${esc(u.last_error)}</span>` : ''}${troubled(u) ? '' : '<span class="dim">Fine</span>'}</td></tr>`).join(''),
+    pf === 'all' && !q ? 'No students yet' : 'Nobody matches');
+  document.querySelectorAll('tr.pick').forEach((tr) => {
+    tr.onclick = () => { location.hash = 'user/' + tr.dataset.id; };
+    tr.onkeydown = (e) => { if (e.key === 'Enter') tr.onclick(); };
+  });
+}
+$('search').oninput = drawPeople;
+$('pFilter').onclick = (e) => { const b = e.target.closest('button'); if (b) { pf = b.dataset.f; drawPeople(); } };
+
+async function openUser(id) {
+  $('uName').textContent = 'Loading...'; $('uRoll').textContent = ''; $('uCard').innerHTML = ''; $('uLog').innerHTML = '';
+  let d;
+  try { d = await get('?user=' + encodeURIComponent(id)); } catch (e) { if (e.message !== 'locked') $('uName').textContent = e.message; return; }
   const u = d.user;
-  $('view').innerHTML = `
-    <h2>${esc(u.name) || 'Unknown user'} ${esc(u.roll)}</h2>
-    <div class="card">
-      ${[['Support ID', u.id], ['Batch', u.batch], ['App version', u.app_version], ['Phone', u.device], ['First seen', when(u.first_seen)], ['Last seen', when(u.last_seen) + ' (' + ago(u.last_seen) + ')'], ['Reminders', u.health ? 'Blocked: ' + u.health : 'Can reach the user'], ['Last error', u.last_error || 'none']]
-        .map(([l, v]) => `<div><span class="dim">${l}</span><span>${esc(v)}</span></div>`).join('')}
-    </div>
-    <h2>Log (newest first, last ${d.events.length})</h2>
-    <div class="scroll"><table><thead><tr><th>Time on phone</th><th>Event</th><th>Detail</th></tr></thead><tbody>
-      ${d.events.map((e) => `<tr><td class="mono">${when(e.at)}</td><td class="${e.kind.endsWith('_fail') ? 'bad' : ''}">${esc(e.kind)}</td><td>${esc(e.detail)}</td></tr>`).join('') || '<tr><td colspan="3" class="dim">No events</td></tr>'}
-    </tbody></table></div>`;
+  $('uName').textContent = u.name || 'Unknown student'; $('uRoll').textContent = u.roll || '';
+  $('uCard').innerHTML = `<dl>${[['Support ID', u.id], ['Batch', u.batch], ['App version', u.app_version], ['Phone', u.device], ['First seen', when(u.first_seen)], ['Last seen', when(u.last_seen) + ' (' + ago(u.last_seen) + ')'], ['Reminders', u.health ? 'Blocked: ' + u.health : 'Can reach the student'], ['Last error', u.last_error || 'None']]
+    .map(([l, v]) => `<dt>${l}</dt><dd${(l === 'Reminders' && u.health) || (l === 'Last error' && u.last_error) ? ' class="bad"' : ''}>${esc(v)}</dd>`).join('')}</dl>`;
+  $('uLogTitle').textContent = `Log, newest first (last ${d.events.length})`;
+  $('uLog').innerHTML = table(['Time on phone', 'Event', 'Detail'], d.events.map((e) => `<tr><td class="mono" style="white-space:nowrap">${when(e.at)}</td><td class="${e.kind.endsWith('_fail') ? 'bad' : ''}">${esc(e.kind)}</td><td>${esc(e.detail)}</td></tr>`).join(''), 'No events');
 }
+
 // ---- timetable upload
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const cls = (n) => n + (n === 1 ? ' class' : ' classes');
-const nice = (d) => { const x = new Date(d + 'T00:00:00'); return DAYS[x.getDay()] + ' ' + x.toLocaleDateString('en-IN', { day:'numeric', month:'short' }); };
 let pending = null;
-function ttSay(text, cls) { $('ttMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
-function ttFill() {
-  if (!data) return;
-  const names = [...new Set([...data.timetables.map((t) => t.batch), ...data.batches.map((b) => b.label)].filter(Boolean))];
-  $('ttBatches').innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
-  if (!$('ttBatch').value && names.length) $('ttBatch').value = names[0];
+function ttDraw() {
+  $('ttTitle').textContent = OKB.test(batch()) ? 'Publish the week for ' + batch() : 'Publish the week';
+  $('ttNow').innerHTML = table(['Batch', 'Classes', 'Updated'], data.timetables.map((d) => `<tr><td>${esc(d.batch)}</td><td>${d.classes}</td><td>${when(d.updated)}</td></tr>`).join(''), 'None');
 }
 $('ttRead').onclick = async () => {
   pending = null; $('ttPreview').innerHTML = '';
-  const batch = $('ttBatch').value.trim().toLowerCase(), file = $('ttFile').files[0];
-  if (!/^[a-z0-9-]{2,40}$/.test(batch)) return ttSay('Type the batch name: small letters, numbers and dashes only.', 'bad');
-  if (!file) return ttSay('Choose the Excel file first.', 'bad');
-  ttSay('Reading the sheet...', 'dim');
+  if (!needBatch('ttMsg')) return;
+  const b = batch(), file = $('ttFile').files[0];
+  if (!file) return say('ttMsg', 'Choose the Excel file first.', 'bad');
+  say('ttMsg', 'Reading the sheet...', 'dim');
   try {
     const r = await fetch('/api/sheet', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file });
     const j = await r.json();
     if (r.status === 401) return lock('');
-    if (!r.ok) return ttSay(j.error || 'Could not read the file.', 'bad');
-    const fresh = j.classes.sort((a, b) => (a.d + a.s).localeCompare(b.d + b.s));
+    if (!r.ok) return say('ttMsg', j.error || 'Could not read the file.', 'bad');
+    const fresh = j.classes.sort((a, c) => (a.d + a.s).localeCompare(c.d + c.s));
     const first = fresh[0].d, last = fresh[fresh.length - 1].d;
     // Each mail says "from this date onwards": keep what is on the server
     // before that date (up to 45 days back) and replace the rest.
-    const cur = await (await fetch('/api/timetable?batch=' + batch + '&t=' + Date.now())).json();
+    const cur = await (await fetch('/api/timetable?batch=' + b + '&t=' + Date.now())).json();
     const floor = new Date(Date.now() - 45 * 86400e3).toISOString().slice(0, 10);
     const kept = (cur.classes || []).filter((c) => c.d < first && c.d >= floor);
     const dropped = (cur.classes || []).filter((c) => c.d >= first).length;
-    pending = { batch, classes: [...kept, ...fresh] };
-    ttSay('');
+    pending = { batch: b, classes: [...kept, ...fresh] };
+    say('ttMsg', '');
     $('ttPreview').innerHTML = `
-      <p style="margin:8px 0"><b>${cls(fresh.length)}</b> from ${nice(first)} to ${nice(last)} for <b>${esc(batch)}</b>.
+      <p style="margin:16px 0 10px"><b>${cls(fresh.length)}</b> from ${nice(first)} to ${nice(last)} for <b>${esc(b)}</b>.
         ${dropped ? `Replaces ${cls(dropped)} now on the server from ${nice(first)} onwards.` : 'Nothing on the server is replaced.'}
         ${kept.length ? `Keeps ${cls(kept.length)} from before that.` : ''}</p>
-      <div class="scroll" style="max-height:340px; overflow-y:auto"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Teacher</th></tr></thead><tbody>
-        ${fresh.map((c) => `<tr><td>${nice(c.d)}</td><td>${c.s} to ${c.e}</td><td>${esc(c.c)}</td><td>${esc(c.f)}</td></tr>`).join('')}</tbody></table></div>
-      <div class="bar" style="margin-top:10px"><button id="ttPublish" type="button">Publish to ${esc(batch)}</button><button id="ttCancel" class="plain" type="button">Cancel</button></div>`;
+      ${table(['Day', 'Time', 'Course', 'Teacher'], fresh.map((c) => `<tr><td>${nice(c.d)}</td><td>${c.s} to ${c.e}</td><td>${esc(c.c)}</td><td>${esc(c.f)}</td></tr>`).join(''), '', true)}
+      <div class="row" style="margin-top:14px"><button id="ttPublish" type="button" class="go">Publish to ${esc(b)}</button><button id="ttCancel" type="button">Cancel</button></div>`;
     $('ttCancel').onclick = () => { pending = null; $('ttPreview').innerHTML = ''; };
     $('ttPublish').onclick = async () => {
       if (!pending) return;
       $('ttPublish').disabled = true;
       const p = await fetch('/api/timetable?batch=' + pending.batch, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classes: pending.classes }) });
       const out = await p.json();
-      if (!p.ok) { $('ttPublish').disabled = false; return ttSay(out.error || 'The server refused it.', 'bad'); }
+      if (!p.ok) { $('ttPublish').disabled = false; return say('ttMsg', out.error || 'The server refused it.', 'bad'); }
       pending = null; $('ttPreview').innerHTML = ''; $('ttFile').value = '';
-      ttSay(`Published: ${cls(out.count)} on the server. ${out.pushed && out.pushed.ok ? 'Phones were told to fetch it now.' : 'Phones pick it up at their next check.'}`, 'ok');
+      say('ttMsg', `Published: ${cls(out.count)} on the server. ${out.pushed && out.pushed.ok ? 'Phones were told to fetch it now.' : 'Phones pick it up at their next check.'}`, 'ok');
       load();
     };
-  } catch (e) { ttSay('Could not reach the server. ' + e.message, 'bad'); }
+  } catch (e) { say('ttMsg', 'Could not reach the server. ' + e.message, 'bad'); }
 };
 
 // ---- cancel classes
-function cnSay(text, cls) { $('cnMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
-const cnBatch = () => $('cnBatch').value.trim().toLowerCase();
 function cnList(rows) {
-  $('cnNow').innerHTML = `<p style="margin:12px 0 6px"><b>Cancelled for ${esc(cnBatch())}</b></p>` + (rows.length
-    ? `<div class="scroll"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Reason</th><th></th></tr></thead><tbody>
-      ${rows.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}</td><td>${esc(x.c) || '<span class="dim">every class then</span>'}</td><td>${esc(x.why)}</td><td><button class="plain" type="button" data-back="${x.id}">Put back</button></td></tr>`).join('')}</tbody></table></div>`
-    : '<p class="dim" style="margin:0">None coming up.</p>');
+  $('cnTitle').textContent = 'Cancelled for ' + batch();
+  $('cnNow').innerHTML = rows.length
+    ? table(['Day', 'Time', 'Course', 'Reason', ''], rows.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}</td><td>${esc(x.c) || '<span class="dim">Every class then</span>'}</td><td>${esc(x.why)}</td><td class="act"><button class="sm" type="button" data-back="${x.id}">Put back</button></td></tr>`).join(''), '')
+    : '<p class="calm">None coming up.</p>';
   document.querySelectorAll('[data-back]').forEach((b) => b.onclick = async () => {
     b.disabled = true;
-    const r = await fetch(`/api/cancelled?batch=${cnBatch()}&id=${b.dataset.back}`, { method: 'DELETE' });
+    const r = await fetch(`/api/cancelled?batch=${batch()}&id=${b.dataset.back}`, { method: 'DELETE' });
     if (r.status === 401) return lock('');
     const j = await r.json();
-    if (!r.ok) { b.disabled = false; return cnSay(j.error || 'The server refused it.', 'bad'); }
-    cnSay('Put back. Phones were told to fetch the timetable again.', 'ok'); cnList(j.classes);
+    if (!r.ok) { b.disabled = false; return say('cnMsg', j.error || 'The server refused it.', 'bad'); }
+    say('cnMsg', 'Put back. Phones were told to fetch the timetable again.', 'ok'); cnList(j.classes);
   });
 }
 async function cnDraw() {
-  if (!$('cnBatch').value && $('ttBatch').value) $('cnBatch').value = $('ttBatch').value;
   if (!$('cnDay').value) $('cnDay').value = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
-  if (!/^[a-z0-9-]{2,40}$/.test(cnBatch())) return;
-  try { cnList((await (await fetch(`/api/cancelled?batch=${cnBatch()}&t=${Date.now()}`)).json()).classes || []); } catch (e) {}
+  if (!OKB.test(batch())) { $('cnTitle').textContent = 'Cancelled'; $('cnNow').innerHTML = '<p class="calm">Set the batch at the top left.</p>'; return; }
+  try { cnList((await (await fetch(`/api/cancelled?batch=${batch()}&t=${Date.now()}`)).json()).classes || []); } catch (e) {}
 }
-$('cnBatch').onchange = () => { $('cnPick').innerHTML = ''; cnDraw(); };
 $('cnShow').onclick = async () => {
-  const batch = cnBatch(), day = $('cnDay').value;
-  if (!/^[a-z0-9-]{2,40}$/.test(batch)) return cnSay('Type the batch name: small letters, numbers and dashes only.', 'bad');
-  if (!day) return cnSay('Choose the day.', 'bad');
-  cnSay('');
+  if (!needBatch('cnMsg')) return;
+  const b = batch(), day = $('cnDay').value;
+  if (!day) return say('cnMsg', 'Choose the day.', 'bad');
+  say('cnMsg', '');
   const [tt, off] = await Promise.all([
-    fetch(`/api/timetable?batch=${batch}&t=${Date.now()}`).then((r) => r.json()),
-    fetch(`/api/cancelled?batch=${batch}&t=${Date.now()}`).then((r) => r.json())]);
+    fetch(`/api/timetable?batch=${b}&t=${Date.now()}`).then((r) => r.json()),
+    fetch(`/api/cancelled?batch=${b}&t=${Date.now()}`).then((r) => r.json())]);
   const gone = new Set((off.classes || []).map((x) => x.d + ' ' + x.s + ' ' + x.c));
-  const today = (tt.classes || []).filter((c) => c.d === day).sort((a, b) => a.s.localeCompare(b.s));
+  const today = (tt.classes || []).filter((c) => c.d === day).sort((a, c) => a.s.localeCompare(c.s));
   $('cnPick').innerHTML = `
-    <p style="margin:8px 0">${today.length ? `${cls(today.length)} on ${nice(day)} in the published timetable:` : `No classes on ${nice(day)} in the published timetable. Add one by time below.`}</p>
-    ${today.map((c, i) => { const was = gone.has(day + ' ' + c.s + ' ' + c.c); return `<label style="display:block; margin:4px 0"><input type="checkbox" data-i="${i}" ${was ? 'disabled' : ''}> ${c.s} to ${c.e} · <b>${esc(c.c)}</b>${c.f ? ' · ' + esc(c.f) : ''}${was ? ' <span class="dim">(already cancelled)</span>' : ''}</label>`; }).join('')}
-    <div class="bar" style="margin-top:8px"><span class="dim">Not listed?</span><input id="cnTime" type="time" style="width:120px"><input id="cnCourse" placeholder="Course (leave empty for every class at that time)" style="flex:1; min-width:220px"></div>
-    <div class="bar"><input id="cnWhy" placeholder="Reason (optional), for example: faculty unwell" style="flex:1; min-width:220px"></div>
-    <label style="display:block; margin:6px 0" class="dim"><input type="checkbox" id="cnNotice"> Also send a notification to the batch (only needed for phones on app versions older than 0.8.16, which do not know about cancelled classes)</label>
-    <div class="bar" style="margin-top:8px"><button id="cnGo" type="button">Cancel classes</button></div>`;
+    <p style="margin:16px 0 4px">${today.length ? `${cls(today.length)} on ${nice(day)} for <b>${esc(b)}</b>:` : `No classes on ${nice(day)} in the published timetable. Add one by time below.`}</p>
+    <div class="picks">${today.map((c, i) => { const was = gone.has(day + ' ' + c.s + ' ' + c.c); return `<label><input type="checkbox" data-i="${i}" ${was ? 'disabled' : ''}><span><span class="mono">${c.s} to ${c.e}</span> · <b>${esc(c.c)}</b>${c.f ? ' · ' + esc(c.f) : ''}${was ? ' <span class="dim">(already cancelled)</span>' : ''}</span></label>`; }).join('')}</div>
+    <div class="row" style="margin-top:10px"><label class="f">Not listed ?<input id="cnTime" type="time" style="width:130px"></label><label class="f grow">Course<input id="cnCourse" placeholder="Empty means every class at that time"></label></div>
+    <div class="row" style="margin-top:10px"><label class="f grow"><span>Reason <span class="dim" style="font-weight:400">(optional)</span></span><input id="cnWhy" placeholder="For example: faculty unwell"></label></div>
+    <label class="dim" style="display:flex; gap:10px; margin:12px 0; font-size:13px"><input type="checkbox" id="cnNotice"><span>Also send a notification to the batch. Only needed for phones on app versions older than 0.8.16, which do not know about cancelled classes.</span></label>
+    <button id="cnGo" type="button" class="go">Cancel classes</button>`;
   $('cnGo').onclick = async () => {
-    const picked = [...document.querySelectorAll('#cnPick input[data-i]:checked')].map((b) => today[b.dataset.i]).map((c) => ({ d: day, s: c.s, c: c.c }));
+    const picked = [...document.querySelectorAll('#cnPick input[data-i]:checked')].map((x) => today[x.dataset.i]).map((c) => ({ d: day, s: c.s, c: c.c }));
     if ($('cnTime').value) picked.push({ d: day, s: $('cnTime').value, c: $('cnCourse').value.trim() });
-    if (!picked.length) return cnSay('Tick a class, or type a time.', 'bad');
-    if (!confirm(`Cancel ${cls(picked.length)} on ${nice(day)} for ${batch}? Students are told at once.`)) return;
+    if (!picked.length) return say('cnMsg', 'Tick a class, or type a time.', 'bad');
+    if (!confirm(`Cancel ${cls(picked.length)} on ${nice(day)} for ${b}? Students are told at once.`)) return;
     $('cnGo').disabled = true;
-    const r = await fetch(`/api/cancelled?batch=${batch}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classes: picked, why: $('cnWhy').value.trim(), notice: $('cnNotice').checked }) });
+    const r = await fetch(`/api/cancelled?batch=${b}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classes: picked, why: $('cnWhy').value.trim(), notice: $('cnNotice').checked }) });
     if (r.status === 401) return lock('');
     const j = await r.json();
-    if (!r.ok) { $('cnGo').disabled = false; return cnSay(j.error || 'The server refused it.', 'bad'); }
+    if (!r.ok) { $('cnGo').disabled = false; return say('cnMsg', j.error || 'The server refused it.', 'bad'); }
     $('cnPick').innerHTML = '';
-    cnSay(`Cancelled ${cls(picked.length)}. ${j.pushed && j.pushed.ok ? 'Phones were told at once.' : 'Phones pick it up at their next check.'}`, 'ok');
+    say('cnMsg', `Cancelled ${cls(picked.length)}. ${j.pushed && j.pushed.ok ? 'Phones were told at once.' : 'Phones pick it up at their next check.'}`, 'ok');
     cnList(j.classes);
   };
 };
@@ -316,192 +546,236 @@ $('cnShow').onclick = async () => {
 // ---- academic calendar upload
 const KIND = { exam: 'Exam', holiday: 'Holiday', break: 'Break', info: 'Term date' };
 let acPending = null;
-function acSay(text, cls) { $('acMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
 const span = (e) => e.from === e.to ? nice(e.from) + ' ' + e.from.slice(0, 4) : nice(e.from) + ' to ' + nice(e.to) + ' ' + e.to.slice(0, 4);
 function acDraw() {
-  if (!data) return;
-  if (!$('acBatch').value && $('ttBatch').value) $('acBatch').value = $('ttBatch').value;
-  $('acNow').innerHTML = data.calendars.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>On the server for</th><th>Events</th><th>Updated</th><th></th></tr></thead><tbody>
-    ${data.calendars.map((c) => `<tr><td>${esc(c.batch)}<br><span class="dim">${esc(c.title)}</span></td><td>${c.events}</td><td>${when(c.updated)}</td><td><button class="plain" data-acdel="${esc(c.batch)}" type="button">Remove</button></td></tr>`).join('')}
-    </tbody></table></div>` : '';
+  $('acTitle').textContent = OKB.test(batch()) ? 'Read a document for ' + batch() : 'Read a document';
+  $('acNow').innerHTML = table(['Batch', 'Events', 'Updated', ''], data.calendars.map((c) => `<tr><td>${esc(c.batch)}<span class="s">${esc(c.title)}</span></td><td>${c.events}</td><td>${when(c.updated)}</td><td class="act"><button class="sm" data-acdel="${esc(c.batch)}" type="button">Remove</button></td></tr>`).join(''), 'None');
   document.querySelectorAll('[data-acdel]').forEach((b) => b.onclick = async () => {
+    if (!confirm(`Remove the academic calendar of ${b.dataset.acdel}?`)) return;
     b.disabled = true;
     await fetch('/api/calendar?batch=' + encodeURIComponent(b.dataset.acdel), { method: 'DELETE' });
-    acSay('Removed. Phones drop it at their next check.', 'dim'); load();
+    say('acMsg', 'Removed. Phones drop it at their next check.', 'dim'); load();
   });
 }
 function acShow() {
   const p = acPending;
   if (!p) { $('acPreview').innerHTML = ''; return; }
   $('acPreview').innerHTML = `
-    <p style="margin:8px 0"><b>${p.events.length} dated events</b> for <b>${esc(p.batch)}</b>${p.title ? ' from "' + esc(p.title) + '"' : ''}. Untick any row you do not want.</p>
-    <div class="scroll" style="max-height:380px; overflow-y:auto"><table><thead><tr><th></th><th>Event</th><th>Dates</th><th>Type</th></tr></thead><tbody>
-      ${p.events.map((e, i) => `<tr><td><input type="checkbox" data-acrow="${i}" ${e.skip ? '' : 'checked'}></td><td>${esc(e.title)}<br><span class="dim">${esc(e.group)}</span></td><td>${span(e)}</td><td>${KIND[e.kind]}</td></tr>`).join('')}</tbody></table></div>
-    ${p.undated.length ? `<p class="dim" style="margin:8px 0; font-size:13px">Left out because the document gives no exact day: ${p.undated.map((u) => esc(u.title) + ' (' + esc(u.when) + ')').join('; ')}.</p>` : ''}
-    <div class="bar" style="margin-top:10px"><button id="acPublish" type="button">Publish to ${esc(p.batch)}</button><button id="acCancel" class="plain" type="button">Cancel</button></div>`;
+    <p style="margin:16px 0 10px"><b>${p.events.length} dated events</b> for <b>${esc(p.batch)}</b>${p.title ? ' from "' + esc(p.title) + '"' : ''}. Untick any row you do not want.</p>
+    ${table(['', 'Event', 'Dates', 'Type'], p.events.map((e, i) => `<tr><td><input type="checkbox" data-acrow="${i}" ${e.skip ? '' : 'checked'}></td><td>${esc(e.title)}<span class="s">${esc(e.group)}</span></td><td>${span(e)}</td><td>${KIND[e.kind]}</td></tr>`).join(''), '', true)}
+    ${p.undated.length ? `<p class="note">Left out because the document gives no exact day: ${p.undated.map((u) => esc(u.title) + ' (' + esc(u.when) + ')').join('; ')}.</p>` : ''}
+    <div class="row" style="margin-top:14px"><button id="acPublish" type="button" class="go">Publish to ${esc(p.batch)}</button><button id="acCancel" type="button">Cancel</button></div>`;
   document.querySelectorAll('[data-acrow]').forEach((c) => c.onchange = () => { p.events[+c.dataset.acrow].skip = !c.checked; });
   $('acCancel').onclick = () => { acPending = null; acShow(); };
   $('acPublish').onclick = async () => {
     const events = p.events.filter((e) => !e.skip).map(({ skip, ...e }) => e);
-    if (!events.length) return acSay('Tick at least one row.', 'bad');
+    if (!events.length) return say('acMsg', 'Tick at least one row.', 'bad');
     $('acPublish').disabled = true;
     try {
       const r = await fetch('/api/calendar?batch=' + p.batch, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: p.title, events }) });
       const j = await r.json();
       if (r.status === 401) return lock('');
-      if (!r.ok) { $('acPublish').disabled = false; return acSay(j.error || 'The server refused it.', 'bad'); }
+      if (!r.ok) { $('acPublish').disabled = false; return say('acMsg', j.error || 'The server refused it.', 'bad'); }
       acPending = null; acShow(); $('acFile').value = '';
-      acSay(`Published: ${j.count} events. ${j.pushed && j.pushed.ok ? 'Phones were told to fetch them now.' : 'Phones pick them up at their next check.'}`, 'ok');
+      say('acMsg', `Published: ${j.count} events. ${j.pushed && j.pushed.ok ? 'Phones were told to fetch them now.' : 'Phones pick them up at their next check.'}`, 'ok');
       load();
-    } catch (e) { $('acPublish').disabled = false; acSay('Could not reach the server.', 'bad'); }
+    } catch (e) { $('acPublish').disabled = false; say('acMsg', 'Could not reach the server.', 'bad'); }
   };
 }
 $('acRead').onclick = async () => {
   acPending = null; acShow();
-  const batch = $('acBatch').value.trim().toLowerCase(), file = $('acFile').files[0];
-  if (!/^[a-z0-9-]{2,40}$/.test(batch)) return acSay('Type the batch name: small letters, numbers and dashes only.', 'bad');
-  if (!file) return acSay('Choose the Word file first.', 'bad');
-  acSay('Reading the document...', 'dim');
+  if (!needBatch('acMsg')) return;
+  const b = batch(), file = $('acFile').files[0];
+  if (!file) return say('acMsg', 'Choose the Word file first.', 'bad');
+  say('acMsg', 'Reading the document...', 'dim');
   try {
     const r = await fetch('/api/calendar-doc', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file });
     const j = await r.json();
     if (r.status === 401) return lock('');
-    if (!r.ok) return acSay(j.error || 'Could not read the file.', 'bad');
-    acPending = { batch, title: j.title, events: j.events, undated: j.undated };
-    acSay(''); acShow();
-  } catch (e) { acSay('Could not reach the server. ' + e.message, 'bad'); }
+    if (!r.ok) return say('acMsg', j.error || 'Could not read the file.', 'bad');
+    acPending = { batch: b, title: j.title, events: j.events, undated: j.undated };
+    say('acMsg', ''); acShow();
+  } catch (e) { say('acMsg', 'Could not reach the server. ' + e.message, 'bad'); }
 };
 
 // ---- mess menu and exam timetable (published by Claude, shown and removed here)
 function mnDraw() {
-  if (!data) return;
   const weeks = data.menus || [];
   $('mnNow').innerHTML = weeks.length ? weeks.map((w) => {
     const meals = [...new Set(w.days.flatMap((d) => d.meals.map((m) => m.n)))];
-    return `<details style="margin-top:8px"><summary><b>Week of ${nice(w.week)}</b> <span class="dim">· ${w.days.length} days · updated ${when(w.updated)}</span>
-        <button class="plain" data-mndel="${esc(w.week)}" type="button" style="margin-left:8px; padding:4px 10px">Remove</button></summary>
-      <div class="scroll" style="margin-top:8px"><table><thead><tr><th></th>${w.days.map((d) => `<th>${nice(d.d)}</th>`).join('')}</tr></thead><tbody>
-        ${meals.map((n) => `<tr><td><b>${esc(n)}</b></td>${w.days.map((d) => { const m = d.meals.find((x) => x.n === n); return `<td>${m ? m.items.map(esc).join('<br>') : '<span class="dim">none</span>'}</td>`; }).join('')}</tr>`).join('')}
-      </tbody></table></div></details>`;
-  }).join('') : '<p class="dim" style="margin:0">No menu for this week or later.</p>';
+    return `<details open><summary><b>Week of ${nice(w.week)}</b><span class="dim">${w.days.length} days · updated ${when(w.updated)}</span><span class="sp"></span><button class="sm" data-mndel="${esc(w.week)}" type="button">Remove</button></summary>
+      ${table(['', ...w.days.map((d) => nice(d.d))], meals.map((n) => `<tr><td><b>${esc(n)}</b></td>${w.days.map((d) => { const m = d.meals.find((x) => x.n === n); return `<td>${m ? m.items.map(esc).join('<br>') : '<span class="dim">None</span>'}</td>`; }).join('')}</tr>`).join(''), '')}</details>`;
+  }).join('') : '<div class="card calm">No menu for this week or later.</div>';
   document.querySelectorAll('[data-mndel]').forEach((b) => b.onclick = async (e) => {
-    e.preventDefault(); b.disabled = true;
+    e.preventDefault();
+    if (!confirm(`Remove the menu for the week of ${nice(b.dataset.mndel)}?`)) return;
+    b.disabled = true;
     await fetch('/api/menu?week=' + encodeURIComponent(b.dataset.mndel), { method: 'DELETE' });
     load();
   });
 }
 function exDraw() {
-  if (!data) return;
   const all = data.exams || [];
-  $('exNow').innerHTML = all.length ? all.map((t) => `<details style="margin-top:8px"><summary><b>${esc(t.batch)}</b> <span class="dim">· ${esc(t.title) || 'Exams'} · ${t.exams.length} ${t.exams.length === 1 ? 'paper' : 'papers'} · updated ${when(t.updated)}</span>
-      <button class="plain" data-exdel="${esc(t.batch)}" type="button" style="margin-left:8px; padding:4px 10px">Remove</button></summary>
-    <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Room</th><th>Note</th></tr></thead><tbody>
-      ${t.exams.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}${x.e ? ' to ' + x.e : ''}</td><td>${esc(x.c)}</td><td>${esc(x.r)}</td><td>${esc(x.n)}</td></tr>`).join('')}
-    </tbody></table></div></details>`).join('') : '<p class="dim" style="margin:0">None published.</p>';
+  $('exNow').innerHTML = all.length ? all.map((t) => `<details open><summary><b>${esc(t.batch)}</b><span class="dim">${esc(t.title) || 'Exams'} · ${t.exams.length} ${t.exams.length === 1 ? 'paper' : 'papers'} · updated ${when(t.updated)}</span><span class="sp"></span><button class="sm" data-exdel="${esc(t.batch)}" type="button">Remove</button></summary>
+    ${table(['Day', 'Time', 'Course', 'Room', 'Note'], t.exams.map((x) => `<tr><td>${nice(x.d)}</td><td>${x.s}${x.e ? ' to ' + x.e : ''}</td><td>${esc(x.c)}</td><td>${esc(x.r)}</td><td>${esc(x.n)}</td></tr>`).join(''), '')}</details>`).join('') : '<div class="card calm">None published.</div>';
   document.querySelectorAll('[data-exdel]').forEach((b) => b.onclick = async (e) => {
-    e.preventDefault(); b.disabled = true;
+    e.preventDefault();
+    if (!confirm(`Remove the exam timetable of ${b.dataset.exdel}?`)) return;
+    b.disabled = true;
     await fetch('/api/exams?batch=' + encodeURIComponent(b.dataset.exdel), { method: 'DELETE' });
     load();
   });
 }
 
 // ---- notifications to the phones
-function ntSay(text, cls) { $('ntMsg').className = cls || ''; $('ntMsg').textContent = text || ''; }
+let ntTo = 'all', ntLater = false, ntTab = 'all';
+const ntPicked = new Set();
 const nameOf = (id) => { const u = data && data.users.find((x) => x.id === id); return u ? (u.name || id) + (u.roll ? ' (' + u.roll + ')' : '') : id; };
-function ntDraw() {
-  if (!data) return;
-  const picked = new Set([...$('ntUsers').selectedOptions].map((o) => o.value));
-  $('ntUsers').innerHTML = data.users.filter((u) => u.name).map((u) => `<option value="${esc(u.id)}" ${picked.has(u.id) ? 'selected' : ''}>${esc(u.name)}${u.roll ? ' · ' + esc(u.roll) : ''} · ${esc(u.app_version)} · ${esc(u.id.slice(0, 6))}</option>`).join('');
-  $('ntList').innerHTML = data.notices.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>When</th><th>To</th><th>Message</th><th>Received</th><th></th></tr></thead><tbody>
-    ${data.notices.map((n) => { const later = new Date(n.send_at) > new Date(); return `<tr><td>${when(n.send_at)}<br><span class="${later ? 'bad' : 'dim'}">${later ? 'Scheduled' : 'Sent'}</span></td><td>${n.users && n.users.length ? n.users.map((id) => esc(nameOf(id))).join('<br>') : esc(n.batch || 'everyone')}</td><td><b>${esc(n.title)}</b>${n.body ? '<br>' + esc(n.body) : ''}${n.by_user ? '<br><span class="dim">from ' + esc(n.sent_by) + '</span>' : ''}</td><td>${later ? '' : `${n.received} of ${n.audience} phones`}</td><td><button class="plain" data-del="${n.id}" type="button">${later ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join('')}
-    </tbody></table></div>
-    <p class="dim" style="margin:6px 0 0; font-size:13px">"Received" counts phones that reported showing the message; a phone reports a few minutes after it shows it. Phones with diagnostics switched off are not counted.</p>` : '';
-  document.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
-    b.disabled = true;
-    await fetch('/api/notices?id=' + b.dataset.del, { method: 'DELETE' });
-    ntSay('Taken back. Phones that already showed it keep it.', 'dim'); load();
-  });
+const ntSay = (text, c) => { $('ntMsg').className = c || ''; $('ntMsg').textContent = text || ''; };
+function ntLabel() {
+  $('ntToBatch').textContent = OKB.test(batch()) ? batch() : 'This batch';
+  const n = ntPicked.size, to = ntTo === 'people' ? (n ? n + (n === 1 ? ' person' : ' people') : 'chosen people') : ntTo === 'batch' ? (OKB.test(batch()) ? batch() : 'the batch') : 'everyone';
+  $('ntSend').textContent = (ntLater ? 'Schedule for ' : 'Send to ') + to;
+  $('ntPicked').textContent = n ? `${n} picked: ${[...ntPicked].map(nameOf).join(', ')}` : 'Nobody picked. Needs app version 0.8.8 or newer on their phone.';
+  document.querySelectorAll('#ntTo button').forEach((b) => b.classList.toggle('on', b.dataset.to === ntTo));
+  document.querySelectorAll('#ntWhenSeg button').forEach((b) => b.classList.toggle('on', (b.dataset.w === 'later') === ntLater));
+  $('ntPeople').hidden = ntTo !== 'people'; $('ntLater').hidden = !ntLater;
 }
+function ntPeopleDraw() {
+  const q = $('ntFind').value.toLowerCase();
+  $('ntUsers').innerHTML = data.users.filter((u) => u.name && (!q || (u.name + ' ' + u.roll).toLowerCase().includes(q))).map((u) =>
+    `<label><input type="checkbox" value="${esc(u.id)}" ${ntPicked.has(u.id) ? 'checked' : ''}><span>${esc(u.name)} <span class="dim">${esc(u.roll)} · ${esc(u.app_version)}</span></span></label>`).join('') || '<span class="dim">Nobody matches.</span>';
+  $('ntUsers').querySelectorAll('input').forEach((c) => c.onchange = () => { c.checked ? ntPicked.add(c.value) : ntPicked.delete(c.value); ntLabel(); });
+}
+function ntDraw() {
+  ntPeopleDraw(); ntLabel();
+  const later = (n) => new Date(n.send_at) > new Date();
+  const scheduled = data.notices.filter(later).length;
+  $('nNotify').textContent = scheduled ? scheduled : ''; $('nNotify').className = scheduled ? 'hot' : '';
+  document.querySelectorAll('#ntTabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === ntTab));
+  const rows = data.notices.filter((n) => ntTab === 'all' || (ntTab === 'later' ? later(n) : n.by_user));
+  $('ntList').innerHTML = table(['When', 'Message', 'Reached', ''], rows.map((n) => { const l = later(n); return `<tr>
+    <td style="white-space:nowrap">${when(n.send_at)}${l ? '<span class="s"><span class="tag">Scheduled</span></span>' : ''}</td>
+    <td><b>${esc(n.title)}</b>${n.body ? `<span class="s">${esc(n.body)}</span>` : ''}<span class="s">To ${n.users && n.users.length ? n.users.map((id) => esc(nameOf(id))).join(', ') : esc(n.batch || 'everyone')}${n.by_user ? ', from ' + esc(n.sent_by) : ''}</span></td>
+    <td style="white-space:nowrap">${l ? '<span class="dim">After it goes</span>' : `${n.received} of ${n.audience}<div class="meter" style="margin-left:0"><i style="width:${n.audience ? Math.min(100, n.received / n.audience * 100) : 0}%"></i></div>`}</td>
+    <td class="act"><button class="sm" data-del="${n.id}" ${l ? 'data-later="1"' : ''} type="button">${l ? 'Cancel' : 'Take back'}</button></td></tr>`; }).join(''), ntTab === 'all' ? 'Nothing sent yet' : 'None here')
+    + (rows.length ? '<p class="note">"Reached" counts phones that reported showing the message; a phone reports a few minutes after it shows it. Phones with diagnostics switched off are not counted.</p>' : '');
+}
+document.addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (!del.dataset.later && !confirm('Take this message back? Phones that already showed it keep it.')) return;
+    del.disabled = true;
+    await fetch('/api/notices?id=' + del.dataset.del, { method: 'DELETE' });
+    ntSay(del.dataset.later ? 'Cancelled. It will not go out.' : 'Taken back. Phones that already showed it keep it.', 'dim'); load();
+  }
+  const go = e.target.closest('[data-go]');
+  if (go) location.hash = go.dataset.go;
+});
+$('ntTo').onclick = (e) => { const b = e.target.closest('button'); if (b) { ntTo = b.dataset.to; ntLabel(); } };
+$('ntWhenSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) { ntLater = b.dataset.w === 'later'; ntLabel(); } };
+$('ntTabs').onclick = (e) => { const b = e.target.closest('button'); if (b) { ntTab = b.dataset.t; ntDraw(); } };
+$('ntFind').oninput = ntPeopleDraw;
+$('ntForm').onsubmit = (e) => e.preventDefault();
 $('ntSend').onclick = async () => {
-  const title = $('ntTitle').value.trim(), batch = $('ntBatch').value.trim().toLowerCase();
-  if (!title) return ntSay('Write a title first.', 'bad');
-  if (batch && !/^[a-z0-9-]{2,40}$/.test(batch)) return ntSay('Batch: small letters, numbers and dashes only.', 'bad');
-  const users = [...$('ntUsers').selectedOptions].map((o) => o.value);
-  if (users.length && batch) return ntSay('Choose people or a batch, not both.', 'bad');
-  const to = users.length ? users.length + (users.length === 1 ? ' person' : ' people') : (batch || 'everyone');
+  const title = $('ntTitle').value.trim();
+  if (!title) { ntSay('Write a title first.', 'bad'); $('ntTitle').focus(); return; }
+  const b = ntTo === 'batch' ? batch() : '';
+  if (ntTo === 'batch' && !OKB.test(b)) return ntSay('Set the batch at the top left first.', 'bad');
+  const users = ntTo === 'people' ? [...ntPicked] : [];
+  if (ntTo === 'people' && !users.length) return ntSay('Pick at least one person.', 'bad');
+  const later = ntLater && $('ntWhen').value ? new Date($('ntWhen').value) : null;
+  if (ntLater && !later) return ntSay('Choose the time to send it.', 'bad');
+  if (later && later < new Date()) return ntSay('That time has already passed.', 'bad');
+  const to = users.length ? users.length + (users.length === 1 ? ' person' : ' people') : (b || 'everyone');
   $('ntSend').disabled = true;
   try {
-    const later = $('ntWhen').value ? new Date($('ntWhen').value) : null;
-    if (later && later < new Date()) { ntSay('That time has already passed.', 'bad'); return; }
-    const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: $('ntBody').value, batch, users, send_at: later ? later.toISOString() : null }) });
+    const r = await fetch('/api/notices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: $('ntBody').value, batch: b, users, send_at: later ? later.toISOString() : null }) });
     const j = await r.json();
     if (r.status === 401) return lock('');
     if (!r.ok) return ntSay(j.error || 'The server refused it.', 'bad');
-    $('ntTitle').value = ''; $('ntBody').value = '';
-    $('ntWhen').value = ''; [...$('ntUsers').options].forEach((o) => { o.selected = false; });
+    $('ntTitle').value = ''; $('ntBody').value = ''; $('ntWhen').value = ''; ntPicked.clear(); ntLater = false;
     if (j.scheduled) { ntSay('Scheduled for ' + when(j.scheduled) + ', to ' + to + '.', 'ok'); load(); return; }
     ntSay('Sent to ' + to + (j.pushed && j.pushed.ok ? ', pushed to phones now.' : '. Push did not go out' + (j.pushed && j.pushed.error ? ' (' + j.pushed.error + ')' : '') + '; phones get it at their next check.'), j.pushed && j.pushed.ok ? 'ok' : 'dim'); load();
   } catch (e) { ntSay('Could not reach the server.', 'bad'); }
   finally { $('ntSend').disabled = false; }
 };
 
-function rlSay(text, cls) { $('rlMsg').innerHTML = text ? `<p class="${cls || ''}" style="margin:6px 0">${esc(text)}</p>` : ''; }
+// ---- people who can post
 const rlLabel = (u) => `${u.name}${u.roll ? ' · ' + u.roll : ''} · ${u.batch || 'no batch'} · ${u.id.slice(0, 6)}`;
+const rlPerson = () => data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
 async function rlDraw() {
-  if (!data) return;
-  const people = data.users.filter((u) => u.name);
-  $('rlPeople').innerHTML = people.map((u) => `<option value="${esc(rlLabel(u))}"></option>`).join('');
+  $('rlPeople').innerHTML = data.users.filter((u) => u.name).map((u) => `<option value="${esc(rlLabel(u))}"></option>`).join('');
   let j;
   try { const r = await fetch('/api/roles'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
-  const rows = j.roles || [];
-  $('rlList').innerHTML = rows.length ? `<div class="scroll" style="margin-top:8px"><table><thead><tr><th>Person</th><th>Role</th><th>Posts to</th><th>App</th><th>Posts</th><th></th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? '<br><span class="dim">' + esc(r.roll) + '</span>' : ''}</td><td>${esc(j.kinds[r.role] || r.role)}</td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${r.last_seen ? '<br><span class="dim">seen ' + ago(r.last_seen) + '</span>' : ''}</td><td>${r.posts}</td><td><button class="plain" type="button" data-unrole="${esc(r.user_id)}">Remove</button></td></tr>`).join('')}
-    </tbody></table></div>` : '<p class="dim" style="margin:8px 0 0">Nobody yet.</p>';
+  roles = j.roles || [];
+  $('nRoles').textContent = roles.length || '';
+  $('rlList').innerHTML = table(['Person', 'Role', 'Posts to', 'App', 'Posts', ''], roles.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? `<span class="s">${esc(r.roll)}</span>` : ''}</td><td><span class="tag">${esc(j.kinds[r.role] || r.role)}</span></td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${r.last_seen ? `<span class="s">seen ${ago(r.last_seen)}</span>` : ''}</td><td>${r.posts}</td><td class="act"><button class="sm" type="button" data-unrole="${esc(r.user_id)}" data-name="${esc(r.name)}">Remove</button></td></tr>`).join(''), 'Nobody yet.');
   document.querySelectorAll('[data-unrole]').forEach((b) => b.onclick = async () => {
+    if (!confirm(`Remove ${b.dataset.name}'s role? Their phone loses the post screen at once.`)) return;
     b.disabled = true;
     const r = await fetch('/api/roles?user=' + b.dataset.unrole, { method: 'DELETE' });
     if (r.status === 401) return lock('');
-    rlSay('Removed. Their phone loses the post screen at once.', 'ok'); rlDraw();
+    say('rlMsg', 'Removed. Their phone loses the post screen at once.', 'ok'); rlDraw();
   });
 }
-$('rlWho').oninput = () => {
-  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
-  if (u && $('rlRole').value === 'cr') $('rlBatch').value = u.batch;
-};
-$('rlRole').onchange = () => {
-  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
-  $('rlBatch').value = $('rlRole').value === 'cr' && u ? u.batch : '';
-};
+$('rlWho').oninput = () => { const u = rlPerson(); if (u && $('rlRole').value === 'cr') $('rlBatch').value = u.batch; };
+$('rlRole').onchange = () => { const u = rlPerson(); $('rlBatch').value = $('rlRole').value === 'cr' && u ? u.batch : ''; };
 $('rlSet').onclick = async () => {
-  const u = data && data.users.find((x) => x.name && rlLabel(x) === $('rlWho').value);
-  if (!u) return rlSay('Pick the person from the list that appears as you type.', 'bad');
-  const role = $('rlRole').value, batch = $('rlBatch').value.trim().toLowerCase();
-  if (role === 'cr' && !batch) return rlSay('A CR posts to one batch: fill in the batch.', 'bad');
+  const u = rlPerson();
+  if (!u) return say('rlMsg', 'Pick the person from the list that appears as you type.', 'bad');
+  const role = $('rlRole').value, b = $('rlBatch').value.trim().toLowerCase();
+  if (role === 'cr' && !b) return say('rlMsg', 'A CR posts to one batch: fill in the batch.', 'bad');
   const label = $('rlRole').selectedOptions[0].textContent;
-  if (!confirm(`Make ${u.name} ${label}? They will be able to send notifications to ${batch || 'everyone'}.`)) return;
+  if (!confirm(`Make ${u.name} ${label}? They will be able to send notifications to ${b || 'everyone'}.`)) return;
   $('rlSet').disabled = true;
   try {
-    const r = await fetch('/api/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'set', user: u.id, role, batch }) });
+    const r = await fetch('/api/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'set', user: u.id, role, batch: b }) });
     if (r.status === 401) return lock('');
     const j = await r.json();
-    if (!r.ok) return rlSay(j.error || 'The server refused it.', 'bad');
+    if (!r.ok) return say('rlMsg', j.error || 'The server refused it.', 'bad');
     $('rlWho').value = ''; $('rlBatch').value = '';
-    rlSay(`${u.name} is now ${label}. ` + (j.pushed && j.pushed.ok ? 'Their phone was told at once.' : 'Their phone finds out at its next check.'), 'ok');
+    say('rlMsg', `${u.name} is now ${label}. ` + (j.pushed && j.pushed.ok ? 'Their phone was told at once.' : 'Their phone finds out at its next check.'), 'ok');
     rlDraw();
-  } catch (e) { rlSay('Could not reach the server.', 'bad'); }
+  } catch (e) { say('rlMsg', 'Could not reach the server.', 'bad'); }
   finally { $('rlSet').disabled = false; }
 };
 
+// ---- the batch picked once, used by every tool
+function batchFill() {
+  const names = [...new Set([...data.timetables.map((t) => t.batch), ...data.batches.map((b) => b.label)].filter(Boolean))];
+  $('batches').innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
+  if (!$('batch').value) $('batch').value = store.get('admin.batch') || names[0] || '';
+}
+$('batch').onchange = () => {
+  $('batch').value = batch(); store.set('admin.batch', batch());
+  pending = null; $('ttPreview').innerHTML = ''; acPending = null; acShow(); $('cnPick').innerHTML = '';
+  ttDraw(); acDraw(); ntLabel(); cnDraw();
+};
+
+// ---- loading and views
+const VIEWS = ['overview', 'people', 'user', 'notify', 'cancel', 'roles', 'timetable', 'calendar', 'exams', 'menu'];
+function route() {
+  const [v, arg] = location.hash.slice(1).split('/');
+  view = VIEWS.includes(v) ? v : 'overview';
+  document.querySelectorAll('[data-view]').forEach((s) => { s.hidden = s.dataset.view !== view; });
+  document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.v === (view === 'user' ? 'people' : view)));
+  if (view === 'people' && data) { pf = arg || 'all'; if (arg) $('search').value = ''; drawPeople(); }
+  if (view === 'user' && arg) openUser(decodeURIComponent(arg));
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
 async function load() {
   try {
-    if (current) drawUser(await get('?user=' + encodeURIComponent(current)));
-    else { data = await get(''); drawAll(); ttFill(); ntDraw(); acDraw(); mnDraw(); exDraw(); cnDraw(); rlDraw(); }
-    for (const id of ['tt', 'nt', 'ac', 'mn', 'ex', 'cn', 'rl']) $(id).hidden = !!current;
-    $('back').hidden = !current; $('stamp').textContent = 'Loaded ' + when(new Date());
+    data = await get('');
     $('login').hidden = true; $('app').hidden = false;
+    batchFill();
+    $('nPeople').textContent = data.totals.users;
+    drawOverview(); drawPeople(); ttDraw(); acDraw(); mnDraw(); exDraw(); ntDraw(); cnDraw(); rlDraw();
+    $('stamp').textContent = 'Loaded ' + when(new Date());
+    if (view === 'user') route();
   } catch (e) { if (e.message !== 'locked') $('stamp').textContent = e.message; }
 }
-function openUser(id) { current = id; load(); window.scrollTo(0, 0); }
 $('loginForm').onsubmit = async (e) => {
   e.preventDefault();
   if (await auth({ action: 'login', username: $('user').value, password: $('pass').value }, 'loginMsg')) { $('pass').value = ''; load(); }
@@ -515,9 +789,10 @@ $('setupForm').onsubmit = async (e) => {
     $('setupForm').hidden = true; load();
   }
 };
-$('reload').onclick = load; $('back').onclick = () => { current = null; load(); };
-$('out').onclick = async () => { await auth({ action: 'logout' }, 'loginMsg'); current = null; lock(''); };
+$('reload').onclick = load;
+$('out').onclick = async () => { await auth({ action: 'logout' }, 'loginMsg'); lock(''); };
 (async () => {
+  route();
   try {
     const a = await (await fetch('/api/auth')).json();
     $('who').textContent = a.user || '';
