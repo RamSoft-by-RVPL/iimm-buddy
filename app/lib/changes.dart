@@ -116,10 +116,21 @@ List<ClassChange> classChanges(
 
   final out = <ClassChange>[];
   final afterByKey = {for (final s in fresh) s.key: s};
+  // A slot taken in both lists, by a sheet class on either side: the portal
+  // putting up a class the sheet already had (often under another name), not
+  // a cancellation plus an extra class.
+  String slot(Seen s) =>
+      '${s.date.year}-${s.date.month}-${s.date.day} ${s.start}';
+  final freshSlots = {for (final s in fresh) slot(s): s};
   final gone = <Seen>[];
   for (final s in was) {
     final same = afterByKey.remove(s.key);
     if (same == null) {
+      final there = freshSlots[slot(s)];
+      if (there != null && (s.sheet || there.sheet)) {
+        afterByKey.remove(there.key);
+        continue;
+      }
       gone.add(s);
     } else if (same.room != s.room &&
         same.room.isNotEmpty &&
@@ -135,6 +146,11 @@ List<ClassChange> classChanges(
     ..sort((a, b) => a.at.compareTo(b.at));
   gone.sort((a, b) => a.at.compareTo(b.at));
   for (final g in gone) {
+    if (g.sheet && !added.any((a) => a.course == g.course)) {
+      // Only on the mailed sheet: the portal never had it, so it is not
+      // "cancelled" (only a class the portal listed and dropped is).
+      continue;
+    }
     // The nearest new class of the same course is where it moved to.
     Seen? to;
     for (final a in added) {

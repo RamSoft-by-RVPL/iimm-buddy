@@ -66,6 +66,31 @@ void main() {
         isEmpty);
   });
 
+  test('class changes: the portal filling in the sheet\'s week is no news', () {
+    // Mon 23 Nov 2026: the week came from the mailed sheet; that morning the
+    // portal put up some of it, under its own course names, and not the rest.
+    final mon = DateTime(2026, 11, 23, 9);
+    Seen s(int day, String start, String course) =>
+        c(day, start, course, room: '404', sheet: true);
+    final sheet = [
+      s(23, '10:40', 'Algorithms'),
+      s(23, '14:00', 'Algorithms'),
+      s(25, '09:00', 'Linear Algebra'),
+      s(25, '14:00', 'Algorithms'),
+      s(26, '14:00', 'Algorithms'),
+    ];
+    final portal = [
+      c(23, '10:40', 'Algorithms Theory'),
+      c(23, '14:00', 'Algorithms Lab'),
+      c(25, '09:00', 'Linear Algebra'),
+      // 25th and 26th at 14:00: not on the portal (yet), gone from the list.
+    ];
+    expect(classChanges(sheet, portal, mon), isEmpty);
+    // Once on the portal and then dropped: that is a cancellation.
+    expect(classChanges(portal, portal.sublist(0, 2), mon).single.title,
+        'Class cancelled: Linear Algebra');
+  });
+
   test('class changes: many at once become one summary', () {
     final moved = [for (final s in week) c(s.date.day, '18:00', s.course)];
     final got = classChanges(week, moved, now, most: 3);

@@ -134,7 +134,7 @@ void main() {
     });
   });
 
-  test('a sheet class the site dropped on a day it published is cancelled', () {
+  test('a sheet class the site does not list is never taken as cancelled', () {
     final now = DateTime(2026, 11, 19, 17);
     final d19 = DateTime(2026, 11, 19);
     final site = snapOf([
@@ -158,9 +158,12 @@ void main() {
     }
 
     expect(state('19', '09:00'), 'site');
-    expect(state('19', '10:40'), 'cancelled'); // the site dropped it
-    expect(state('19', '14:00'), 'cancelled'); // listed ahead, but not then
-    expect(state('19', '15:40'), 'sheet'); // reaches the site only later
+    // Missing from the site on a day it published: may reach it later, so
+    // the sheet's class stays (only a class the site listed and dropped is
+    // cancelled).
+    expect(state('19', '10:40'), 'sheet');
+    expect(state('19', '14:00'), 'sheet');
+    expect(state('19', '15:40'), 'sheet');
     expect(state('23', '09:00'), 'sheet'); // not published on the site yet
   });
 
