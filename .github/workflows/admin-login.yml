@@ -13,7 +13,7 @@ jobs:
           KEY: ${{ secrets.PUBLISHER_KEY }}
           PW: ${{ secrets.ADMIN_SETUP_PASSWORD }}
         run: |
-          body=$(jq -n --arg k "$KEY" --arg p "$PW" '{action:"setup", key:$k, username:"harsh.bajpai", password:$p}')
+          body=$(jq -n --arg k "$KEY" --arg p "$PW" '{action:"setup", key:$k, username:"harsh", password:$p}')
           code=$(curl -s -o out.json -w '%{http_code}' -X POST https://buddy.iimmumbai.in/api/auth \
             -H 'Content-Type: application/json' --data "$body")
           echo "$code $(cat out.json)"
