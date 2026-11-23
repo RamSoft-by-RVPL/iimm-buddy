@@ -1,0 +1,373 @@
+{
+ "week": "2026-11-23",
+ "days": [
+  {
+   "d": "2026-11-23",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Peanut Butter / Chocos",
+      "Tea / Coffee / Milk",
+      "Poha",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Mix Sprouts"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Dal Palak",
+      "Black Chana Masala",
+      "Mix Veg",
+      "Dahi Tikhat",
+      "Papad",
+      "Mixed Pickle",
+      "Rasna"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Pani Puri",
+      "Chutney / Pudina Pani"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice / Jeera Rice",
+      "Dal Lasuni",
+      "Soya Matar Masala",
+      "Chole Masala",
+      "Mixed Pickle",
+      "Veg Sweet Corn Soup"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-24",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Cornflakes / Peanut Butter",
+      "Tea / Coffee / Milk",
+      "Paneer Paratha",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Curd"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice + Jeera Rice",
+      "Toor Dal Tadka",
+      "Kadhi Pakoda",
+      "Karela",
+      "Papad",
+      "Mixed Pickle",
+      "Fruit"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Pasta",
+      "Chutney / Sauce"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice / Peas Rice",
+      "Gujarati Dal",
+      "Bhindi Masala",
+      "Veg Handi",
+      "Mixed Pickle",
+      "Moong Dal Halwa"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-25",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Chocos / Cornflakes",
+      "Tea / Coffee / Milk",
+      "Medu Vada / Sambar",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Moong Sprouts"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Lasuni Dal Tadka",
+      "Rajma Masala",
+      "Gobi Punjabi",
+      "Curd",
+      "Papad",
+      "Mixed Pickle"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Samosa + Chana",
+      "Chutney / Sauce"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Tandoori Salad",
+      "Chapati / Phulka",
+      "Plain Rice / Ghee Pepper Rice",
+      "Dal Tadka",
+      "Paneer Kolhapuri",
+      "Mixed Pickle",
+      "Gulab Jamun",
+      "Butter Chicken"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-26",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Oats / Muesli",
+      "Tea / Coffee / Milk",
+      "Methi Thepla",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Chana Sprouts"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Lemon Rice",
+      "Tomato Rasam",
+      "Aloo Fry",
+      "Shahi Mix Veg",
+      "Papad",
+      "Mixed Pickle",
+      "Fruit"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Dahi Bhalla",
+      "Chutney / Sauce"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice / Jeera Rice",
+      "Dal Makhani",
+      "Aloo Gobi",
+      "Capsicum Corn",
+      "Mixed Pickle",
+      "Rabdi"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-27",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Chocos / Oats",
+      "Tea / Coffee / Milk",
+      "Upma / Chutney",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Boiled Peanuts"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Onion Salad",
+      "Bhature",
+      "Plain Rice",
+      "Dal Punjabi",
+      "Punjabi Chole",
+      "Aloo Jeera",
+      "Buttermilk",
+      "Papad",
+      "Mixed Pickle",
+      "Fruit"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Hakka Noodles",
+      "Soya Sauce, Vinegar"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice / Tomato Rice",
+      "Dal Fry",
+      "Paneer Cheese Butter Masala",
+      "Mixed Pickle",
+      "Tomato Soup",
+      "Egg Masala"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-28",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Cornflakes / Muesli",
+      "Tea / Coffee / Milk",
+      "Masala Dosa / Sambar",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Moong Sprouts"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Lauki Chana Dal",
+      "Kofta Curry",
+      "Green Chawli Dry",
+      "Curd",
+      "Papad",
+      "Mixed Pickle",
+      "Fruit"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Dabeli Pav",
+      "Chutney / Sauce"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Rajasthani Dal",
+      "Bati",
+      "Baingan Ka Chokha",
+      "Garlic / Tomato Chutney",
+      "Churma"
+     ]
+    }
+   ]
+  },
+  {
+   "d": "2026-11-29",
+   "meals": [
+    {
+     "n": "Breakfast",
+     "items": [
+      "Muesli / Peanut Butter",
+      "Tea / Coffee / Milk",
+      "Puri Bhaji",
+      "Bread",
+      "Omelette / Boiled Egg",
+      "Banana",
+      "Matki"
+     ]
+    },
+    {
+     "n": "Lunch",
+     "items": [
+      "Veg Raita",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Dal Fry",
+      "Paneer Biryani",
+      "Veg Kolhapuri",
+      "Chicken Dum Biryani",
+      "Papad",
+      "Mixed Pickle",
+      "Ice Cream"
+     ]
+    },
+    {
+     "n": "Snacks",
+     "items": [
+      "Tea / Coffee / Milk",
+      "Aloo Corn Tikki",
+      "Chutney / Sauce"
+     ]
+    },
+    {
+     "n": "Dinner",
+     "items": [
+      "Green Salad",
+      "Chapati / Phulka",
+      "Plain Rice",
+      "Veg Fried Rice",
+      "Veg Manchurian",
+      "Sev Tomato",
+      "Mixed Pickle",
+      "Veg Manchow Soup"
+     ]
+    }
+   ]
+  }
+ ]
+}

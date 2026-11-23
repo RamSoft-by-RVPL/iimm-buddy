@@ -1,0 +1,22 @@
+name: Publish mess menu
+
+on:
+  push:
+    branches: ['menu-*']
+    paths: ['menus/*.json']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post the menu
+        env:
+          KEY: ${{ secrets.PUBLISHER_KEY }}
+        run: |
+          for f in menus/*.json; do
+            code=$(curl -s -o out.json -w '%{http_code}' -X POST https://buddy.iimmumbai.in/api/menu \
+              -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' --data @"$f")
+            echo "$f: $code $(cat out.json)"
+            [ "$code" = 200 ] || exit 1
+          done
