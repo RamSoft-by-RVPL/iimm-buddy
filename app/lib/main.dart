@@ -35,6 +35,7 @@ import 'site.dart';
 import 'timetable_ui.dart';
 import 'ui_common.dart';
 import 'update.dart';
+import 'too_old_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -378,6 +379,14 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // The admin has stopped this version: only updating gets past.
+    if (tooOld(store.prefs)) {
+      return TooOldScreen(
+          prefs: store.prefs,
+          onChanged: () {
+            if (mounted) setState(() {});
+          });
+    }
     // Straight after installing: the permissions reminders depend on.
     if (store.prefs.getBool('setup_done') != true) {
       return SetupScreen(onDone: () async {

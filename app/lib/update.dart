@@ -57,8 +57,45 @@ const playStore = bool.fromEnvironment('PLAY_STORE');
 Update? knownUpdate(SharedPreferences prefs) =>
     playStore ? null : parseUpdate(prefs.getString('upd'));
 
-/// Asks the server which build is newest. Never throws.
+/// Compares two versions like "0.8.21": below 0, 0 or above 0.
+int compareVersions(String a, String b) {
+  List<int> parts(String v) =>
+      v.split('.').map((x) => int.tryParse(x.trim()) ?? 0).toList();
+  final x = parts(a), y = parts(b);
+  for (var i = 0; i < 3; i++) {
+    final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
+    if (d != 0) return d;
+  }
+  return 0;
+}
+
+/// True when the admin has said this version may no longer be used. Only
+/// what the server last said counts: with no answer yet, the app works.
+bool tooOld(SharedPreferences prefs, {String current = appVersion}) {
+  final min = prefs.getString('min_version') ?? '';
+  return min.isNotEmpty && compareVersions(current, min) < 0;
+}
+
+/// Asks the server for the oldest version that may still be used.
+Future<void> _checkMinVersion(SharedPreferences prefs) async {
+  try {
+    final (status, text) =
+        await apiSend('GET', Uri.parse('$apiBase/api/app'));
+    if (status != 200) return;
+    final min = '${(jsonDecode(text) as Map)['min_version'] ?? ''}';
+    if (min != (prefs.getString('min_version') ?? '')) {
+      await prefs.setString('min_version', min);
+      logEvent(prefs, 'min_version', min.isEmpty ? 'none' : min);
+    }
+  } catch (_) {
+    // No connection: keep what the last check found.
+  }
+}
+
+/// Asks the server which build is newest, and which is the oldest that may
+/// still be used. Never throws.
 Future<Update?> checkUpdate(SharedPreferences prefs) async {
+  await _checkMinVersion(prefs);
   if (playStore) return null;
   try {
     final (status, text) =

@@ -170,3 +170,11 @@ CREATE TABLE IF NOT EXISTS faculty (
   email   text NOT NULL,
   updated timestamptz NOT NULL DEFAULT now()
 );
+
+-- Small settings every phone reads (api/app.js), such as the oldest app
+-- version that may still be used.
+CREATE TABLE IF NOT EXISTS settings (
+  key     text PRIMARY KEY,
+  value   text NOT NULL DEFAULT '',
+  updated timestamptz NOT NULL DEFAULT now()
+);

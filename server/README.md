@@ -17,6 +17,7 @@ the [main README](../README.md) for the overall design and setup.
 | `GET/POST/DELETE /api/roles` | admin; the phone | CRs, mess and hostel secretaries; a phone asks for its own role |
 | `GET/POST/DELETE /api/polls` | anyone / admin, role holders | Polls and votes (one per phone) |
 | `GET/POST /api/uploads` | admin / mess secretary | Menu files sent in from the app |
+| `GET/POST /api/app` | anyone / admin | Oldest app version that may still be used (`min_version`) |
 | `GET/POST /api/faculty` | anyone / admin | Teachers' institute email addresses |
 | `POST /api/log` | the app | Diagnostic log lines |
 | `GET /api/admin` | admin | Totals, users, one user's log |

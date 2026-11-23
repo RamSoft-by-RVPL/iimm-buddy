@@ -6,6 +6,7 @@
 // reads DATABASE_URL as soon as it loads).
 const handlers = {
   admin: () => require('../../api/admin.js'),
+  app: () => require('../../api/app.js'),
   auth: () => require('../../api/auth.js'),
   'calendar-doc': () => require('../../api/calendar-doc.js'),
   calendar: () => require('../../api/calendar.js'),
