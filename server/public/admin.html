@@ -200,12 +200,15 @@
       <div class="sep"></div>
       <a href="#notify" data-v="notify">Notifications <small id="nNotify"></small></a>
       <a href="#cancel" data-v="cancel">Cancel a class</a>
+      <a href="#polls" data-v="polls">Polls <small id="nPolls"></small></a>
       <a href="#roles" data-v="roles">People who can post <small id="nRoles"></small></a>
+      <a href="#uploads" data-v="uploads">Files from secretaries <small id="nUploads"></small></a>
       <div class="sep"></div>
       <a href="#timetable" data-v="timetable">Timetable</a>
       <a href="#calendar" data-v="calendar">Academic calendar</a>
       <a href="#exams" data-v="exams">Exam timetable</a>
       <a href="#menu" data-v="menu">Mess menu</a>
+      <a href="#faculty" data-v="faculty">Teacher emails</a>
     </nav>
     <div class="foot">
       <span class="stamp" id="stamp"></span>
@@ -293,6 +296,40 @@
           <div id="rlMsg"></div>
         </div>
         <div id="rlList"></div>
+      </div>
+    </section>
+
+    <section data-view="polls" hidden>
+      <div class="head"><h1>Polls</h1><p>A question with 2 to 6 answers. Phones get a notification and vote in the app (0.8.21 or newer); one vote per phone, which can be changed while the poll is open. CRs and secretaries can make polls from the app too.</p></div>
+      <div class="stack">
+        <div class="card">
+          <h2>New poll</h2>
+          <div class="stack" style="gap:14px">
+            <label class="f">Question<input id="plQ" maxlength="140" placeholder="For example: Shift Friday's class to Saturday?"></label>
+            <label class="f">Answers, one per line<textarea id="plOpts" rows="3"></textarea></label>
+            <div class="row">
+              <label class="f">Send to<select id="plTo"><option value="">Everyone</option><option value="batch" id="plToBatch">This batch</option></select></label>
+              <label class="f">Open for<select id="plHours"><option value="3">3 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">1 week</option></select></label>
+              <button id="plGo" type="button" class="go">Send poll</button>
+            </div>
+          </div>
+          <div id="plMsg"></div>
+        </div>
+        <div><h2>Last two weeks</h2><div id="plList"></div></div>
+      </div>
+    </section>
+
+    <section data-view="uploads" hidden>
+      <div class="head"><h1>Files from secretaries</h1><p>Menus a mess secretary sent from the app, newest first. Open one and give it to Claude to publish, then mark it done.</p></div>
+      <div id="upList"></div>
+    </section>
+
+    <section data-view="faculty" hidden>
+      <div class="head"><h1>Teacher emails</h1><p>Students see an Email button next to a teacher's name in the app (0.8.21 or newer). One teacher per line: name, then the address. Only @iimmumbai.ac.in addresses.</p></div>
+      <div class="card">
+        <label class="f">Teachers<textarea id="fcList" rows="10" class="mono" placeholder="Prof. Rofin T M, rofintm@iimmumbai.ac.in" style="font-size:13px; line-height:1.5"></textarea></label>
+        <div class="row" style="align-items:center; margin-top:12px"><button id="fcSave" type="button" class="go">Save list</button><span id="fcCount" class="dim"></span></div>
+        <div id="fcMsg"></div>
       </div>
     </section>
 
@@ -767,7 +804,7 @@ async function rlDraw() {
   try { const r = await fetch('/api/roles'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
   roles = j.roles || [];
   $('nRoles').textContent = roles.length || '';
-  $('rlList').innerHTML = table(['Person', 'Role', 'Posts to', 'App', 'Posts', ''], roles.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? `<span class="s">${esc(r.roll)}</span>` : ''}</td><td><span class="tag">${esc(j.kinds[r.role] || r.role)}</span></td><td>${esc(r.batch || 'everyone')}</td><td>${esc(r.app_version || '')}${r.last_seen ? `<span class="s">seen ${ago(r.last_seen)}</span>` : ''}</td><td>${r.posts}</td><td class="act"><button class="sm" type="button" data-unrole="${esc(r.user_id)}" data-name="${esc(r.name)}">Remove</button></td></tr>`).join(''), 'Nobody yet.');
+  $('rlList').innerHTML = table(['Person', 'Role', 'Posts to', 'App', 'Posts', ''], roles.map((r) => `<tr><td><b>${esc(r.name)}</b>${r.roll ? `<span class="s">${esc(r.roll)}</span>` : ''}</td><td><span class="tag">${esc(j.kinds[r.role] || r.role)}</span></td><td>${esc(r.batch || 'everyone')}</td><td>${vcmp(r.app_version, '0.8.20') < 0 && r.app_version ? `<span class="tag r">${esc(r.app_version)}</span><span class="s bad">needs 0.8.20 to post</span>` : esc(r.app_version || '')}${r.last_seen ? `<span class="s${Date.now() - new Date(r.last_seen) > 7 * 864e5 ? ' bad' : ''}">seen ${ago(r.last_seen)}</span>` : ''}</td><td>${r.posts}</td><td class="act"><button class="sm" type="button" data-unrole="${esc(r.user_id)}" data-name="${esc(r.name)}">Remove</button></td></tr>`).join(''), 'Nobody yet.');
   document.querySelectorAll('[data-unrole]').forEach((b) => b.onclick = async () => {
     if (!confirm(`Remove ${b.dataset.name}'s role? Their phone loses the post screen at once.`)) return;
     b.disabled = true;
@@ -798,6 +835,70 @@ $('rlSet').onclick = async () => {
   finally { $('rlSet').disabled = false; }
 };
 
+// ---- polls
+async function plDraw() {
+  $('plToBatch').textContent = OKB.test(batch()) ? batch() : 'This batch';
+  let j; try { const r = await fetch('/api/polls?all=1'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
+  const rows = j.polls || [];
+  $('nPolls').textContent = rows.filter((p) => p.open).length || '';
+  $('plList').innerHTML = table(['When', 'To', 'Question and votes', ''], rows.map((p) => `<tr><td>${when(p.created)}<span class="s">${p.open ? 'Open until ' + when(p.closes) : 'Closed'}</span></td><td>${esc(p.batch || 'everyone')}${p.from ? `<span class="s">by ${esc(p.from)}</span>` : ''}</td>
+    <td><b>${esc(p.question)}</b>${p.options.map((o, i) => `<span class="s">${esc(o)}: <b>${p.votes[i]}</b>${p.total ? ' (' + Math.round(p.votes[i] * 100 / p.total) + '%)' : ''}</span>`).join('')}<span class="s">${p.total} ${p.total === 1 ? 'vote' : 'votes'}</span></td>
+    <td class="act">${p.open ? `<button class="sm" type="button" data-plclose="${p.id}">Close</button> ` : ''}<button class="sm" type="button" data-pldel="${p.id}">Delete</button></td></tr>`).join(''), 'No polls in the last two weeks.');
+  document.querySelectorAll('[data-plclose]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'close', poll: Number(b.dataset.plclose) }) }); plDraw();
+  });
+  document.querySelectorAll('[data-pldel]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this poll and its votes?')) return;
+    b.disabled = true; await fetch('/api/polls?id=' + b.dataset.pldel, { method: 'DELETE' }); plDraw();
+  });
+}
+$('plGo').onclick = async () => {
+  const question = $('plQ').value.trim(), options = $('plOpts').value.split('\n').map((x) => x.trim()).filter(Boolean);
+  if (!question) return say('plMsg', 'Write the question.', 'bad');
+  if (options.length < 2 || options.length > 6) return say('plMsg', 'Give 2 to 6 answers, one per line.', 'bad');
+  if ($('plTo').value && !needBatch('plMsg')) return;
+  const to = $('plTo').value ? batch() : '';
+  if (!confirm(`Send this poll to ${to || 'everyone'}? Phones get a notification.`)) return;
+  $('plGo').disabled = true;
+  try {
+    const r = await fetch('/api/polls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', question, options, batch: to, hours: Number($('plHours').value) }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (!r.ok) return say('plMsg', j.error || 'The server refused it.', 'bad');
+    $('plQ').value = ''; $('plOpts').value = '';
+    say('plMsg', 'Poll sent.' + (j.pushed && j.pushed.ok ? '' : ' Push did not go out; phones see it at their next check.'), 'ok'); plDraw();
+  } catch (e) { say('plMsg', 'Could not reach the server.', 'bad'); }
+  finally { $('plGo').disabled = false; }
+};
+
+// ---- files from secretaries
+async function upDraw() {
+  let j; try { const r = await fetch('/api/uploads'); if (r.status === 401) return lock(''); j = await r.json(); } catch (e) { return; }
+  const rows = j.uploads || [];
+  $('nUploads').textContent = rows.filter((u) => !u.done).length || '';
+  $('upList').innerHTML = table(['When', 'From', 'File', ''], rows.map((u) => `<tr><td>${when(u.created)}</td><td>${esc(u.sent_by)}</td><td><a href="/api/uploads?id=${u.id}" target="_blank" rel="noopener">${esc(u.name || 'file')}</a> <span class="dim">${Math.round(u.size / 1024)} KB</span>${u.note ? `<span class="s">${esc(u.note)}</span>` : ''}</td>
+    <td class="act"><button class="sm" type="button" data-updone="${u.id}" data-to="${!u.done}">${u.done ? 'Done ✓' : 'Mark done'}</button></td></tr>`).join(''), 'Nothing sent yet.');
+  document.querySelectorAll('[data-updone]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; await fetch('/api/uploads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'done', id: Number(b.dataset.updone), done: b.dataset.to === 'true' }) }); upDraw();
+  });
+}
+
+// ---- teacher emails
+async function fcDraw() {
+  try { const j = await (await fetch('/api/faculty')).json(); $('fcList').value = j.teachers.map((t) => `${t.name}, ${t.email}`).join('\n'); $('fcCount').textContent = j.teachers.length + ' teachers'; } catch (e) {}
+}
+$('fcSave').onclick = async () => {
+  const teachers = $('fcList').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const i = l.lastIndexOf(','); return { name: l.slice(0, i).trim(), email: l.slice(i + 1).trim() }; });
+  $('fcSave').disabled = true;
+  try {
+    const r = await fetch('/api/faculty', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teachers }) });
+    if (r.status === 401) return lock('');
+    const j = await r.json();
+    if (r.ok) { say('fcMsg', `Saved ${j.count} teachers.`, 'ok'); $('fcCount').textContent = j.count + ' teachers'; } else say('fcMsg', j.error || 'The server refused it.', 'bad');
+  } catch (e) { say('fcMsg', 'Could not reach the server.', 'bad'); }
+  finally { $('fcSave').disabled = false; }
+};
+
 // ---- the batch picked once, used by every tool
 function batchFill() {
   const names = [...new Set([...data.timetables.map((t) => t.batch), ...data.batches.map((b) => b.label)].filter(Boolean))];
@@ -807,11 +908,11 @@ function batchFill() {
 $('batch').onchange = () => {
   $('batch').value = batch(); store.set('admin.batch', batch());
   pending = null; $('ttPreview').innerHTML = ''; acPending = null; acShow(); $('cnPick').innerHTML = '';
-  ttDraw(); acDraw(); ntLabel(); cnDraw();
+  ttDraw(); acDraw(); ntLabel(); cnDraw(); plDraw();
 };
 
 // ---- loading and views
-const VIEWS = ['overview', 'people', 'user', 'notify', 'cancel', 'roles', 'timetable', 'calendar', 'exams', 'menu'];
+const VIEWS = ['overview', 'people', 'user', 'notify', 'cancel', 'polls', 'roles', 'uploads', 'timetable', 'calendar', 'exams', 'menu', 'faculty'];
 function route() {
   const [v, arg] = location.hash.slice(1).split('/');
   view = VIEWS.includes(v) ? v : 'overview';
@@ -828,7 +929,7 @@ async function load() {
     $('login').hidden = true; $('app').hidden = false;
     batchFill();
     $('nPeople').textContent = data.totals.users;
-    drawOverview(); drawPeople(); ttDraw(); acDraw(); mnDraw(); exDraw(); ntDraw(); cnDraw(); rlDraw();
+    drawOverview(); drawPeople(); ttDraw(); acDraw(); mnDraw(); exDraw(); ntDraw(); cnDraw(); rlDraw(); plDraw(); upDraw(); fcDraw();
     $('stamp').textContent = 'Loaded ' + when(new Date());
     if (view === 'user') route();
   } catch (e) { if (e.message !== 'locked') $('stamp').textContent = e.message; }
