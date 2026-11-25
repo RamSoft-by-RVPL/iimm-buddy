@@ -18,7 +18,7 @@ import 'backend.dart';
 /// Keep in step with `version:` in pubspec.yaml (a test checks it).
 // Filled in by the GitHub build (--dart-define), which numbers every
 // release. The defaults match pubspec.yaml for builds made by hand.
-const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.8.6');
+const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.9.0');
 const appBuild = int.fromEnvironment('APP_BUILD', defaultValue: 17);
 
 bool diagnosticsOn(SharedPreferences prefs) => prefs.getBool('diag') ?? true;
