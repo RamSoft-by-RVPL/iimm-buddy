@@ -400,7 +400,12 @@ Future<void> announceClassChanges(Store store, Snapshot snap) async {
   final coming = comingClasses(snap.next, now);
   final before = decodeSeen(prefs.getString('seen_classes'));
   await prefs.setString('seen_classes', encodeSeen(coming));
-  if (before == null || !store.warnChanges) return;
+  // A new app version may read the same timetable differently (a fix can
+  // bring back classes the old one hid): the first look after an update
+  // only notes the classes, it does not announce changes.
+  final updated = prefs.getInt('seen_build') != appBuild;
+  await prefs.setInt('seen_build', appBuild);
+  if (before == null || updated || !store.warnChanges) return;
   var id = 310000;
   for (final c in classChanges(before, coming, now)) {
     await notify(id++, c.title, c.body, 'classes',
