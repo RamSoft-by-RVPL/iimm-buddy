@@ -58,7 +58,7 @@ module.exports = async (req, res) => {
       (SELECT count(*)::int FROM users u
         WHERE (n.batch = '' OR u.batch = n.batch)
           AND u.last_seen > now() - interval '7 days') END AS audience
-    FROM notices n ORDER BY n.send_at DESC LIMIT 30`)
+    FROM notices n ORDER BY n.send_at DESC LIMIT 100`)
     .map((r) => ({ ...r, id: Number(r.id) }));
   const calendars = await sql`
     SELECT batch, updated, title, jsonb_array_length(events) AS events FROM calendars ORDER BY 1`;

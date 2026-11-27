@@ -823,10 +823,10 @@ function ntDraw() {
 document.addEventListener('click', async (e) => {
   const del = e.target.closest('[data-del]');
   if (del) {
-    if (!del.dataset.later && !confirm('Take this message back? Phones that already showed it keep it.')) return;
+    if (!del.dataset.later && !confirm('Take this message back? It goes off every phone: out of Crony and off the notification shade.')) return;
     del.disabled = true;
     await fetch('/api/notices?id=' + del.dataset.del, { method: 'DELETE' });
-    ntSay(del.dataset.later ? 'Cancelled. It will not go out.' : 'Taken back. Phones that already showed it keep it.', 'dim'); load();
+    ntSay(del.dataset.later ? 'Cancelled. It will not go out.' : 'Taken back. Phones on 0.9.2 or newer remove it within a minute; older ones drop it from the banner when they next check.', 'dim'); load();
   }
   const go = e.target.closest('[data-go]');
   if (go) location.hash = go.dataset.go;

@@ -12,7 +12,7 @@
 //   DELETE /api/polls?id=12                     its maker or the admin
 
 const { sql, isAdmin, sessionUser, text } = require('../lib/db');
-const { pushNotice } = require('../lib/push');
+const { pushNotice, pushTakeBack } = require('../lib/push');
 const { roleOf } = require('../lib/roles');
 
 const BATCH = /^[a-z0-9-]{2,40}$/;
@@ -137,11 +137,13 @@ module.exports = async (req, res) => {
       : await sql`DELETE FROM polls WHERE id = ${id} RETURNING by_user, created`;
     // Take back the notice that announced it, so phones stop showing it.
     if (gone.length) {
-      await sql`
+      const taken = await sql`
         DELETE FROM notices
         WHERE by_user = ${gone[0].by_user} AND body LIKE 'Open Crony to vote:%'
           AND created BETWEEN ${gone[0].created}::timestamptz - interval '1 minute'
-                          AND ${gone[0].created}::timestamptz + interval '1 minute'`;
+                          AND ${gone[0].created}::timestamptz + interval '1 minute'
+        RETURNING batch, users`;
+      for (const n of taken) await pushTakeBack(n);
     }
     return res.status(200).json({ ok: true });
   }

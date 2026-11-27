@@ -21,7 +21,7 @@
 // time (see sendDue in lib/push.js), so within a few minutes in the daytime.
 
 const { sql, isAdmin, sessionUser, text } = require('../lib/db');
-const { sendDue, pushNotice } = require('../lib/push');
+const { sendDue, pushNotice, pushTakeBack } = require('../lib/push');
 const { roleOf } = require('../lib/roles');
 
 const BATCH = /^[a-z0-9-]{2,40}$/;
@@ -43,8 +43,19 @@ module.exports = async (req, res) => {
         AND (cardinality(users) = 0
              OR (${user} <> '' AND ${user} = ANY(users) AND send_at > now() - interval '1 hour'))
       ORDER BY send_at DESC LIMIT 20`;
+    // Every message of the week this phone could have had, so it can drop
+    // the ones taken back (messages for chosen people leave the list above
+    // after an hour but are still live).
+    const live = await sql`
+      SELECT id FROM notices
+      WHERE send_at <= now() AND send_at > now() - interval '7 days'
+        AND (batch = '' OR batch = ${batch})
+        AND (cardinality(users) = 0 OR (${user} <> '' AND ${user} = ANY(users)))`;
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=15');
-    return res.status(200).json({ notices: rows.map((r) => ({ ...r, id: Number(r.id) })) });
+    return res.status(200).json({
+      notices: rows.map((r) => ({ ...r, id: Number(r.id) })),
+      live: live.map((r) => Number(r.id)),
+    });
   }
   const admin = isAdmin(req);
   const role = admin ? null : await roleOf(req);
@@ -97,8 +108,11 @@ module.exports = async (req, res) => {
   if (req.method === 'DELETE') {
     const id = Number(req.query.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'bad id' });
-    if (role) await sql`DELETE FROM notices WHERE id = ${id} AND by_user = ${role.user_id}`;
-    else await sql`DELETE FROM notices WHERE id = ${id}`;
+    const gone = role
+      ? await sql`DELETE FROM notices WHERE id = ${id} AND by_user = ${role.user_id} RETURNING batch, users, send_at`
+      : await sql`DELETE FROM notices WHERE id = ${id} RETURNING batch, users, send_at`;
+    // Already out: phones take it off their list and notification shade.
+    if (gone.length && new Date(gone[0].send_at) <= new Date()) await pushTakeBack(gone[0]);
     return res.status(200).json({ ok: true });
   }
   res.setHeader('Allow', 'GET, POST, DELETE');

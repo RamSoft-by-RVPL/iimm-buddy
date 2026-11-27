@@ -120,4 +120,13 @@ async function sendDue(sql) {
   }
 }
 
-module.exports = { push, topicFor, sendDue, pushNotice };
+/**
+ * Tells the phones a message was meant for that it was taken back. Nothing
+ * is shown: the app fetches the messages again and removes the missing one.
+ */
+async function pushTakeBack(n) {
+  const topics = n.users && n.users.length ? n.users.map((u) => `user-${u}`) : [topicFor(n.batch)];
+  for (const t of topics) await push(t, { data: { type: 'notice' } });
+}
+
+module.exports = { push, topicFor, sendDue, pushNotice, pushTakeBack };
