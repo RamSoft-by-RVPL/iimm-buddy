@@ -134,6 +134,7 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
           key: 'notice:${n.id}');
       logEvent(store.prefs, 'notice_got', '#${n.id}');
     }
+    await withdrawNotices(store.prefs);
   } catch (_) {
     // No connection: they come with the next check.
   }

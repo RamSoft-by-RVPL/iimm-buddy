@@ -95,6 +95,40 @@ Future<void> notify(int id, String title, String body, String channel,
   }
 }
 
+/// Takes messages the admin or a CR took back off this phone: out of the
+/// list behind the bell and off the notification shade, whether the app
+/// showed them or Android did (matched by title then).
+Future<void> withdrawNotices(SharedPreferences prefs) async {
+  final raw = prefs.getStringList('notices_gone') ?? const <String>[];
+  if (raw.isEmpty) return;
+  final gone = <int, String>{};
+  for (final r in raw) {
+    try {
+      final j = jsonDecode(r) as Map;
+      gone[(j['id'] as num).toInt()] = '${j['title']}';
+    } catch (_) {}
+  }
+  await inboxRemove(prefs, {for (final id in gone.keys) 'notice:$id'});
+  try {
+    await initNotifications();
+    for (final id in gone.keys) {
+      await _plugin.cancel(900000 + id % 90000);
+    }
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final titles = gone.values.toSet();
+    for (final a in await android?.getActiveNotifications() ??
+        const <ActiveNotification>[]) {
+      if (a.id != null && titles.contains(a.title)) {
+        await _plugin.cancel(a.id!, tag: a.tag);
+      }
+    }
+  } catch (_) {
+    // The list is cleaned even if the shade cannot be.
+  }
+  await prefs.remove('notices_gone');
+}
+
 /// The place asked for by the notification that started the app, if a tap
 /// on one is what opened it.
 Future<String?> openedFromNotification() async {

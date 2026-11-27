@@ -403,7 +403,7 @@ class AttendanceTab extends StatelessWidget {
           title: '${code(c)} is below $minPct%',
           note: () {
             final n = classesToRecover(c, minPct);
-            if (c.total != null && leaveLeft(c, minPct) < 0) {
+            if (c.total != null && leaveLeft(c, minPct) < 0 && n <= 0) {
               return 'Over the leave limit for this course';
             }
             return n <= 0

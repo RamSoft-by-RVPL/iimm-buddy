@@ -100,6 +100,18 @@ Future<void> inboxAdd(SharedPreferences prefs, List<InboxItem> items,
       _listKey, jsonEncode([for (final i in list) i.toJson()]));
 }
 
+/// Removes the items with these keys (a message taken back).
+Future<void> inboxRemove(SharedPreferences prefs, Set<String> keys) async {
+  final list = _decode(prefs.getString(_listKey));
+  final kept = [
+    for (final i in list)
+      if (!keys.contains(i.key)) i
+  ];
+  if (kept.length == list.length) return;
+  await prefs.setString(
+      _listKey, jsonEncode([for (final i in kept) i.toJson()]));
+}
+
 /// The saved form of reminders scheduled under [key] (see
 /// [scheduledItems]).
 String scheduledKey(String key) => 'sched_$key';

@@ -1,7 +1,10 @@
+import 'package:attendance_planner/backend.dart';
 import 'package:attendance_planner/crony_ui.dart';
+import 'package:attendance_planner/inbox.dart';
 import 'package:attendance_planner/moodle.dart';
 import 'package:attendance_planner/planner.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 int day(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
 
@@ -66,8 +69,7 @@ void main() {
       ...longWeekends([c], today, 85),
       ...suggestBreaks([c], today, 85),
     ]) {
-      expect(firstExamIn(b.from, b.to), isNull,
-          reason: '${b.from} to ${b.to}');
+      expect(firstExamIn(b.from, b.to), isNull, reason: '${b.from} to ${b.to}');
     }
   });
 
@@ -82,5 +84,37 @@ void main() {
     expect(classesBetween(c, DateTime(2027, 1, 4), DateTime(2027, 1, 7)), 0);
     expect(
         classesBetween(c, DateTime(2026, 12, 14), DateTime(2026, 12, 18)), 5);
+  });
+
+  test('a message missing from the live list was taken back', () {
+    final now = DateTime(2026, 11, 28, 12);
+    final recent =
+        Notice(5, 'Poll: Test', '', now.subtract(const Duration(hours: 3)));
+    final kept = Notice(6, 'Kept', '', now);
+    final old = Notice(1, 'Old', '', now.subtract(const Duration(days: 8)));
+    expect(takenBack([recent, kept, old], {6}, now).map((n) => n.id), [5]);
+    // An older server sends no live list: nothing is taken back.
+    expect(takenBack([recent], null, now), isEmpty);
+  });
+
+  test('a taken-back message leaves the list behind the bell', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    await inboxAdd(prefs, [
+      InboxItem(
+          key: 'notice:5',
+          at: now,
+          title: 'Poll: Test',
+          body: '',
+          channel: 'news'),
+      InboxItem(
+          key: 'notice:6', at: now, title: 'Kept', body: '', channel: 'news'),
+    ]);
+    await inboxRemove(prefs, {'notice:5'});
+    expect(
+        inboxItems(prefs, now.add(const Duration(seconds: 1)))
+            .map((i) => i.key),
+        ['notice:6']);
   });
 }

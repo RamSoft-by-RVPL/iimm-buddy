@@ -272,6 +272,20 @@ Future<void> markNoticesSeen(SharedPreferences prefs, Iterable<int> ids) async {
   ]);
 }
 
+/// Messages this phone had that were taken back: no longer among the
+/// server's [live] ids although they are recent enough to be (the server
+/// lists a week). Null [live] (an older server) means none.
+List<Notice> takenBack(List<Notice> before, Set<int>? live, DateTime now) => [
+      if (live != null)
+        for (final n in before)
+          if (!live.contains(n.id) &&
+              now.difference(n.at) < const Duration(days: 6))
+            n
+    ];
+
+/// Ids of messages taken back, with their titles, for [withdrawNotices].
+const goneKey = 'notices_gone';
+
 /// Fetches the messages and returns the ones to show as notifications.
 Future<List<Notice>> pullNotices(SharedPreferences prefs) async {
   final batch = batchKey(prefs.getString('summary')) ?? '';
@@ -281,6 +295,20 @@ Future<List<Notice>> pullNotices(SharedPreferences prefs) async {
   if (status != 200) return [];
   final all = decodeNotices(text);
   final fresh = newNotices(all, seenNotices(prefs), DateTime.now());
+  Set<int>? live;
+  try {
+    final l = (jsonDecode(text) as Map)['live'];
+    if (l is List) live = {for (final x in l) (x as num).toInt()};
+  } catch (_) {}
+  final gone = takenBack(
+      decodeNotices(prefs.getString('notices')), live, DateTime.now());
+  if (gone.isNotEmpty) {
+    final old = prefs.getStringList(goneKey) ?? [];
+    await prefs.setStringList(goneKey, [
+      ...old,
+      for (final n in gone) jsonEncode({'id': n.id, 'title': n.title})
+    ]);
+  }
   await prefs.setString('notices', text);
   await markNoticesSeen(prefs, all.map((n) => n.id));
   return fresh;

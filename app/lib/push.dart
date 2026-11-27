@@ -42,6 +42,7 @@ Future<void> handlePush(SharedPreferences prefs, Map<String, dynamic> data,
             key: 'notice:${n.id}');
         logEvent(prefs, 'notice_got', '#${n.id}');
       }
+      await withdrawNotices(prefs);
     } else if (type == 'timetable' ||
         type == 'menu' ||
         type == 'exams' ||
