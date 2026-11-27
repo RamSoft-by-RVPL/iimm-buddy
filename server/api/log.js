@@ -70,6 +70,11 @@ module.exports = async (req, res) => {
       SELECT id FROM users
       WHERE roll = ${roll} AND device = ${device} AND id <> ${b.id}`).map((r) => r.id);
     if (old.length) {
+      // Keep the date Crony first saw this student (the admin's serial number).
+      await sql`
+        UPDATE users SET first_seen = LEAST(first_seen,
+          (SELECT min(first_seen) FROM users WHERE id = ANY(${old})))
+        WHERE id = ${b.id}`;
       await sql`
         UPDATE roles SET user_id = ${b.id}
         WHERE user_id = ${old[0]} AND NOT EXISTS (SELECT 1 FROM roles WHERE user_id = ${b.id})`;

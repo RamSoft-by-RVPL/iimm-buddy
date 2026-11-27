@@ -452,13 +452,25 @@ const common = (xs) => { const c = {}; xs.filter(Boolean).forEach((x) => { c[x] 
 
 // ---- students
 let pf = 'all';
+// Serial number: 1 is the first student Crony ever saw (by first seen).
+let srMap = null, srFor = null;
+const srOf = (id) => {
+  if (!data || !data.users) return '';
+  if (srFor !== data.users) {
+    srFor = data.users; srMap = new Map();
+    [...data.users].sort((a, b) => String(a.first_seen).localeCompare(String(b.first_seen)) || String(a.id).localeCompare(String(b.id)))
+      .forEach((u, i) => srMap.set(u.id, i + 1));
+  }
+  return srMap.get(id) || '';
+};
 function drawPeople() {
   const q = $('search').value.toLowerCase();
   const users = data.users.filter((u) => (pf === 'all' || (pf === 'attention' ? troubled(u) : isOld(u)))
-    && (!q || [u.name, u.roll, u.id, u.device, u.app_version].join(' ').toLowerCase().includes(q)));
+    && (!q || ['#' + srOf(u.id), u.name, u.roll, u.id, u.device, u.app_version].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => srOf(a.id) - srOf(b.id));
   document.querySelectorAll('#pFilter button').forEach((b) => b.classList.toggle('on', b.dataset.f === pf));
-  $('pTable').innerHTML = table(['Name', 'Roll', 'Version', 'Phone', 'Last seen', 'State'], users.map((u) => `<tr class="pick" data-id="${esc(u.id)}" tabindex="0">
-    <td>${esc(u.name) || '<span class="dim">Not signed in yet</span>'}</td><td>${esc(u.roll)}</td>
+  $('pTable').innerHTML = table(['#', 'Name', 'Roll', 'Version', 'Phone', 'Last seen', 'State'], users.map((u) => `<tr class="pick" data-id="${esc(u.id)}" tabindex="0">
+    <td class="num dim">${srOf(u.id)}</td><td>${esc(u.name) || '<span class="dim">Not signed in yet</span>'}</td><td>${esc(u.roll)}</td>
     <td>${isOld(u) ? `<span class="tag w">${esc(u.app_version)}</span>` : esc(u.app_version)}</td><td>${esc(u.device)}</td><td>${ago(u.last_seen)}</td>
     <td>${u.health ? `<span class="tag r">Reminders blocked</span><span class="s">${esc(u.health)}</span>` : ''}${u.last_error ? `<span class="tag r">Error</span><span class="s">${esc(u.last_error)}</span>` : ''}${troubled(u) ? '' : '<span class="dim">Fine</span>'}</td></tr>`).join(''),
     pf === 'all' && !q ? 'No students yet' : 'Nobody matches');
@@ -581,7 +593,7 @@ async function openUser(id) {
   try { d = await get('?user=' + encodeURIComponent(id)); } catch (e) { if (e.message !== 'locked') $('uName').textContent = e.message; return; }
   const u = d.user;
   $('uName').textContent = u.name || 'Unknown student'; $('uRoll').textContent = u.roll || '';
-  $('uCard').innerHTML = `<dl>${[['Support ID', u.id], ['Batch', u.batch], ['App version', u.app_version], ['Phone', u.device], ['First seen', when(u.first_seen)], ['Last seen', when(u.last_seen) + ' (' + ago(u.last_seen) + ')'], ['Reminders', u.health ? 'Blocked: ' + u.health : 'Can reach the student'], ['Last error', u.last_error || 'None']]
+  $('uCard').innerHTML = `<dl>${[['Sr. no.', '#' + (srOf(u.id) || '?')], ['Support ID', u.id], ['Batch', u.batch], ['App version', u.app_version], ['Phone', u.device], ['First seen', when(u.first_seen)], ['Last seen', when(u.last_seen) + ' (' + ago(u.last_seen) + ')'], ['Reminders', u.health ? 'Blocked: ' + u.health : 'Can reach the student'], ['Last error', u.last_error || 'None']]
     .map(([l, v]) => `<dt>${l}</dt><dd${(l === 'Reminders' && u.health) || (l === 'Last error' && u.last_error) ? ' class="bad"' : ''}>${esc(v)}</dd>`).join('')}</dl>`;
   const me = [{ ...u, name: u.name || '' }];
   remindDraw('uRemind', me); if (!$('uRemind').innerHTML) updateDraw('uRemind', me);
