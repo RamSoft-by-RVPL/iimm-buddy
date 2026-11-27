@@ -47,16 +47,17 @@ module.exports = async (req, res) => {
   const lastError = open.size ? [...open.values()].pop() : (sawOk ? '' : null);
 
   await sql`
-    INSERT INTO users (id, roll, name, batch, app_version, device, health, last_error)
+    INSERT INTO users (id, roll, name, batch, app_version, device, health, last_error, app)
     VALUES (${b.id}, ${text(b.roll, 30)}, ${text(b.name, 80)}, ${text(b.batch, 40)},
             ${text(b.version, 20)}, ${text(b.device, 80)}, ${text(b.health, 200)},
-            ${lastError || ''})
+            ${lastError || ''}, ${text(b.app, 60)})
     ON CONFLICT (id) DO UPDATE SET
       roll = CASE WHEN EXCLUDED.roll <> '' THEN EXCLUDED.roll ELSE users.roll END,
       name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE users.name END,
       batch = CASE WHEN EXCLUDED.batch <> '' THEN EXCLUDED.batch ELSE users.batch END,
       app_version = EXCLUDED.app_version,
       device = CASE WHEN EXCLUDED.device <> '' THEN EXCLUDED.device ELSE users.device END,
+      app = CASE WHEN EXCLUDED.app <> '' THEN EXCLUDED.app ELSE users.app END,
       health = EXCLUDED.health,
       last_error = CASE WHEN ${lastError !== null} THEN EXCLUDED.last_error ELSE users.last_error END,
       last_seen = now()`;
@@ -64,11 +65,15 @@ module.exports = async (req, res) => {
   // The same student on the same phone under a new id: the app was
   // reinstalled or its data cleared. Keep only this copy (its role moves
   // with it), so the admin page lists each student's phone once.
-  const roll = text(b.roll, 30), device = text(b.device, 80);
+  // The Play app and the site's app can sit side by side on one phone: those
+  // are two copies, not a reinstall, so only the same app is matched (phones
+  // before 0.9.2 do not say which app they are).
+  const roll = text(b.roll, 30), device = text(b.device, 80), app = text(b.app, 60);
   if (roll && device) {
     const old = (await sql`
       SELECT id FROM users
-      WHERE roll = ${roll} AND device = ${device} AND id <> ${b.id}`).map((r) => r.id);
+      WHERE roll = ${roll} AND device = ${device} AND id <> ${b.id}
+        AND app = ${app}`).map((r) => r.id);
     if (old.length) {
       // Keep the date Crony first saw this student (the admin's serial number).
       await sql`

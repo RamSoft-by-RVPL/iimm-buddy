@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
     SELECT kind AS label, count(*)::int AS n FROM events
     WHERE received > now() - interval '7 days' GROUP BY 1 ORDER BY 2 DESC`;
   const users = await sql`
-    SELECT id, roll, name, batch, app_version, device, first_seen, last_seen, last_error, health
+    SELECT id, roll, name, batch, app_version, device, first_seen, last_seen, last_error, health, app
     FROM users ORDER BY last_seen DESC LIMIT 1000`;
   const timetables = await sql`
     SELECT batch, updated, jsonb_array_length(classes) AS classes FROM timetables ORDER BY 1`;

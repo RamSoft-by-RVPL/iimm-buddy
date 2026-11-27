@@ -108,6 +108,8 @@ CREATE TABLE IF NOT EXISTS roles (
 );
 -- The install id of the student who posted a message ('' = the admin).
 ALTER TABLE notices ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';
+-- Which app the phone runs: in.ramyaventures.crony (Play) or the site's build; '' before 0.9.2.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS app text NOT NULL DEFAULT '';
 ALTER TABLE cancellations ADD COLUMN IF NOT EXISTS by_user text NOT NULL DEFAULT '';
 
 -- Classes a CR (or the admin) added or moved to a new time. A moved class

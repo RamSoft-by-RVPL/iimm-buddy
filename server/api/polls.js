@@ -132,8 +132,17 @@ module.exports = async (req, res) => {
   if (req.method === 'DELETE') {
     const id = Number(req.query.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'bad id' });
-    if (role) await sql`DELETE FROM polls WHERE id = ${id} AND by_user = ${role.user_id}`;
-    else await sql`DELETE FROM polls WHERE id = ${id}`;
+    const gone = role
+      ? await sql`DELETE FROM polls WHERE id = ${id} AND by_user = ${role.user_id} RETURNING by_user, created`
+      : await sql`DELETE FROM polls WHERE id = ${id} RETURNING by_user, created`;
+    // Take back the notice that announced it, so phones stop showing it.
+    if (gone.length) {
+      await sql`
+        DELETE FROM notices
+        WHERE by_user = ${gone[0].by_user} AND body LIKE 'Open Crony to vote:%'
+          AND created BETWEEN ${gone[0].created}::timestamptz - interval '1 minute'
+                          AND ${gone[0].created}::timestamptz + interval '1 minute'`;
+    }
     return res.status(200).json({ ok: true });
   }
   return res.status(400).json({ error: 'unknown action' });
