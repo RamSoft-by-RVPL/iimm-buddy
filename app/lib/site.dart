@@ -697,6 +697,18 @@ class Store {
   List<TermEvent> get calendar {
     final events = decodeCalendar(prefs.getString('acal'));
     plannerDaysOff = offDays(events);
+    plannerExamDays = offDays([
+      for (final e in events)
+        if (e.kind == 'exam') e
+    ]);
+    final now = DateTime.now(), today = DateTime(now.year, now.month, now.day);
+    final ends = [
+      for (final e in events)
+        if (RegExp(r'classes?\s+end', caseSensitive: false).hasMatch(e.title) &&
+            !e.to.isBefore(today))
+          e.to
+    ]..sort();
+    plannerClassesEnd = ends.isEmpty ? null : ends.first;
     return events;
   }
 

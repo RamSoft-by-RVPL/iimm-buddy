@@ -73,6 +73,7 @@ Map<String, dynamic> logBody(SharedPreferences prefs, List<String> queue) {
     'batch': batchKey(prefs.getString('summary')) ?? '',
     'version': appVersion,
     'device': prefs.getString('log_device') ?? '',
+    'app': prefs.getString('log_app') ?? '',
     'health': prefs.getString('log_health') ?? '',
     'events': [for (final e in queue) jsonDecode(e)],
   };
@@ -99,6 +100,11 @@ Future<void> flushLogs(SharedPreferences prefs, {bool force = false}) async {
     if (prefs.getString('log_device') == null) {
       try {
         await prefs.setString('log_device', await deviceName());
+      } catch (_) {}
+    }
+    if (prefs.getString('log_app') == null) {
+      try {
+        await prefs.setString('log_app', await packageName());
       } catch (_) {}
     }
     final (status, _) = await apiSend('POST', Uri.parse('$apiBase/api/log'),

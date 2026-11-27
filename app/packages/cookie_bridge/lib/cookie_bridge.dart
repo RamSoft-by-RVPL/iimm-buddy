@@ -58,6 +58,10 @@ Future<(String, List<int>)?> takeSharedFile() async {
   return ('${m['name']}', (m['bytes'] as List).cast<int>());
 }
 
+/// "in.ramyaventures.crony" for the Play build, the site's build otherwise.
+Future<String> packageName() async =>
+    await _channel.invokeMethod<String>('package') ?? '';
+
 /// "samsung SM-A546E, Android 14".
 Future<String> deviceName() async =>
     await _channel.invokeMethod<String>('device') ?? '';

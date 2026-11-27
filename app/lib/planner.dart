@@ -152,6 +152,24 @@ int classesToRecover(Course c, int minPct) {
 /// actually published on such a day are still counted.
 Set<int> plannerDaysOff = {};
 
+/// Exam days from the academic calendar. They are days off for classes, but
+/// no day to be away: a break is never suggested across one.
+Set<int> plannerExamDays = {};
+
+/// The last day of classes this term ("Classes End" in the academic
+/// calendar). No classes are assumed after it.
+DateTime? plannerClassesEnd;
+
+/// The first exam day from [from] to [to], both included, if any.
+DateTime? firstExamIn(DateTime from, DateTime to) {
+  for (var d = DateTime(from.year, from.month, from.day);
+      !d.isAfter(to);
+      d = DateTime(d.year, d.month, d.day + 1)) {
+    if (plannerExamDays.contains(_dayNo(d))) return d;
+  }
+  return null;
+}
+
 /// Days with at least one published class (attendance site or timetable),
 /// as numbers like 20261121. A Saturday or Sunday counts as a holiday
 /// unless it is in here.
@@ -243,6 +261,10 @@ int classesBetween(Course c, DateTime from, DateTime to) {
   var n = c.upcoming.where((u) => !u.isBefore(d) && !u.isAfter(end)).length;
   final h = c.horizon;
   if (c.ends != null && end.isAfter(c.ends!)) end = c.ends!;
+  final last = plannerClassesEnd;
+  if (last != null && end.isAfter(last) && (h == null || last.isAfter(h))) {
+    end = last;
+  }
   if (h != null && !d.isAfter(h)) d = DateTime(h.year, h.month, h.day + 1);
   final share = plannerShare[c.id];
   final start = plannerStart[c.id] ?? 0;
@@ -347,11 +369,13 @@ Course combine(String name, List<Course> parts) {
   return Course(
     id: parts.map((p) => p.id).join('+'),
     name: name,
+    // Each teacher once: theory "A" and lab "A, B" make "A, B".
     faculty: parts
-        .map((p) => p.faculty)
+        .expand((p) => p.faculty.split(','))
+        .map((f) => f.trim())
         .where((f) => f.isNotEmpty)
         .toSet()
-        .join(' '),
+        .join(', '),
     held: sum((p) => p.held),
     attended: sum((p) => p.attended),
     pending: sum((p) => p.pending),
@@ -477,6 +501,7 @@ List<BreakIdea> longWeekends(List<Course> courses, DateTime today, int minPct,
         if (leave < 1 || leave > maxLeave) continue;
         final idea = BreakIdea(from, to, 0, leave);
         if (idea.days < 3) continue;
+        if (firstExamIn(from, to) != null) continue;
         final hits = [
           for (final c in courses) holidayImpact(c, today, from, to, minPct)
         ];
@@ -518,8 +543,13 @@ List<BreakIdea> suggestBreaks(List<Course> courses, DateTime today, int minPct,
   final all = <BreakIdea>[];
   for (var k = 1; k <= window; k++) {
     final from = DateTime(today.year, today.month, today.day + k);
-    final to = safeUntil(courses, today, from, minPct, cap: cap);
-    if (to == null) continue;
+    final safe = safeUntil(courses, today, from, minPct, cap: cap);
+    if (safe == null) continue;
+    var to = safe;
+    // Back before the exams start.
+    final exam = firstExamIn(from, to);
+    if (exam != null) to = DateTime(exam.year, exam.month, exam.day - 1);
+    if (to.isBefore(from)) continue;
     // Counted through holidayImpact so classes past the end of a course
     // are not counted.
     final missed = courses.fold(

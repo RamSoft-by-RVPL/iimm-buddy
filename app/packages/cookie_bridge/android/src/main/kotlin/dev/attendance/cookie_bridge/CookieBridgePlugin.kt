@@ -323,6 +323,7 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
           result.success(null)
         }
         "maker" -> result.success(Build.MANUFACTURER ?: "")
+        "package" -> result.success(context.packageName)
         "device" -> result.success(
           "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}"
         )

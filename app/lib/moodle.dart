@@ -135,6 +135,21 @@ AssignInfo parseAssign(String html, DateTime now) {
 int? linkId(String url) =>
     int.tryParse(Uri.tryParse(url)?.queryParameters['id'] ?? '');
 
+/// Moodle sends names with HTML entities ("Design &amp; Data"): plain text.
+String unescapeHtml(String s) => s.contains('&')
+    ? s
+        .replaceAllMapped(RegExp(r'&#(x?)([0-9a-fA-F]+);'), (m) {
+          final code = int.tryParse(m[2]!, radix: m[1]!.isEmpty ? 10 : 16);
+          return code == null ? m[0]! : String.fromCharCode(code);
+        })
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+    : s;
+
 /// Sections of a course from the answer of `core_courseformat_get_state`.
 List<MoodleSection> parseState(String raw) {
   final st = jsonDecode(raw) as Map<String, dynamic>;
@@ -150,13 +165,15 @@ List<MoodleSection> parseState(String raw) {
       if (c == null || c['visible'] == false) continue;
       items.add(MoodleItem(
         int.parse('${c['id']}'),
-        '${c['name']}',
+        unescapeHtml('${c['name']}'),
         '${c['module'] ?? c['modname']}',
         '${c['url'] ?? ''}',
         c['uservisible'] != false && '${c['url'] ?? ''}'.isNotEmpty,
       ));
     }
-    if (items.isNotEmpty) out.add(MoodleSection('${s['title']}', items));
+    if (items.isNotEmpty) {
+      out.add(MoodleSection(unescapeHtml('${s['title']}'), items));
+    }
   }
   return out;
 }
@@ -261,7 +278,7 @@ class Moodle {
 
   List<MoodleCourse> _courses(String raw) => [
         for (final c in jsonDecode(raw) as List)
-          MoodleCourse(c['id'] as int, '${c['fullname']}')
+          MoodleCourse(c['id'] as int, unescapeHtml('${c['fullname']}'))
       ];
 
   List<MoodleCourse>? get cachedCourses {
@@ -302,9 +319,9 @@ class Moodle {
         for (final e in jsonDecode(raw) as List)
           Deadline(
             e['id'] as int,
-            '${e['name']}'.replaceFirst(RegExp(r' is due$'), ''),
+            unescapeHtml('${e['name']}').replaceFirst(RegExp(r' is due$'), ''),
             DateTime.fromMillisecondsSinceEpoch((e['timesort'] as int) * 1000),
-            '${e['course']?['fullname'] ?? ''}',
+            unescapeHtml('${e['course']?['fullname'] ?? ''}'),
             '${e['url'] ?? ''}',
             '${e['action']?['name'] ?? ''}',
           )

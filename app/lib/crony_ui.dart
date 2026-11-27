@@ -25,7 +25,7 @@ String codeOf(String name, [Map<String, String> shortNames = const {}]) {
       .toList();
   if (words.length < 2) return name;
   final code = words.map((w) => w[0].toUpperCase()).join();
-  return code.length > 6 ? name : code;
+  return code.length > 7 ? name : code;
 }
 
 /// "two", "five": small counts read better as words in a sentence.
@@ -331,7 +331,9 @@ String skipLineN(Course c, int n, int minPct) {
       attended: c.attended,
       total: c.total);
   final left = leaveLeft(after, minPct);
-  if (leaveLeft(c, minPct) < 0) return 'Already over the limit. Do not skip.';
+  if (c.total != null && leaveLeft(c, minPct) < 0) {
+    return 'Already over the limit. Do not skip.';
+  }
   final above = meets(after.attended, after.held, minPct);
   if (c.total != null) {
     if (left < 0) return 'Over the limit: $minPct% is then out of reach.';
