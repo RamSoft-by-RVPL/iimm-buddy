@@ -49,7 +49,9 @@ String? makerTip(String maker) {
   return null;
 }
 
-List<Problem> problemsFrom(NotifyState s, bool battery, String maker) => [
+List<Problem> problemsFrom(NotifyState s, bool battery, String maker,
+        {String mode = ''}) =>
+    [
       if (!s.allowed)
         Problem(
             'notifications off',
@@ -68,14 +70,17 @@ List<Problem> problemsFrom(NotifyState s, bool battery, String maker) => [
                 'minutes late.',
             'Allow',
             askExactAlarms),
-      if (!battery)
+      // "Optimized" (Android's default, and all that "Allow background
+      // usage" gives on Android 15+) still lets the exact class reminders
+      // and the background check run; only "Restricted" stops them.
+      if (!battery && mode != 'optimized')
         Problem(
             'battery restricted',
-            'The phone limits this app in the background',
-            'Reminders and Moodle alerts can be dropped. Allow the app to '
-                'run in the background.'
+            'The phone stops this app in the background',
+            'Reminders and Moodle alerts can be dropped. Turn on "Allow '
+                'background usage" for Crony (App battery usage).'
                 '${playStore ? ' In the page that opens, tap "App battery '
-                    'usage" and choose "Unrestricted".' : ''}'
+                    'usage" and switch on "Allow background usage".' : ''}'
                 '${makerTip(maker) == null ? '' : ' ${makerTip(maker)}'}',
             playStore ? 'Open settings' : 'Allow',
             askBatteryUnrestricted),
@@ -85,11 +90,13 @@ Future<(NotifyState, List<Problem>)> checkHealth() async {
   final s = await notifyState();
   var battery = true;
   var maker = '';
+  var mode = '';
   try {
     battery = await batteryUnrestricted();
     maker = await phoneMaker();
+    mode = await batteryMode();
   } catch (_) {}
-  return (s, problemsFrom(s, battery, maker));
+  return (s, problemsFrom(s, battery, maker, mode: mode));
 }
 
 /// Shows what is wrong, each with a button that fixes it.
@@ -221,7 +228,8 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
   Future<void> _check() async {
     try {
       final s = await notifyState();
-      final b = await batteryUnrestricted();
+      final b = await batteryUnrestricted() ||
+          await batteryMode() == 'optimized';
       final m = await phoneMaker();
       if (mounted) {
         setState(() {

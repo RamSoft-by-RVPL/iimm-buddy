@@ -477,7 +477,7 @@ $('search').oninput = drawPeople;
 // one, so those students are only listed, to message directly.
 const REMIND_TITLE = 'Your class reminders may not arrive';
 const UPDATE_TITLE = 'Please update Crony';
-const FIXES = { 'notifications off': 'allow notifications', 'exact alarms off': 'allow "Alarms and reminders"', 'battery restricted': 'let Crony run in the background' };
+const FIXES = { 'notifications off': 'allow notifications', 'exact alarms off': 'allow "Alarms and reminders"', 'battery restricted': 'turn on "Allow background usage" for Crony' };
 const reachable = (u) => !(u.health || '').includes('notifications off') && vcmp(u.app_version, '0.8.10') >= 0;
 const whyNot = (u) => (u.health || '').includes('notifications off') ? 'notifications off' : `app ${u.app_version}, too old for this`;
 function remindBody(health) {

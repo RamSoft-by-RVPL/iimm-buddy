@@ -39,6 +39,10 @@ Future<void> removeCalendar() => _channel.invokeMethod('calRemove');
 Future<bool> batteryUnrestricted() async =>
     await _channel.invokeMethod<bool>('batteryOk') ?? true;
 
+/// "unrestricted", "optimized" or "restricted" (App battery usage).
+Future<String> batteryMode() async =>
+    await _channel.invokeMethod<String>('batteryMode') ?? 'unrestricted';
+
 /// The phone maker, lower case ("xiaomi", "samsung"...).
 Future<String> phoneMaker() async =>
     (await _channel.invokeMethod<String>('maker') ?? '').toLowerCase();

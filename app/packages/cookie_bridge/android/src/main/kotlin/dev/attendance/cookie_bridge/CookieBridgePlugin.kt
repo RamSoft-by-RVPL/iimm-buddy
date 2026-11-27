@@ -282,6 +282,20 @@ class CookieBridgePlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
           val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
           result.success(pm.isIgnoringBatteryOptimizations(context.packageName))
         }
+        "batteryMode" -> {
+          // "unrestricted", "optimized" (Android's default, also what the
+          // "Allow background usage" switch gives on Android 15+), or
+          // "restricted" (the app is stopped in the background).
+          val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+          val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+          result.success(
+            when {
+              pm.isIgnoringBatteryOptimizations(context.packageName) -> "unrestricted"
+              Build.VERSION.SDK_INT >= 28 && am.isBackgroundRestricted -> "restricted"
+              else -> "optimized"
+            }
+          )
+        }
         "batteryAsk" -> {
           // The system's own "let this app run in the background?" question.
           // Falls back to the app's settings page where that is not offered,

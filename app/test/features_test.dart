@@ -493,6 +493,18 @@ void v19() {
         problemsFrom(NotifyState(false, false, 0), false, 'vivo')
             .map((p) => p.code),
         ['notifications off', 'exact alarms off', 'battery restricted']);
+    // "Allow background usage" on Android 15+ gives Optimized: reminders
+    // still work, so it is not a problem; only Restricted is.
+    expect(
+        problemsFrom(NotifyState(true, true, 0), false, 'samsung',
+            mode: 'optimized'),
+        isEmpty);
+    expect(
+        problemsFrom(NotifyState(true, true, 0), false, 'samsung',
+                mode: 'restricted')
+            .single
+            .code,
+        'battery restricted');
   });
 }
 
