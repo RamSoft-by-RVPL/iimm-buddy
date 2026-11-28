@@ -5,6 +5,7 @@ import 'crony_ui.dart';
 import 'inbox.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 /// The bell in the top bar, with the number of new notifications.
 class InboxBell extends StatelessWidget {
@@ -300,6 +301,7 @@ class _InboxScreenState extends State<InboxScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        bottom: const LiquidEdge(),
         toolbarHeight: 76,
         titleSpacing: 0,
         title: BigTitle('Notifications',

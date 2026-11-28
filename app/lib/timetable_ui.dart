@@ -9,6 +9,7 @@ import 'moodle.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 /// A week of classes with Moodle deadlines on the same page.
 class TimetableTab extends StatefulWidget {
@@ -228,7 +229,7 @@ class _TimetableTabState extends State<TimetableTab> {
     final t = Theme.of(context);
     final hh = x.due.hour.toString().padLeft(2, '0');
     final mm = x.due.minute.toString().padLeft(2, '0');
-    return Card(
+    return TiltCard(
       child: ListTile(
         dense: true,
         leading: Icon(Icons.assignment_outlined, color: t.colorScheme.primary),
@@ -249,7 +250,7 @@ class _TimetableTabState extends State<TimetableTab> {
     final t = Theme.of(context);
     final hh = x.at.hour.toString().padLeft(2, '0');
     final mm = x.at.minute.toString().padLeft(2, '0');
-    return Card(
+    return TiltCard(
       color: t.colorScheme.primaryContainer,
       child: ListTile(
         dense: true,
@@ -279,7 +280,7 @@ class _TimetableTabState extends State<TimetableTab> {
       'break' => (Icons.beach_access_outlined, tone.good),
       _ => (Icons.flag_outlined, t.colorScheme.onSurfaceVariant),
     };
-    return Card(
+    return TiltCard(
       color: color.withOpacity(0.10),
       child: ListTile(
         dense: true,
@@ -492,7 +493,7 @@ class _TimetableTabState extends State<TimetableTab> {
             icon: const Icon(Icons.chevron_right)),
       ]),
       const SizedBox(height: 6),
-      Card(
+      TiltCard(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
           child: Column(children: [
@@ -533,7 +534,7 @@ class _TimetableTabState extends State<TimetableTab> {
             key(tone.good.withOpacity(0.35), 'Holiday or break', square: true),
         ]),
       ),
-      Card(
+      TiltCard(
         margin: const EdgeInsets.only(top: 12),
         child: ListTile(
           leading: const IconTile(Icons.insights_outlined),

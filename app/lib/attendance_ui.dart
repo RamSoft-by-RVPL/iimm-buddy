@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'crony_ui.dart';
+import 'glass.dart';
 import 'mascot.dart';
+import 'motion.dart';
 import 'planner.dart';
 import 'site.dart';
 import 'theme.dart';
@@ -81,6 +83,9 @@ String untilWord(ClassSlot s, DateTime now) {
 /// A strip needs the course length, and stays legible up to about 90 classes.
 bool punchable(Course c) =>
     c.total != null && c.total! >= c.held && c.total! <= 90;
+
+/// The course's planned length is known, so its bar can show the whole of it.
+bool lengthKnown(Course c) => c.total != null && c.total! >= c.held;
 
 /// The ticks for [PunchStrip]: each held class in order, then the classes
 /// still to come, the last ones marked as those that can still be missed.
@@ -183,10 +188,10 @@ class NowCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: 'Next class',
-      child: Container(
+      child: Sticker(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-        decoration: Brand.sticker(context, radius: 24),
+        radius: 24,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
@@ -433,7 +438,7 @@ class AttendanceTab extends StatelessWidget {
         ),
       if (below.isEmpty && tight.isEmpty && stale.isEmpty)
         const RowItem(
-          leading: Crony(mood: Mood.happy, size: 34),
+          leading: Crony(mood: Mood.happy, size: 34, play: true),
           title: 'Nothing needs you',
           note: 'Every course is on track',
         ),
@@ -471,7 +476,7 @@ class AttendanceTab extends StatelessWidget {
         // ---- where you stand
         Rise(
           index: i++,
-          child: Card(
+          child: TiltCard(
             child: InkWell(
               onTap: onOpenRegister,
               borderRadius: BorderRadius.circular(20),
@@ -491,19 +496,29 @@ class AttendanceTab extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: t.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 10),
-                      CountUp(snap.percent,
-                          style: TextStyle(
-                              fontFamily: 'Schoolbell',
-                              fontSize: 58,
-                              height: 1,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: 0,
-                              color: overallBad
-                                  ? tone.bad
-                                  : t.colorScheme.onSurface,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ])),
+                      Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: CountUp(snap.percent,
+                                  style: TextStyle(
+                                      fontFamily: 'Schoolbell',
+                                      fontSize: 58,
+                                      height: 1,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0,
+                                      color: overallBad
+                                          ? tone.bad
+                                          : t.colorScheme.onSurface,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ])),
+                            ),
+                            LemonGlass(
+                                percent: snap.percent,
+                                min: minPct,
+                                bad: overallBad),
+                          ]),
                       const SizedBox(height: 10),
                       Text.rich(TextSpan(children: story),
                           style: TextStyle(
@@ -653,16 +668,18 @@ class AttendanceTab extends StatelessWidget {
             for (final c in courses)
               if (statusColor(c, minPct) != good || leaveLeft(c, minPct) <= 1) c
           ];
-    final strips = courses.every(punchable);
+    final strips = courses.every(lengthKnown);
     Widget key(Color c, String label, {bool outline = false}) =>
         Row(mainAxisSize: MainAxisSize.min, children: [
           Container(
-              width: 6,
-              height: 12,
+              width: 12,
+              height: 8,
               decoration: BoxDecoration(
                   color: outline ? null : c,
-                  border: outline ? Border.all(color: c) : null,
-                  borderRadius: BorderRadius.circular(2))),
+                  border: Border.all(
+                      color: outline ? c : t.colorScheme.onSurface,
+                      width: outline ? 1 : 1.5),
+                  borderRadius: BorderRadius.circular(4))),
           const SizedBox(width: 6),
           Text(label,
               style: TextStyle(
@@ -675,11 +692,11 @@ class AttendanceTab extends StatelessWidget {
           onChanged: setFilter),
       const SizedBox(height: 12),
       if (shown.isEmpty)
-        Card(
+        TiltCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Row(children: [
-              const Crony(mood: Mood.happy, size: 40),
+              const Crony(mood: Mood.happy, size: 40, play: true),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -737,14 +754,19 @@ class AttendanceTab extends StatelessWidget {
                                       ])),
                             ]),
                         const SizedBox(height: 11),
-                        punchable(c)
-                            ? PunchStrip(punchesOf(c, snap, minPct))
-                            : Meter(
-                                value: c.percent,
-                                min: minPct,
-                                color: toneOf(context, c, minPct)),
+                        Straw(
+                            attended: c.attended,
+                            missed: c.held - c.attended - c.pending,
+                            pending: c.pending,
+                            total: lengthKnown(c) ? c.total! : c.held,
+                            min: minPct,
+                            bad: isBelow(c)),
                         const SizedBox(height: 9),
                         Row(children: [
+                          if (lengthKnown(c) && leaveLeft(c, minPct) > 0) ...[
+                            Drops(leaveLeft(c, minPct)),
+                            const SizedBox(width: 3),
+                          ],
                           Text(statusShort(c, minPct),
                               style: TextStyle(
                                   fontSize: 13,
@@ -788,17 +810,22 @@ class AttendanceTab extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Wrap(spacing: 16, runSpacing: 8, children: [
-            key(t.colorScheme.onSurface, 'Attended'),
-            key(tone.bad, 'Missed'),
+            key(Brand.lemon, 'Attended'),
             key(t.colorScheme.outline, 'Still to come', outline: true),
-            key(t.brightness == Brightness.dark ? Brand.lemon : Brand.lemonDeep,
-                'Can still miss'),
+            key(t.colorScheme.onSurfaceVariant, 'Missed, the hatched end'),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Drops(1),
+              const SizedBox(width: 3),
+              Text('Can still miss',
+                  style: TextStyle(
+                      fontSize: 12, color: t.colorScheme.onSurfaceVariant)),
+            ]),
           ]),
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
         child: Text(
-            '${strips ? 'Each bar is one class. ' : 'The tick on each bar is the $minPct% you need. '}'
+            '${strips ? 'Each tube is the whole course, and the drink has to reach the dashed line. ' : 'The dashed line on each tube is the $minPct% you need. '}'
             'Updated ${fmtDate(snap.syncedAt)}, ${hhmm(snap.syncedAt)} · Roll ${snap.roll}',
             style:
                 TextStyle(fontSize: 12, color: t.colorScheme.onSurfaceVariant)),
@@ -964,25 +991,16 @@ class MiniBars extends StatelessWidget {
               height: 44,
               child: LayoutBuilder(builder: (context, box) {
                 final isBad = statusColor(c, minPct) == bad;
-                return TweenAnimationBuilder<double>(
-                  tween: Tween(begin: calm(context) ? 1 : 0, end: 1),
-                  duration: Duration(milliseconds: 600 + i * 60),
-                  curve: const Cubic(0.23, 1, 0.32, 1),
-                  builder: (_, v, __) => Stack(children: [
-                    Container(
-                        decoration: BoxDecoration(
-                            color: t.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(6))),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: box.maxHeight * fill(c.percent) * v,
-                      child: Container(
-                          decoration: BoxDecoration(
-                              color: isBad ? tone.bad : t.colorScheme.onSurface,
-                              borderRadius: BorderRadius.circular(6))),
-                    ),
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Stack(children: [
+                    Positioned.fill(
+                        child: ColoredBox(
+                            color: t.colorScheme.surfaceContainerHighest)),
+                    Positioned.fill(
+                        child: Liquid(
+                            level: fill(c.percent),
+                            color: isBad ? tone.bad : t.colorScheme.onSurface)),
                     Positioned(
                       left: 0,
                       right: 0,

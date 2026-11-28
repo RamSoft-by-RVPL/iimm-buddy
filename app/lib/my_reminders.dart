@@ -11,6 +11,7 @@ import 'notify.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 const repeatKinds = ['Once', 'Every day', 'Every week'];
 
@@ -276,7 +277,7 @@ class MyRemindersCard extends StatelessWidget {
             ),
           )),
       coming.isEmpty
-          ? Card(
+          ? TiltCard(
               child: ListTile(
                 contentPadding: const EdgeInsets.fromLTRB(14, 6, 16, 6),
                 leading: const IconTile(Icons.alarm_add_outlined),

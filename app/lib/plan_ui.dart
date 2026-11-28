@@ -7,6 +7,7 @@ import 'planner.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 /// Leave planner: how long you can be away, and what given days off cost.
 class PlanTab extends StatefulWidget {
@@ -149,7 +150,7 @@ class _PlanTabState extends State<PlanTab> {
                   fontSize: 12, color: t.colorScheme.onSurfaceVariant)),
         ]);
 
-    return Card(
+    return TiltCard(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
         child: Column(children: [
@@ -322,14 +323,14 @@ class _PlanTabState extends State<PlanTab> {
       // ---- check given days
       calendar(context),
       if (r == null)
-        Card(
+        TiltCard(
           child: InkWell(
             onTap: pick,
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               child: Row(children: [
-                const Crony(mood: Mood.idle, size: 44),
+                const Crony(mood: Mood.idle, size: 44, play: true),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -382,7 +383,7 @@ class _PlanTabState extends State<PlanTab> {
         for (final e in widget.calendar)
           if (e.dayOff && !e.to.isBefore(r.start) && !e.from.isAfter(r.end)) e
       ];
-      children.add(Card(
+      children.add(TiltCard(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
           child:
@@ -390,7 +391,8 @@ class _PlanTabState extends State<PlanTab> {
             Row(children: [
               Crony(
                   mood: missed == 0 || hit.isEmpty ? Mood.happy : Mood.alarmed,
-                  size: 40),
+                  size: 40,
+                  play: true),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -556,7 +558,7 @@ class _PlanTabState extends State<PlanTab> {
     ];
     if (coming.isNotEmpty) {
       children.add(const SectionTitle('Days off already coming'));
-      children.add(Card(
+      children.add(TiltCard(
         child: Column(children: [
           for (var n = 0; n < coming.length; n++) ...[
             if (n > 0) const Divider(indent: 16, endIndent: 16),

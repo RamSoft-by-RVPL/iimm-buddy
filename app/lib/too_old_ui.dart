@@ -78,7 +78,7 @@ class _TooOldScreenState extends State<TooOldScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Spacer(),
-                const Crony(mood: Mood.worried, size: 96),
+                const Crony(mood: Mood.worried, size: 96, play: true),
                 const SizedBox(height: 20),
                 const Text('Time to update.',
                     style: TextStyle(

@@ -25,6 +25,7 @@ import 'mascot.dart';
 import 'menu_ui.dart';
 import 'moodle.dart';
 import 'moodle_ui.dart';
+import 'motion.dart';
 import 'notify.dart';
 import 'plan_ui.dart';
 import 'push.dart';
@@ -96,8 +97,8 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
   static const _tips = [
     "I keep count so you don't have to. Your next class and anything that "
         'needs you sit right here.',
-    'Each bar is one class. The lime ones at the end are classes you can '
-        'still miss.',
+    'Each tube is a whole course. Keep the drink above the dashed line; '
+        'the drops are classes you can still miss.',
     "Tap any upcoming class and I'll show you what skipping it does.",
     "Tap days on the calendar. I'll check them against every course.",
     'Search reads inside every saved PDF and slide, not just the file names.',
@@ -545,6 +546,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
 
     return Scaffold(
       appBar: AppBar(
+        bottom: const LiquidEdge(),
         toolbarHeight: 76,
         titleSpacing: 20,
         title: BigTitle(title, subtitle: subtitle),
@@ -558,7 +560,8 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
                       : tight
                           ? Mood.idle
                           : Mood.happy,
-                  size: 34),
+                  size: 34,
+                  play: true),
             ),
           InboxBell(unread: _unread, onPressed: _openInbox),
           if (tab != 0)
@@ -592,15 +595,8 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       ),
       body: Stack(children: [
         Positioned.fill(
-            child: TweenAnimationBuilder<double>(
-          key: ValueKey(tab),
-          tween: Tween(begin: calm(context) ? 1 : 0, end: 1),
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          builder: (_, v, child) => Opacity(
-              opacity: v,
-              child: Transform.translate(
-                  offset: Offset(0, 6 * (1 - v)), child: child)),
+            child: TabTurn(
+          index: tab,
           child: switch (tab) {
             0 => needData((s) => attendance(s)),
             1 => needData((s) => attendance(s, register: true)),
@@ -644,7 +640,10 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
       ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
+        onDestinationSelected: (i) {
+          if (i != tab) tick();
+          setState(() => tab = i);
+        },
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.today_outlined),
@@ -680,6 +679,7 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        bottom: const LiquidEdge(),
         toolbarHeight: 76,
         titleSpacing: 20,
         title: const BigTitle('Sign in once',

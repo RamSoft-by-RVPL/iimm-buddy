@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend.dart';
+import 'glass.dart';
 import 'log.dart';
 
 class Update {
@@ -147,7 +148,7 @@ Future<void> runUpdate(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LinearProgressIndicator(value: p),
+                LiquidBar(value: p),
                 const SizedBox(height: 12),
                 Text(p == null
                     ? 'Starting...'

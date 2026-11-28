@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 
 import 'mascot.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 /// Brand colours used outside the colour scheme (the mascot, the Now card).
 class Brand {
@@ -82,6 +84,9 @@ ThemeData appTheme(Brightness b) {
       s?.copyWith(fontWeight: w, letterSpacing: spacing);
   final outlined = BorderSide(color: line, width: 2);
   return base.copyWith(
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: DepthPageTransitionsBuilder(),
+    }),
     scaffoldBackgroundColor: scheme.surface,
     textTheme: text.copyWith(
       displaySmall: hand(text.displaySmall, 40),
@@ -375,15 +380,7 @@ class Meter extends StatelessWidget {
       height: 12,
       child: LayoutBuilder(
         builder: (_, box) => Stack(alignment: Alignment.centerLeft, children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: (value / 100).clamp(0, 1),
-              minHeight: 6,
-              color: color,
-              backgroundColor: t.colorScheme.surfaceContainerHighest,
-            ),
-          ),
+          LiquidBar(value: (value / 100).clamp(0, 1), color: color),
           Positioned(
             left: box.maxWidth * min / 100 - 1,
             child: Container(
@@ -485,7 +482,7 @@ class EmptyNote extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       child: Column(children: [
-        const Crony(mood: Mood.sleep, size: 64),
+        const Crony(mood: Mood.sleep, size: 64, play: true),
         const SizedBox(height: 12),
         Text(title,
             style: t.textTheme.titleMedium, textAlign: TextAlign.center),

@@ -6,6 +6,8 @@ import 'menu.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 const _weekdays = [
   'Monday',
@@ -86,7 +88,7 @@ class MenuCard extends StatelessWidget {
                       ?.copyWith(color: t.colorScheme.primary)),
             ),
           )),
-      Card(
+      TiltCard(
         child: InkWell(
           onTap: open,
           borderRadius: BorderRadius.circular(20),
@@ -568,9 +570,9 @@ class _NextMeal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (own, sides) = _split(m);
-    return Container(
+    return Sticker(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: Brand.sticker(context, radius: 24),
+      radius: 24,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(_mealIcon(m.name), size: 18, color: Brand.onPink),
@@ -623,7 +625,7 @@ class _MealCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final (own, sides) = _split(m);
-    return Card(
+    return TiltCard(
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),

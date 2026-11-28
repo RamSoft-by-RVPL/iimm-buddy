@@ -4,7 +4,9 @@
 import 'package:cookie_bridge/cookie_bridge.dart';
 import 'package:flutter/material.dart';
 
+import 'glass.dart';
 import 'mascot.dart';
+import 'motion.dart';
 
 import 'notify.dart';
 import 'crony_ui.dart';
@@ -122,7 +124,7 @@ class HealthCard extends StatelessWidget {
       );
     }
     final bad = Tone.of(context).bad;
-    return Card(
+    return TiltCard(
       margin: const EdgeInsets.symmetric(vertical: 6),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -332,7 +334,7 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Crony(mood: Mood.idle, size: 116),
+            const Crony(mood: Mood.idle, size: 116, play: true),
             const SizedBox(height: 20),
             const Text('Your attendance, worked out.', style: h2),
             const SizedBox(height: 14),
@@ -346,7 +348,8 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Crony(mood: allDone ? Mood.happy : Mood.idle, size: 72),
+            Crony(
+                mood: allDone ? Mood.happy : Mood.idle, size: 72, play: true),
             const SizedBox(height: 18),
             const Text('So reminders arrive on time.', style: h2),
             const SizedBox(height: 12),
@@ -356,10 +359,10 @@ class _SetupScreenState extends State<SetupScreen> with WidgetsBindingObserver {
             if (s == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: LinearProgressIndicator(minHeight: 3),
+                child: LiquidBar(height: 4),
               )
             else
-              Card(
+              TiltCard(
                 margin: EdgeInsets.zero,
                 child: Column(children: [
                   row(s.allowed, 'Notifications',

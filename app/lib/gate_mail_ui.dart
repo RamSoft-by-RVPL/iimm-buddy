@@ -7,6 +7,7 @@ import 'crony_ui.dart';
 import 'gate_mail.dart';
 import 'site.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 /// "Going out of campus?" on the home screen.
 class GateMailCard extends StatelessWidget {
@@ -15,7 +16,7 @@ class GateMailCard extends StatelessWidget {
   final Snapshot? snap;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => TiltCard(
         child: ListTile(
           contentPadding: const EdgeInsets.fromLTRB(14, 6, 12, 6),
           leading: const IconTile(Icons.directions_walk),
@@ -188,7 +189,8 @@ class _GateMailScreenState extends State<GateMailScreen> {
     final muted = t.colorScheme.onSurfaceVariant;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Leave mail')),
+      appBar:
+          AppBar(bottom: const LiquidEdge(), title: const Text('Leave mail')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
@@ -287,7 +289,7 @@ class _GateMailScreenState extends State<GateMailScreen> {
             ]),
           const SizedBox(height: 18),
           const FieldLabel('The mail'),
-          Card(
+          TiltCard(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(

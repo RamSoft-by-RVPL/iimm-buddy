@@ -15,6 +15,8 @@ import 'theme.dart';
 import 'ui_common.dart';
 import 'week_summary.dart';
 import 'update.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen(
@@ -80,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final sheetAt = DateTime.tryParse(store.prefs.getString('tt_at') ?? '');
     final publisher = (store.prefs.getString('pub_key') ?? '').isNotEmpty;
 
-    Widget group(List<Widget> rows) => Card(
+    Widget group(List<Widget> rows) => TiltCard(
           clipBehavior: Clip.antiAlias,
           child: Column(children: [
             for (var i = 0; i < rows.length; i++) ...[
@@ -320,7 +322,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             }),
           ]),
           const SectionTitle('Help and testing'),
-          Card(
+          TiltCard(
             child: Theme(
               data: t.copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
@@ -469,10 +471,9 @@ class _Profile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     const ink = Brand.onPink;
-    return Container(
+    return Sticker(
       margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-      decoration: Brand.sticker(context),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(

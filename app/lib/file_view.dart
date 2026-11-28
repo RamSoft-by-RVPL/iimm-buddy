@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:share_plus/share_plus.dart';
+import 'motion.dart';
 
 const _pictures = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'};
 
@@ -90,6 +91,7 @@ class _FileViewScreenState extends State<FileViewScreen> {
         );
     return Scaffold(
       appBar: AppBar(
+        bottom: const LiquidEdge(),
         toolbarHeight: 64,
         titleSpacing: 0,
         title: Column(

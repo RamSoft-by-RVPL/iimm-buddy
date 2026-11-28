@@ -7,6 +7,8 @@ import 'notify.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 /// Add or change one exam or quiz. Returns true when something was saved.
 Future<bool> editExam(BuildContext context, Store store, Snapshot snap,
@@ -229,7 +231,7 @@ class ExamsCard extends StatelessWidget {
             ),
           )),
       coming.isEmpty
-          ? Card(
+          ? TiltCard(
               child: ListTile(
                 contentPadding: const EdgeInsets.fromLTRB(14, 6, 16, 6),
                 leading: const IconTile(Icons.edit_calendar_outlined),
@@ -456,8 +458,8 @@ class _ExamsScreenState extends State<_ExamsScreen> {
           children: [
             Rise(
               index: 0,
-              child: DecoratedBox(
-                  decoration: Brand.sticker(context, radius: 24),
+              child: Sticker(
+                  radius: 24,
                   child: Material(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(24),

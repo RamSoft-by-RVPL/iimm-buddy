@@ -5,11 +5,13 @@
 import 'package:flutter/material.dart';
 
 import 'mascot.dart';
+import 'motion.dart';
 import 'planner.dart';
 import 'site.dart';
 import 'faculty.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'glass.dart';
 
 const _small = {'and', 'for', 'with', 'of', 'the', 'in', 'to', 'on', 'a', '&'};
 
@@ -109,7 +111,7 @@ class GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final line = Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5);
-    return Card(
+    return TiltCard(
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         for (final (i, c) in children.indexed) ...[
@@ -177,7 +179,10 @@ class Segmented extends StatelessWidget {
                   button: true,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(11),
-                    onTap: () => onChanged(i),
+                    onTap: () {
+                      if (i != selected) tick();
+                      onChanged(i);
+                    },
                     child: Center(
                       child: Text(o,
                           style: TextStyle(
@@ -574,9 +579,8 @@ class _CourseSheetState extends State<CourseSheet> {
               ],
               const SizedBox(height: 14),
               // The simulator.
-              Container(
+              Sticker(
                 padding: const EdgeInsets.fromLTRB(18, 14, 14, 18),
-                decoration: Brand.sticker(context),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -599,8 +603,12 @@ class _CourseSheetState extends State<CourseSheet> {
                               visualDensity: VisualDensity.compact,
                               color: ink,
                               disabledColor: const Color(0x521A1113),
-                              onPressed:
-                                  n > 1 ? () => setState(() => n--) : null,
+                              onPressed: n > 1
+                                  ? () {
+                                      tick();
+                                      setState(() => n--);
+                                    }
+                                  : null,
                               icon: const Icon(Icons.remove, size: 18),
                             ),
                             SizedBox(
@@ -618,7 +626,10 @@ class _CourseSheetState extends State<CourseSheet> {
                               color: ink,
                               disabledColor: const Color(0x521A1113),
                               onPressed: n < remaining
-                                  ? () => setState(() => n++)
+                                  ? () {
+                                      tick();
+                                      setState(() => n++);
+                                    }
                                   : null,
                               icon: const Icon(Icons.add, size: 18),
                             ),
@@ -627,7 +638,7 @@ class _CourseSheetState extends State<CourseSheet> {
                       ]),
                       const SizedBox(height: 14),
                       Row(children: [
-                        Crony(mood: mood, size: 44, onPink: true),
+                        Crony(mood: mood, size: 44, onPink: true, play: true),
                         const SizedBox(width: 12),
                         Text(fmtPct(c.percent),
                             style: Brand.hand(32, color: ink)),
@@ -655,6 +666,12 @@ class _CourseSheetState extends State<CourseSheet> {
                                       ? const Color(0xFF6E0F16)
                                       : ink)),
                         ),
+                        const Spacer(),
+                        LemonGlass(
+                            percent: after.percent,
+                            min: min,
+                            ink: ink,
+                            size: const Size(36, 50)),
                       ]),
                       const SizedBox(height: 12),
                       Text(skipLineN(c, n, min),
@@ -822,7 +839,7 @@ class CronyTip extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Padding(
             padding: EdgeInsets.only(top: 2),
-            child: Crony(mood: Mood.idle, size: 46),
+            child: Crony(mood: Mood.idle, size: 46, play: true),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -962,6 +979,7 @@ class DateBlock extends StatelessWidget {
 /// The top bar of a screen opened from a tab: the big title, a back arrow.
 AppBar screenBar(String title, {String? subtitle, List<Widget>? actions}) =>
     AppBar(
+      bottom: const LiquidEdge(),
       toolbarHeight: 76,
       titleSpacing: 0,
       title: BigTitle(title, subtitle: subtitle),
@@ -1032,19 +1050,11 @@ class LoadingNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      const Crony(mood: Mood.idle, size: 72),
+      const Crony(mood: Mood.idle, size: 72, play: true),
       const SizedBox(height: 18),
       Text(text, style: t.textTheme.titleMedium),
       const SizedBox(height: 14),
-      SizedBox(
-        width: 120,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-              minHeight: 3,
-              backgroundColor: t.colorScheme.primary.withOpacity(0.12)),
-        ),
-      ),
+      const LemonGlass.loading(),
     ]);
   }
 }

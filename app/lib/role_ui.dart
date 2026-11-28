@@ -17,6 +17,7 @@ import 'planner.dart' show Course;
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 /// Ready-made starts for the usual posts, by role: (title, message).
 const roleTemplates = <String, List<(String, String)>>{
@@ -65,7 +66,7 @@ class RoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = myRole(store.prefs);
     if (r == null) return const SizedBox.shrink();
-    return Card(
+    return TiltCard(
       child: ListTile(
         contentPadding: const EdgeInsets.fromLTRB(14, 6, 12, 6),
         leading: const IconTile(Icons.campaign_outlined),
@@ -691,7 +692,8 @@ class _RoleScreenState extends State<RoleScreen> {
     final muted = t.colorScheme.onSurfaceVariant;
     if (r == null) {
       return Scaffold(
-          appBar: AppBar(title: const Text('Post an update')),
+          appBar: AppBar(
+              bottom: const LiquidEdge(), title: const Text('Post an update')),
           body: const EmptyNote(
               icon: Icons.lock_outline,
               title: 'You no longer have a role',
@@ -701,7 +703,8 @@ class _RoleScreenState extends State<RoleScreen> {
     final classes = dayClasses;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Post an update')),
+      appBar: AppBar(
+          bottom: const LiquidEdge(), title: const Text('Post an update')),
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
@@ -1167,7 +1170,7 @@ class _Preview extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Crony(size: 26),
+          const Crony(size: 26, play: true),
           const SizedBox(width: 10),
           Expanded(
             child:

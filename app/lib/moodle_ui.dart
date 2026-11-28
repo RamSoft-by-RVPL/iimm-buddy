@@ -10,6 +10,8 @@ import 'moodle.dart';
 import 'net.dart';
 import 'notes_index.dart';
 import 'theme.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 const _monthNames = [
   'Jan',
@@ -218,7 +220,7 @@ class MoodleTabState extends State<MoodleTab> {
           if (loading)
             const Padding(
               padding: EdgeInsets.only(top: 6),
-              child: LinearProgressIndicator(minHeight: 2),
+              child: LiquidBar(height: 3),
             ),
           if (query.isNotEmpty) ...searchResults(context, c),
           if (query.isEmpty) ...[
@@ -233,7 +235,7 @@ class MoodleTabState extends State<MoodleTab> {
               ),
             const SectionTitle('Due soon'),
             if (d.isEmpty)
-              Card(
+              TiltCard(
                 child: ListTile(
                   leading: Icon(Icons.task_alt, color: tone.good),
                   title: Text(deadlines == null && loading
@@ -378,7 +380,7 @@ class MoodleTabState extends State<MoodleTab> {
     return [
       const SectionTitle('Titles'),
       if (hits.isEmpty)
-        const Card(
+        const TiltCard(
           child: ListTile(
               leading: Icon(Icons.search_off), title: Text('No title matches')),
         )
@@ -395,13 +397,13 @@ class MoodleTabState extends State<MoodleTab> {
         ]),
       const SectionTitle('Inside your notes'),
       if (query.length < 3)
-        const Card(
+        const TiltCard(
           child: ListTile(
               leading: Icon(Icons.keyboard_outlined),
               title: Text('Type at least 3 letters to search inside notes')),
         )
       else if (indexing != null || noteHits == null)
-        Card(
+        TiltCard(
           child: ListTile(
               leading: const SizedBox(
                   width: 22,
@@ -410,7 +412,7 @@ class MoodleTabState extends State<MoodleTab> {
               title: Text(indexing ?? 'Searching...')),
         )
       else if (inside.isEmpty)
-        Card(
+        TiltCard(
           child: ListTile(
             leading: const Icon(Icons.find_in_page_outlined),
             title: Text(searchable == 0
@@ -482,7 +484,7 @@ Future<void> openItem(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Center(
-            child: Card(
+            child: TiltCard(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -703,6 +705,7 @@ class _CourseScreenState extends State<CourseScreen> {
     ]..sort((a, b) => assigns[a.id]!.due!.compareTo(assigns[b.id]!.due!));
     return Scaffold(
       appBar: AppBar(
+        bottom: const LiquidEdge(),
         toolbarHeight: 76,
         titleSpacing: 0,
         title: BigTitle(code == widget.course.name ? 'Course' : code,
@@ -829,7 +832,7 @@ class _CourseSummary extends StatelessWidget {
     final t = Theme.of(context);
     final muted = t.colorScheme.onSurfaceVariant;
     final all = files > 0 && saved == files;
-    return Card(
+    return TiltCard(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -850,14 +853,10 @@ class _CourseSummary extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                  value: files == 0 ? 0 : saved / files,
-                  minHeight: 6,
-                  backgroundColor: t.colorScheme.surfaceContainerHigh,
-                  color: all ? Tone.of(context).good : t.colorScheme.primary),
-            ),
+            LiquidBar(
+                value: files == 0 ? 0 : saved / files,
+                track: t.colorScheme.surfaceContainerHigh,
+                color: all ? Tone.of(context).good : t.colorScheme.primary),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(
@@ -1002,8 +1001,8 @@ class _ItemRow extends StatelessWidget {
                     if (progress != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: LinearProgressIndicator(
-                            value: progress == 0 ? null : progress),
+                        child: LiquidBar(
+                            value: progress == 0 ? null : progress, height: 4),
                       )
                     else if (assign != null)
                       DefaultTextStyle.merge(
@@ -1101,6 +1100,7 @@ class _FolderScreenState extends State<FolderScreen> {
     final l = links;
     return Scaffold(
       appBar: AppBar(
+          bottom: const LiquidEdge(),
           toolbarHeight: 76,
           titleSpacing: 0,
           title: BigTitle(widget.item.name,
@@ -1224,8 +1224,7 @@ class _WebPageState extends State<WebPage> {
                 letterSpacing: -0.2)),
         bottom: loading || fetching
             ? const PreferredSize(
-                preferredSize: Size.fromHeight(2),
-                child: LinearProgressIndicator(minHeight: 2))
+                preferredSize: Size.fromHeight(3), child: LiquidBar(height: 3))
             : null,
       ),
       body: WebViewWidget(controller: controller),
@@ -1268,8 +1267,8 @@ class _NextDue extends StatelessWidget {
             ? 'DUE IN $h ${h == 1 ? 'HOUR' : 'HOURS'}'
             : 'DUE IN ${(h / 24).ceil()} ${(h / 24).ceil() == 1 ? 'DAY' : 'DAYS'}';
     final done = info?.submitted == true;
-    return DecoratedBox(
-        decoration: Brand.sticker(context, radius: 22),
+    return Sticker(
+        radius: 22,
         child: Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(22),
@@ -1358,7 +1357,7 @@ class _CourseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final muted = t.colorScheme.onSurfaceVariant;
-    return Card(
+    return TiltCard(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(

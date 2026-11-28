@@ -6,6 +6,8 @@ import 'leave.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
+import 'glass.dart';
 
 /// Every absence, with the reason the student notes against it.
 class LeaveLogScreen extends StatefulWidget {
@@ -194,7 +196,7 @@ class _LeaveLogScreenState extends State<LeaveLogScreen> {
               children: [
                   Rise(
                     index: 0,
-                    child: Card(
+                    child: TiltCard(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                         child: Column(
@@ -371,9 +373,8 @@ class PrivacyScreen extends StatelessWidget {
           children: [
             Rise(
               index: 0,
-              child: Container(
+              child: Sticker(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                decoration: Brand.sticker(context),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -396,7 +397,7 @@ class PrivacyScreen extends StatelessWidget {
             for (final (i, (head, body)) in sections.indexed.skip(1))
               Rise(
                 index: i,
-                child: Card(
+                child: TiltCard(
                   margin: const EdgeInsets.only(top: 10),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 18, 18),

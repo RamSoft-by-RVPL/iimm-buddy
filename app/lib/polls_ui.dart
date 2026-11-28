@@ -7,6 +7,7 @@ import 'crony_ui.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
+import 'motion.dart';
 
 String _hm(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -120,7 +121,7 @@ class PollTile extends StatelessWidget {
     final p = poll;
     final results = p.mine != null || !p.open || onPick == null;
     final muted = t.colorScheme.onSurfaceVariant;
-    return Card(
+    return TiltCard(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
         child:
