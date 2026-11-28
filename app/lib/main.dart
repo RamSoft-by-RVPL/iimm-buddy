@@ -10,6 +10,8 @@ import 'backend.dart';
 import 'crony_ui.dart';
 import 'background.dart';
 import 'exams_ui.dart';
+import 'free.dart';
+import 'free_ui.dart';
 import 'faculty.dart';
 import 'gate_mail_ui.dart';
 import 'polls_ui.dart';
@@ -33,6 +35,8 @@ import 'session.dart';
 import 'settings_ui.dart';
 import 'theme.dart';
 import 'site.dart';
+import 'streak.dart';
+import 'streak_ui.dart';
 import 'timetable_ui.dart';
 import 'ui_common.dart';
 import 'update.dart';
@@ -321,6 +325,7 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
         await store.prefs.setBool('asked_due', true);
         if (mounted) await askDueTimes(context, store);
       }
+      _cheer(s);
       // Moodle in the same pass: deadlines for the timetable, reminders,
       // and it keeps the Moodle session alive.
       // With alerts: something added to Moodle is announced even when it is
@@ -369,7 +374,26 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
     unawaited(checkMoodle(store, moodle, alert: true).catchError((_) {}));
   }
 
+  /// A run of full days that has reached a milestone is cheered once.
+  void _cheer(Snapshot s) {
+    final streak = streakOf(s.sessions);
+    final before = store.prefs.getInt('streak_cheered') ?? 0;
+    final cheered = cheeredAfter(streak.days, before);
+    if (cheered != before) store.prefs.setInt('streak_cheered', cheered);
+    final hit = milestoneReached(streak.days, cheered);
+    if (hit == null || !mounted || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    store.prefs.setInt('streak_cheered', hit);
+    logEvent(store.prefs, 'streak', '$hit days');
+    cheerStreak(context, hit, streak);
+  }
+
   Future<void> signOut() async {
+    // Friends must not keep seeing a timetable from a signed-out phone.
+    if (myCode(store.prefs) != null) {
+      await stopSharing(store.prefs).catchError((_) {});
+    }
     await store.clear();
     await moodle.clear();
     await removeCalendar().catchError((_) {});
@@ -502,6 +526,12 @@ class _RootState extends State<Root> with WidgetsBindingObserver {
               absences(s).where((x) => store.leaves.containsKey(x.id)).length,
           onOpenTimetable: () => setState(() => tab = 2),
           onOpenRegister: () => setState(() => tab = 1),
+          free: FreeCard(
+              store: store,
+              snap: s,
+              onChanged: () {
+                if (mounted) setState(() {});
+              }),
           exams:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             RoleCard(store: store, snap: s),

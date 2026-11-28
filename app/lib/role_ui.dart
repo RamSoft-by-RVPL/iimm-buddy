@@ -18,6 +18,7 @@ import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
 import 'motion.dart';
+import 'glass.dart';
 
 /// Ready-made starts for the usual posts, by role: (title, message).
 const roleTemplates = <String, List<(String, String)>>{
@@ -705,7 +706,7 @@ class _RoleScreenState extends State<RoleScreen> {
     return Scaffold(
       appBar: AppBar(
           bottom: const LiquidEdge(), title: const Text('Post an update')),
-      body: RefreshIndicator(
+      body: GlassRefresh(
         onRefresh: load,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),

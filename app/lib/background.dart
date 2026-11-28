@@ -10,12 +10,14 @@ import 'acal.dart';
 import 'backend.dart';
 import 'changes.dart';
 import 'exams.dart';
+import 'free.dart';
 import 'log.dart';
 import 'menu.dart';
 import 'moodle.dart';
 import 'net.dart';
 import 'notify.dart';
 import 'planner.dart';
+import 'ratings.dart';
 import 'my_reminders.dart';
 import 'week_summary.dart';
 import 'sheet.dart';
@@ -165,6 +167,12 @@ Future<Snapshot> withSharedTimetable(Store store, Snapshot snap,
   try {
     await pullMenu(store.prefs);
   } catch (_) {}
+  // What everyone made of the last week's meals.
+  try {
+    await syncRatings(store.prefs);
+  } catch (_) {}
+  // Free time: this phone's class times when it shares them, and friends'.
+  await syncFree(store.prefs, snap);
   // The exam timetable: said once when the student's papers are in it.
   try {
     if (await pullExams(store.prefs)) {

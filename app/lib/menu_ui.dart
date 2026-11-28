@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'background.dart';
 import 'crony_ui.dart';
 import 'menu.dart';
+import 'ratings.dart';
 import 'site.dart';
 import 'theme.dart';
 import 'ui_common.dart';
@@ -70,6 +71,10 @@ class MenuCard extends StatelessWidget {
             '${next.$2.name} · ${_dayName(next.$1.date, now)}',
             next.$2.items.join(' · ')
           );
+    final ratings = ratingsOf(store.prefs);
+    final ask = mealToRate(days, now);
+    final ends = bestAndWorst(ratings);
+    final line = t.colorScheme.outlineVariant.withOpacity(0.5);
     final liked = next == null
         ? const <String>[]
         : [
@@ -89,68 +94,232 @@ class MenuCard extends StatelessWidget {
             ),
           )),
       TiltCard(
-        child: InkWell(
-          onTap: open,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              IconTile(icon),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2)),
-                      const SizedBox(height: 8),
-                      if (next == null)
-                        Text(body,
-                            style: t.textTheme.bodyMedium?.copyWith(
-                                color: t.colorScheme.onSurfaceVariant))
-                      else
-                        Wrap(spacing: 6, runSpacing: 6, children: [
-                          for (final i in next.$2.items)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                  color: liked.contains(i)
-                                      ? t.colorScheme.primary
-                                      : t.colorScheme.surfaceContainerHigh,
-                                  borderRadius: BorderRadius.circular(99)),
-                              child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (liked.contains(i)) ...[
-                                      Icon(Icons.favorite,
-                                          size: 13,
-                                          color: t.colorScheme.onPrimary),
-                                      const SizedBox(width: 5),
-                                    ],
-                                    Text(i,
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: liked.contains(i)
-                                                ? FontWeight.w600
-                                                : FontWeight.w400,
-                                            color: liked.contains(i)
-                                                ? t.colorScheme.onPrimary
-                                                : t.colorScheme.onSurface)),
-                                  ]),
-                            ),
-                        ]),
-                    ]),
-              ),
-            ]),
+        clipBehavior: Clip.antiAlias,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          InkWell(
+            onTap: open,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child:
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                IconTile(icon),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2)),
+                        const SizedBox(height: 8),
+                        if (next == null)
+                          Text(body,
+                              style: t.textTheme.bodyMedium?.copyWith(
+                                  color: t.colorScheme.onSurfaceVariant))
+                        else
+                          Wrap(spacing: 6, runSpacing: 6, children: [
+                            for (final i in next.$2.items)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                    color: liked.contains(i)
+                                        ? t.colorScheme.primary
+                                        : t.colorScheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(99)),
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (liked.contains(i)) ...[
+                                        Icon(Icons.favorite,
+                                            size: 13,
+                                            color: t.colorScheme.onPrimary),
+                                        const SizedBox(width: 5),
+                                      ],
+                                      Text(i,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: liked.contains(i)
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w400,
+                                              color: liked.contains(i)
+                                                  ? t.colorScheme.onPrimary
+                                                  : t.colorScheme.onSurface)),
+                                    ]),
+                              ),
+                          ]),
+                        if (ends != null) ...[
+                          const SizedBox(height: 10),
+                          Text(tasteLine(ends.$1, ends.$2),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: t.colorScheme.onSurfaceVariant)),
+                        ],
+                      ]),
+                ),
+              ]),
+            ),
           ),
-        ),
+          if (ask != null) ...[
+            Divider(height: 1, thickness: 1, color: line),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+              child: RateRow(
+                  store: store,
+                  day: ask.$1.date,
+                  meal: ask.$1.meals[ask.$2].name,
+                  onRated: onChanged),
+            ),
+          ],
+        ]),
       ),
     ]);
   }
+}
+
+const _short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+String _mealOn(MealRating r) =>
+    '${_short[r.day.weekday - 1]} ${r.meal.toLowerCase()}';
+
+/// "Best this week: Tue dinner. Worst: Mon breakfast."
+String tasteLine(MealRating best, MealRating worst) =>
+    'Best this week: ${_mealOn(best)}. Worst: ${_mealOn(worst)}.';
+
+/// "How was lunch?" with three faces; one tap rates the meal, another
+/// changes the rating. Once rated it shows what everyone said.
+class RateRow extends StatefulWidget {
+  const RateRow(
+      {super.key,
+      required this.store,
+      required this.day,
+      required this.meal,
+      this.named = false,
+      this.onRated});
+  final Store store;
+  final DateTime day;
+  final String meal;
+
+  /// In a list of meals: lead with the meal's name instead of a question.
+  final bool named;
+  final VoidCallback? onRated;
+
+  @override
+  State<RateRow> createState() => _RateRowState();
+}
+
+class _RateRowState extends State<RateRow> {
+  bool _busy = false;
+
+  Future<void> _rate(int score) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    tick();
+    try {
+      await rateMeal(widget.store.prefs, widget.day, widget.meal, score);
+      widget.onRated?.call();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('$e'.startsWith('Exception: ')
+                ? '$e'.substring(11)
+                : 'No connection. The rating was not sent.')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final r = ratingFor(ratingsOf(widget.store.prefs), widget.day, widget.meal);
+    final mine = r?.mine;
+    final said = mine == null || r == null
+        ? null
+        : '${scoreWord(r.average)} · ${r.count} rated';
+    return Row(children: [
+      Expanded(
+        child: Text(
+            widget.named
+                ? (said == null ? widget.meal : '${widget.meal} · $said')
+                : said ?? 'How was ${widget.meal.toLowerCase()}?',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: mine == null ? FontWeight.w600 : FontWeight.w400,
+                color: mine == null
+                    ? t.colorScheme.onSurface
+                    : t.colorScheme.onSurfaceVariant)),
+      ),
+      for (var i = 0; i < 3; i++)
+        Semantics(
+          button: true,
+          selected: mine == i + 1,
+          label: scoreWords[i],
+          excludeSemantics: true,
+          child: InkResponse(
+            radius: 24,
+            onTap: _busy ? null : () => _rate(i + 1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: easeOut,
+              width: 42,
+              height: 42,
+              margin: const EdgeInsets.only(left: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: mine == i + 1 ? Brand.lemon : Colors.transparent,
+                  border: Border.all(
+                      width: 1.5,
+                      color: mine == i + 1 ? Brand.edge : Colors.transparent)),
+              child: Opacity(
+                  opacity: mine == null || mine == i + 1 ? 1 : 0.45,
+                  child: CustomPaint(
+                      size: const Size.square(26),
+                      painter: _FacePainter(
+                          i - 1,
+                          mine == i + 1
+                              ? Brand.onPink
+                              : t.colorScheme.onSurface))),
+            ),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// A plain face: a frown (-1), a straight mouth (0) or a smile (1).
+class _FacePainter extends CustomPainter {
+  const _FacePainter(this.mouth, this.ink);
+  final int mouth;
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero), r = size.width / 2;
+    final line = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(c, r - 1, line);
+    final dot = Paint()..color = ink;
+    canvas.drawCircle(c + Offset(-r * 0.36, -r * 0.2), 1.7, dot);
+    canvas.drawCircle(c + Offset(r * 0.36, -r * 0.2), 1.7, dot);
+    final y = c.dy + r * 0.38;
+    canvas.drawPath(
+        Path()
+          ..moveTo(c.dx - r * 0.42, y - mouth * r * 0.08)
+          ..quadraticBezierTo(c.dx, y + mouth * r * 0.34, c.dx + r * 0.42,
+              y - mouth * r * 0.08),
+        line);
+  }
+
+  @override
+  bool shouldRepaint(_FacePainter old) => old.mouth != mouth || old.ink != ink;
 }
 
 /// Dishes people often look out for, offered as one-tap favourites.
@@ -273,6 +442,14 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   Store get store => widget.store;
 
+  @override
+  void initState() {
+    super.initState();
+    pullRatings(store.prefs).then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {});
+  }
+
   /// Tapping a dish: one that is not a favourite becomes one; one that is
   /// stops being one (with every favourite word that matched it).
   void _toggle(String item) {
@@ -382,6 +559,30 @@ class _MenuScreenState extends State<MenuScreen> {
                   hours: mealHours(m.name, i), favs: favs, onTap: _toggle)),
         for (final (i, m) in d.meals.take(over).indexed)
           _OverMeal(m, hours: mealHours(m.name, i), favs: favs, onTap: _toggle),
+        if (isToday &&
+            [for (final i in d.meals.indexed) i.$1]
+                .any((i) => canRate(d, i, now))) ...[
+          const SectionTitle('How was it'),
+          GroupCard(children: [
+            for (final (i, m) in d.meals.indexed)
+              if (canRate(d, i, now))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+                  child: RateRow(
+                      store: store,
+                      day: d.date,
+                      meal: m.name,
+                      named: true,
+                      onRated: () => setState(() {})),
+                ),
+          ]),
+          if (bestAndWorst(ratingsOf(store.prefs)) case final ends?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+              child: Text(tasteLine(ends.$1, ends.$2),
+                  style: TextStyle(fontSize: 13, color: muted)),
+            ),
+        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

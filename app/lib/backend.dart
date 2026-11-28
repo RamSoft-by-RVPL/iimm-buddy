@@ -83,10 +83,17 @@ List<(String?, Uri)> _routes(Uri url) {
   ];
 }
 
+/// Answers in place of the server. Set only by tests and the browser demo;
+/// null in the app.
+Future<(int, String)> Function(String method, Uri url, String? body)?
+    apiStandIn;
+
 /// One request to the app's server: (status, body). Tries the normal way
 /// first, then each known address, then the server's old name.
 Future<(int, String)> apiSend(String method, Uri url,
     {String? body, String? key, Map<String, String> headers = const {}}) async {
+  final standIn = apiStandIn;
+  if (standIn != null) return standIn(method, url, body);
   Object? failure;
   for (final (address, link) in _routes(url)) {
     final client = address == null

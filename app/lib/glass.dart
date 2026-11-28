@@ -176,7 +176,8 @@ class LemonGlass extends StatefulWidget {
       this.bad = false,
       this.ink,
       this.size = const Size(50, 68)})
-      : loading = false;
+      : fill = null,
+        loading = false;
 
   /// Fills over and over, for something still on its way.
   const LemonGlass.loading(
@@ -184,7 +185,17 @@ class LemonGlass extends StatefulWidget {
       : percent = 0,
         min = 0,
         bad = false,
+        fill = null,
         loading = true;
+
+  /// Filled to [fill] (0 empty, 1 full) with no line to reach, following
+  /// the value at once: for something a finger is moving.
+  const LemonGlass.filled(double this.fill,
+      {super.key, this.ink, this.size = const Size(44, 60)})
+      : percent = 0,
+        min = 0,
+        bad = false,
+        loading = false;
 
   final double percent;
   final int min;
@@ -196,6 +207,7 @@ class LemonGlass extends StatefulWidget {
   final Color? ink;
   final Size size;
   final bool loading;
+  final double? fill;
 
   @override
   State<LemonGlass> createState() => _LemonGlassState();
@@ -205,7 +217,8 @@ class _LemonGlassState extends State<LemonGlass>
     with TickerProviderStateMixin, Fluid {
   late final AnimationController _level, _loop;
 
-  double get _target => glassLevel(widget.percent, widget.min);
+  double get _target =>
+      widget.fill?.clamp(0.0, 1.0) ?? glassLevel(widget.percent, widget.min);
 
   @override
   void initState() {
@@ -225,8 +238,10 @@ class _LemonGlassState extends State<LemonGlass>
   void didUpdateWidget(LemonGlass old) {
     super.didUpdateWidget(old);
     if (_target == _level.value || widget.loading) return;
-    if (still) {
+    if (still || widget.fill != null) {
+      final rose = _target - _level.value;
       _level.value = _target;
+      if (rose.abs() > 0.02) knock(rose.sign * 0.35);
       return;
     }
     final push = _target < _level.value ? -0.9 : 0.9;
@@ -252,7 +267,7 @@ class _LemonGlassState extends State<LemonGlass>
           size: widget.size,
           painter: _GlassPainter(
             level: _level,
-            line: widget.loading
+            line: widget.loading || widget.fill != null
                 ? null
                 : glassLevel(widget.min.toDouble(), widget.min),
             pour: poured,
@@ -743,4 +758,148 @@ class Drops extends StatelessWidget {
                         width: 1.5))),
         ]),
       );
+}
+
+/// Pull down to refresh, with a glass that fills as the page is pulled and
+/// keeps filling while the refresh runs.
+class GlassRefresh extends StatefulWidget {
+  const GlassRefresh({super.key, required this.onRefresh, required this.child});
+  final Future<void> Function() onRefresh;
+  final Widget child;
+
+  /// How far the page has to be pulled, in pixels.
+  static const pull = 84.0;
+
+  @override
+  State<GlassRefresh> createState() => _GlassRefreshState();
+}
+
+class _GlassRefreshState extends State<GlassRefresh>
+    with SingleTickerProviderStateMixin {
+  /// 0 hidden, 1 pulled far enough.
+  late final AnimationController _shown;
+  bool _armed = false, _busy = false;
+  double _pull = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _shown = AnimationController(vsync: this, upperBound: 1.3);
+  }
+
+  @override
+  void dispose() {
+    _shown.dispose();
+    super.dispose();
+  }
+
+  void _set(double pull) {
+    final was = _pull >= GlassRefresh.pull;
+    _pull = pull.clamp(0.0, GlassRefresh.pull * 1.3);
+    _shown.value = _pull / GlassRefresh.pull;
+    if (!was && _pull >= GlassRefresh.pull) tick();
+  }
+
+  Future<void> _release() async {
+    if (!_armed) return;
+    _armed = false;
+    if (_pull < GlassRefresh.pull) {
+      _pull = 0;
+      _shown.animateTo(0,
+          duration: const Duration(milliseconds: 200), curve: easeOut);
+      return;
+    }
+    setState(() => _busy = true);
+    _shown.animateTo(1,
+        duration: const Duration(milliseconds: 160), curve: easeOut);
+    try {
+      await widget.onRefresh();
+    } catch (_) {
+      // The screen says what went wrong; the glass only has to go away.
+    }
+    if (!mounted) return;
+    _pull = 0;
+    await _shown.animateTo(0,
+        duration: const Duration(milliseconds: 260), curve: easeOut);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  bool _on(ScrollNotification n) {
+    if (_busy || n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    if (n is ScrollStartNotification) {
+      _armed = n.dragDetails != null && n.metrics.extentBefore == 0;
+      _pull = 0;
+    } else if (!_armed) {
+      return false;
+    } else if (n is OverscrollNotification) {
+      if (n.overscroll < 0) _set(_pull - n.overscroll);
+    } else if (n is ScrollUpdateNotification) {
+      if (n.metrics.pixels < 0) {
+        // A list that stretches past its top says how far by itself.
+        if (n.dragDetails != null) _set(-n.metrics.pixels);
+      } else if (_pull > 0 && (n.scrollDelta ?? 0) > 0) {
+        _set(_pull - n.scrollDelta!);
+      }
+      if (n.dragDetails == null && _pull > 0) _release();
+    } else if (n is ScrollEndNotification) {
+      _release();
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final dark = t.brightness == Brightness.dark;
+    return NotificationListener<ScrollNotification>(
+      onNotification: _on,
+      child: Stack(children: [
+        widget.child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _shown,
+              builder: (context, _) {
+                final v = _shown.value;
+                if (v == 0) return const SizedBox.shrink();
+                final at = easeOut.transform(v.clamp(0.0, 1.0));
+                return Transform.translate(
+                  offset:
+                      Offset(0, -64 + 78 * at + 14 * (v - 1).clamp(0.0, 0.3)),
+                  child: Center(
+                    child: Opacity(
+                      opacity: (v * 2.5).clamp(0.0, 1.0),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            color: t.colorScheme.surfaceContainerLowest,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: dark ? Colors.black : Brand.edge,
+                                width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: dark ? Colors.black : Brand.edge,
+                                  offset: const Offset(2, 3))
+                            ]),
+                        child: _busy
+                            ? const LemonGlass.loading(size: Size(28, 38))
+                            : LemonGlass.filled(v.clamp(0.0, 1.0) * 0.92,
+                                size: const Size(28, 38)),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
 }

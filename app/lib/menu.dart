@@ -80,6 +80,10 @@ String mealHours(String meal, int index) {
 /// When a meal is over, as "3:00 pm".
 String mealEnds(String meal, int index) => _clock(_hours(meal, index).$2);
 
+/// Whether the mess has begun serving this meal by [now] (it may be over).
+bool mealBegun(String meal, int index, DateTime now) =>
+    now.hour * 60 + now.minute >= _hours(meal, index).$1;
+
 /// Whether the mess is serving this meal at [now].
 bool isServing(String meal, int index, DateTime now) {
   final (a, b) = _hours(meal, index);

@@ -6,6 +6,8 @@ import 'mascot.dart';
 import 'motion.dart';
 import 'planner.dart';
 import 'site.dart';
+import 'streak.dart';
+import 'streak_ui.dart';
 import 'theme.dart';
 import 'ui_common.dart';
 
@@ -299,6 +301,7 @@ class AttendanceTab extends StatelessWidget {
       this.onOpenLeave,
       this.onOpenTimetable,
       this.exams,
+      this.free,
       this.shortNames = const {},
       this.onShortName,
       this.register = false,
@@ -310,6 +313,9 @@ class AttendanceTab extends StatelessWidget {
 
   /// The "Exams and quizzes" block, built by the screen that owns the data.
   final Widget? exams;
+
+  /// The free-time card under the next class, built the same way.
+  final Widget? free;
   final Map<String, String> shortNames;
   final void Function(Course, String)? onShortName;
   final VoidCallback? onOpenTimetable;
@@ -341,7 +347,7 @@ class AttendanceTab extends StatelessWidget {
         final y = (isBelow(b) ? -1000 : 0) + leaveLeft(b, minPct);
         return x.compareTo(y);
       });
-    return RefreshIndicator(
+    return GlassRefresh(
       onRefresh: onRefresh,
       child: register
           ? _RegisterView(
@@ -472,6 +478,7 @@ class AttendanceTab extends StatelessWidget {
                     shortNames: shortNames)),
           ),
         ],
+        if (free != null) Rise(index: i++, child: free!),
 
         // ---- where you stand
         Rise(
@@ -485,16 +492,21 @@ class AttendanceTab extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                          [
-                            if (snap.studentName.isNotEmpty)
-                              'Hi, ${firstName(snap.studentName)}',
-                            '${snap.attended} of ${snap.held} classes attended',
-                          ].join(' · '),
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: t.colorScheme.onSurfaceVariant)),
+                      Row(children: [
+                        Expanded(
+                          child: Text(
+                              [
+                                if (snap.studentName.isNotEmpty)
+                                  'Hi, ${firstName(snap.studentName)}',
+                                '${snap.attended} of ${snap.held} classes attended',
+                              ].join(' · '),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: t.colorScheme.onSurfaceVariant)),
+                        ),
+                        StreakChip(streakOf(snap.sessions)),
+                      ]),
                       const SizedBox(height: 10),
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.end,

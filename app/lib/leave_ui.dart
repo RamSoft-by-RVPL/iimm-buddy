@@ -331,6 +331,22 @@ class PrivacyScreen extends StatelessWidget {
           'or your sign-in. Log entries are deleted after 30 days.'
     ),
     (
+      'Meal ratings',
+      'When you rate a mess meal, the app sends the server the meal, your '
+          'rating and the random id of this copy of the app, so that each '
+          'phone counts once. Other students see only the count and the '
+          'average. Ratings are deleted after four months.'
+    ),
+    (
+      'Free time shared with friends',
+      'This is off until you switch it on. While it is on, the app sends '
+          'the server your first name and the times you are in class for '
+          'the next two weeks, and nothing else: no course names, no rooms '
+          'and no attendance. Anyone you give your code to can see those '
+          'times. Switching it off, or signing out, deletes them from the '
+          'server at once, and the code stops working.'
+    ),
+    (
       'Permissions',
       'Notifications: class reminders and alerts. Calendar: only if you '
           'switch on the phone calendar option; the app writes its own '

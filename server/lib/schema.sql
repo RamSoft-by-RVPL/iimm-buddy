@@ -180,3 +180,25 @@ CREATE TABLE IF NOT EXISTS settings (
   value   text NOT NULL DEFAULT '',
   updated timestamptz NOT NULL DEFAULT now()
 );
+
+-- One-tap ratings of mess meals, 1 (poor) to 3 (good). One per phone and
+-- meal; rating again replaces it (api/ratings.js).
+CREATE TABLE IF NOT EXISTS meal_ratings (
+  d       date NOT NULL,
+  meal    text NOT NULL,                -- as on the menu: "Lunch"
+  user_id text NOT NULL,
+  score   smallint NOT NULL,
+  at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (d, meal, user_id)
+);
+
+-- Free time a student shares with friends (api/free.js): a first name and
+-- the times they are in class, nothing else. Read by whoever has the code;
+-- the row is deleted when the student stops sharing.
+CREATE TABLE IF NOT EXISTS free_shares (
+  user_id text PRIMARY KEY,             -- install id
+  code    text NOT NULL UNIQUE,         -- 8 letters and digits
+  name    text NOT NULL DEFAULT '',
+  busy    jsonb NOT NULL,               -- [{d, s, e}]
+  updated timestamptz NOT NULL DEFAULT now()
+);

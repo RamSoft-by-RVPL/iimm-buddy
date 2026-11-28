@@ -396,6 +396,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 foregroundColor: tone.bad,
                 side: BorderSide(color: tone.bad.withOpacity(0.5)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundBuilder: pressShadeOf(14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14))),
             icon: const Icon(Icons.logout),

@@ -416,3 +416,64 @@ class DepthPageTransitionsBuilder extends PageTransitionsBuilder {
     );
   }
 }
+
+/// A pressed button's label sinks a little, as if pushed in. For
+/// [ButtonStyle.foregroundBuilder].
+Widget pressSink(BuildContext context, Set<WidgetState> states, Widget? child) {
+  if (child == null || MediaQuery.of(context).disableAnimations) {
+    return child ?? const SizedBox.shrink();
+  }
+  return TweenAnimationBuilder<double>(
+    tween: Tween(end: states.contains(WidgetState.pressed) ? 1 : 0),
+    duration: const Duration(milliseconds: 130),
+    curve: easeOut,
+    builder: (_, v, c) => Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..translate(0.0, 1.5 * v)
+        ..scale(1 - 0.035 * v),
+      child: c,
+    ),
+    child: child,
+  );
+}
+
+/// A pressed button's face takes a shadow along its top edge, the way the
+/// inside of a dent does. For [ButtonStyle.backgroundBuilder] of a
+/// pill-shaped button.
+Widget pressShade(
+        BuildContext context, Set<WidgetState> states, Widget? child) =>
+    _shade(context, states, child, 999);
+
+/// [pressShade] for a button whose corners have this [radius].
+ButtonLayerBuilder pressShadeOf(double radius) =>
+    (context, states, child) => _shade(context, states, child, radius);
+
+Widget _shade(BuildContext context, Set<WidgetState> states, Widget? child,
+    double radius) {
+  final down = states.contains(WidgetState.pressed);
+  return Stack(fit: StackFit.passthrough, children: [
+    if (child != null) child,
+    Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: down ? 1 : 0,
+          duration: Duration(
+              milliseconds: MediaQuery.of(context).disableAnimations ? 0 : 130),
+          curve: easeOut,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.all(Radius.circular(radius)),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0, 0.5],
+                colors: [Color(0x381A1113), Color(0x001A1113)],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ]);
+}

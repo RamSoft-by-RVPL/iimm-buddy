@@ -189,7 +189,7 @@ class MoodleTabState extends State<MoodleTab> {
     final now = DateTime.now();
     final d = deadlines ?? [];
     final tone = Tone.of(context);
-    return RefreshIndicator(
+    return GlassRefresh(
       onRefresh: load,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),

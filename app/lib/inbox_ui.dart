@@ -6,6 +6,7 @@ import 'inbox.dart';
 import 'theme.dart';
 import 'ui_common.dart';
 import 'motion.dart';
+import 'glass.dart';
 
 /// The bell in the top bar, with the number of new notifications.
 class InboxBell extends StatelessWidget {
@@ -316,7 +317,7 @@ class _InboxScreenState extends State<InboxScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: RefreshIndicator(onRefresh: _load, child: body),
+      body: GlassRefresh(onRefresh: _load, child: body),
     );
   }
 }

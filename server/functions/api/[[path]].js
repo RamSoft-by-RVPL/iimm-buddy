@@ -23,6 +23,8 @@ const handlers = {
   roles: () => require('../../api/roles.js'),
   uploads: () => require('../../api/uploads.js'),
   timetable: () => require('../../api/timetable.js'),
+  ratings: () => require('../../api/ratings.js'),
+  free: () => require('../../api/free.js'),
 };
 
 const json = (status, o) => new Response(JSON.stringify(o), {

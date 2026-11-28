@@ -16,6 +16,8 @@ the [main README](../README.md) for the overall design and setup.
 | `GET/POST/DELETE /api/extra?batch=<key>` | anyone / admin, CR | Classes added, or moved to a new time |
 | `GET/POST/DELETE /api/roles` | admin; the phone | CRs, mess and hostel secretaries; a phone asks for its own role |
 | `GET/POST/DELETE /api/polls` | anyone / admin, role holders | Polls and votes (one per phone) |
+| `GET/POST /api/ratings` | anyone; the phone | Meal ratings: counts and averages for the last week, one rating per phone and meal |
+| `GET/POST /api/free` | whoever has a code; the phone | Free time shared with friends: a first name and class times, by code |
 | `GET/POST /api/uploads` | admin / mess secretary | Menu files sent in from the app |
 | `GET/POST /api/app` | anyone / admin | Oldest app version that may still be used (`min_version`) |
 | `GET/POST /api/faculty` | anyone / admin | Teachers' institute email addresses |

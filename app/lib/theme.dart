@@ -176,17 +176,23 @@ ThemeData appTheme(Brightness b) {
             disabledBackgroundColor: scheme.surfaceContainerHigh,
             side: outlined,
             textStyle: Brand.hand(18),
-            shape: const StadiumBorder())),
+            shape: const StadiumBorder(),
+            backgroundBuilder: pressShade,
+            foregroundBuilder: pressSink)),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 44),
             foregroundColor: scheme.onSurface,
             side: outlined,
             textStyle: Brand.hand(17),
-            shape: const StadiumBorder())),
+            shape: const StadiumBorder(),
+            backgroundBuilder: pressShade,
+            foregroundBuilder: pressSink)),
     textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-            foregroundColor: scheme.onSurface, textStyle: Brand.hand(17))),
+            foregroundColor: scheme.onSurface,
+            textStyle: Brand.hand(17),
+            foregroundBuilder: pressSink)),
     segmentedButtonTheme: SegmentedButtonThemeData(
         style: SegmentedButton.styleFrom(
             selectedBackgroundColor: Brand.lemon,
